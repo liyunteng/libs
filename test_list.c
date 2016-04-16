@@ -4,7 +4,7 @@
  * Copyright (C) 2016 liyunteng
  * Auther: liyunteng <li_yunteng@163.com>
  * License: GPL
- * Update time:  2016/04/16 19:23:02
+ * Update time:  2016/04/17 04:53:09
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -23,6 +23,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
+
 #include "list.h"
 
 typedef int datatype;
@@ -31,7 +33,12 @@ struct test_list {
 	struct list_head list;
 };
 
-int main(void)
+struct test_hlist {
+	datatype val;
+	struct hlist_node node;
+};
+
+void test_list(void)
 {
 	/* init head */
 	/*
@@ -72,7 +79,6 @@ int main(void)
 	}
 
 	/* list_move(&t.list, &head); */
-
 	/* list_move(&t.list, &head); */
 
 	LIST_HEAD(head1);
@@ -118,5 +124,69 @@ int main(void)
 	}
 
 	printf("head: %p\n", &head);
+
+}
+
+void test_hlist(void)
+{
+	int test_case[64];
+	struct hlist_head a[10];
+	struct hlist_node *pa[10]; /* tail */
+
+	int i;
+	int arrlen = (int)sizeof(test_case) / sizeof(test_case[0]);
+	int len = (int)sizeof(a) / sizeof(a[0]);
+	for (i = 0; i < len; i++) {
+		INIT_HLIST_HEAD(&a[i]);
+	}
+
+
+	srandom(time(NULL));
+	for (i = 0; i < arrlen; i++) {
+		test_case[i] = random() % (arrlen);
+	}
+
+	for (i = 0; i < len; i++) {
+		pa[i] = NULL;
+	}
+	for (i = 0; i < (int) arrlen; i++) {
+		struct test_hlist *n = (struct test_hlist*)malloc(sizeof(struct test_hlist));
+		n->val = test_case[i];
+		if (pa[n->val % len] == NULL) {
+			hlist_add_head(&n->node, &a[n->val % len]);
+		} else {
+			hlist_add_behind(&n->node, pa[n->val % len]);
+		}
+		pa[n->val % len] = &n->node;
+	}
+
+	for (i = 0; i < len; i++) {
+		if (pa[i]) {
+			hlist_del(pa[i]);
+			struct test_hlist *tmp = hlist_entry_safe(pa[i], struct test_hlist, node);
+			if (tmp)
+				free(tmp);
+		}
+	}
+	for (i = 0; i < arrlen; i++) {
+		printf("%d ", test_case[i]);
+	}
+
+	printf("\n\n");
+	for (i = 0; i < len; i++) {
+		struct test_hlist *p;
+		printf("arr %d:\n", i);
+		hlist_for_each_entry(p, &a[i], node) {
+			printf("%d ", p->val);
+		}
+		printf("\n");
+	}
+}
+int main(void)
+{
+	printf("list:\n");
+	test_list();
+	printf("\n\nhlist:");
+	test_hlist();
 	return 0;
 }

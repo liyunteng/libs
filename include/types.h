@@ -4,7 +4,7 @@
  * Copyright (C) 2016 liyunteng
  * Auther: liyunteng <li_yunteng@163.com>
  * License: GPL
- * Update time:  2016/04/17 20:31:00
+ * Update time:  2016/04/19 10:43:32
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -133,4 +133,7 @@ void __read_once_size_nocheck(const volatile void *p, void *res, int size)
 #define container_of(ptr, type, member) ({				\
 			const typeof( ((type *)0)->member ) *__mptr = (ptr); \
 			(type *)( (char *)__mptr - offsetof(type, member) );})
+
+#define ARRAY_SIZE(name)			\
+	(size_t)((sizeof(name)) / (sizeof(name[0])))
 #endif

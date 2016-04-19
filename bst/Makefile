@@ -1,7 +1,8 @@
 include ../build/def.mk
 
 INC_PATH += -I../include
-# PROGBIN := bst_test
-MODLIB	:= libbst.a
+# PROGBIN := bst
+MODLIB	:= bst
+DIRS := test
 
-include ../build/modulestatic.mk
+include ../build/moduletop.mk

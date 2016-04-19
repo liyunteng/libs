@@ -32,8 +32,7 @@ libs: $(MODLIB)
 $(MODLIB): $(OBJECT_C:.o=.lo) $(OBJECT_CXX:.o=.lo)
 	@echo ""
 	@echo "----- Building library : " $@
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o lib$@.la $? \
-	-rpath $(LIBDIR) $(LD_LIBS)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o lib$@.la $? -rpath $(LIBDIR) $(LD_LIBS) $(LD_LIBS_PATH) $(LIBS) $(LIBS_PATH)
 	echo ""
 
 install : $(MODLIB)

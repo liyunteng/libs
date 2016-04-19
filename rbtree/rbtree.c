@@ -4,7 +4,7 @@
  * Copyright (C) 2016 liyunteng
  * Auther: liyunteng <li_yunteng@163.com>
  * License: GPL
- * Update time:  2016/04/17 20:50:29
+ * Update time:  2016/04/19 18:50:18
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -22,6 +22,8 @@
  */
 
 #include "rbtree.h"
+#include "rbtree_augmented.h"
+
 /*
  * red-black trees properties:  http://en.wikipedia.org/wiki/Rbtree
  *

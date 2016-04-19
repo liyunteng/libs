@@ -57,8 +57,10 @@ CXX_INC_PATH	+= $(INC_PATH)
 
 # libraries to use in static link, xxx.a
 LIBS		:=
+LIBS_PATH	:=
 # libraries to load in dynamic link, xxx.so
 LD_LIBS		:=
+LD_LIBS_PATH	:=
 
 CLEAN_TARGETS	:= *.o *.lo *.loT *.la *.libs *.a *.so .libs
 export INCDIR LIBDIR BINDIR CFGDIR

@@ -16,7 +16,7 @@ exe : $(PROGBIN)
 $(PROGBIN) : $(OBJECT_C:.o=.lo) $(OBJECT_CXX:.o=.lo)
 	@echo ""
 	@echo "---------- Building excutable : " $@
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) -o $@ $? $(LD_LIBS) $(LDFLAGS)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -o $@ $? $(LD_LIBS) $(LD_LIBS_PATH) $(LIBS) $(LIBS_PATH)
 	@echo ""
 
 install : $(PROGBIN)

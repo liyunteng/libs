@@ -15,10 +15,12 @@ libs: $(MODLIB)
 $(MODLIB): $(OBJECT_C:.o=.lo) $(OBJECT_CXX:.o=.lo)
 	@echo ""
 	@echo "------------ Building library: " $@
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -o lib$@.la $? -rpath $(LIBDIR) $(LD_LIBS) $(LD_LIBS_PATH) $(LIBS) $(LIBS_PATH)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -o \
+	lib$@.la $? -rpath $(INSTALL_LIBDIR) $(LD_LIBS) $(LD_LIBS_PATH) $(LIBS) $(LIBS_PATH)
 	@echo ""
 
 install: $(MODLIB)
+ifneq ($(MODLIB),)
 	@echo ""
 	@echo "-------------- Installing " lib$(MODLIB)  " to " $(INSTALL_LIBDIR)
 	@if [ ! -d $(INSTALL_LIBDIR) ]; then \
@@ -28,17 +30,23 @@ install: $(MODLIB)
 	$(LIBTOOL) --tag=CC --mode=install install -c lib$(MODLIB).la $(INSTALL_LIBDIR)/lib$(MODLIB).la
 # $(LIBTOOL) --finish .libs
 	@echo ""
+endif
 
 uninstall:
+ifneq ($(MODLIB),)
 	@echo ""
 	@echo "----------- Uninstall ------------------- "
 	rm -rf $(INSTALL_LIBDIR)/lib$(MODLIB).*
 	@echo ""
+endif
 
 # not removing include
 clean:
-	rm -rf $(CLEAN_TARGETS)
-
+	@echo "Cleaning..."
+	@rm -rf $(CLEAN_TARGETS)
+debug:
+	@$(MAKE) clean
+	@$(MAKE) -e BUILD_ENV=debug
 # <====== COMPLING RULES ========>
 $(OBJECT_C:.o=.lo) : $(OBJECT_C)
 $(OBJECT_C) : %.o: %.c
@@ -46,4 +54,4 @@ $(OBJECT_C) : %.o: %.c
 
 $(OBJECT_CXX:.o=.lo) : $(OBJECT_CXX)
 $(OBJECT_CXX) : %.o: %.cpp
-	$(LIBTOOL) --tag=CC --mode=compile $(CXX) $(CXXFLAGS) $(CXX_INC_PATH) -c $<
+	$(LIBTOOL) --tag=CXX --mode=compile $(CXX) $(CXXFLAGS) $(CXX_INC_PATH) -c $<

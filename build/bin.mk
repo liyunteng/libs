@@ -10,13 +10,15 @@ headers:
 		echo ""; \
 	fi;
 
-libs : exe
+exe : libs $(PROGBIN)
 
-exe : $(PROGBIN)
+libs :
+
 $(PROGBIN) : $(OBJECT_C:.o=.lo) $(OBJECT_CXX:.o=.lo)
 	@echo ""
 	@echo "---------- Building excutable : " $@
-	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -o $@ $? $(LD_LIBS) $(LD_LIBS_PATH) $(LIBS) $(LIBS_PATH)
+	$(LIBTOOL) --tag=CC --mode=link $(CC) $(CFLAGS) $(LDFLAGS) -o \
+	$@ $? -rpath $(INSTALL_LIBDIR) $(LD_LIBS) $(LD_LIBS_PATH) $(LIBS) $(LIBS_PATH)
 	@echo ""
 
 install : $(PROGBIN)
@@ -38,8 +40,12 @@ uninstall:
 
 #not removing include
 clean :
-	rm -rf $(CLEAN_TARGETS) $(PROGBIN)
+	@echo "Cleaning ..."
+	@rm -rf $(CLEAN_TARGETS) $(PROGBIN)
 
+debug:
+	@$(MAKE) clean
+	@$(MAKE) -e BUILD_ENV=debug
 # <====== COMPLING RULES ========>
 $(OBJECT_C:.o=.lo) : $(OBJECT_C)
 $(OBJECT_C) : %.o: %.c
@@ -47,4 +53,4 @@ $(OBJECT_C) : %.o: %.c
 
 $(OBJECT_CXX:.o=.lo) : $(OBJECT_CXX)
 $(OBJECT_CXX) : %.o: %.cpp
-	$(LIBTOOL) --tag=CC --mode=compile $(CXX) $(CXXFLAGS) $(CXX_INC_PATH) -c $<
+	$(LIBTOOL) --tag=CXX --mode=compile $(CXX) $(CXXFLAGS) $(CXX_INC_PATH) -c $<

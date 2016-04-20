@@ -15,7 +15,7 @@ libs: $(MODLIB)
 $(MODLIB): $(OBJECT_C) $(OBJECT_CXX)
 	@echo ""
 	@echo "------------ Building library: " $@
-	$(AR) crv $@ $^
+	$(AR) crv lib$@.a $^
 	@echo ""
 
 install: $(MODLIB)
@@ -25,19 +25,22 @@ install: $(MODLIB)
 		echo "create directory ... ";\
 		mkdir -p $(INSTALL_LIBDIR) || exit -1;\
 	fi
-	-@cp $(MODLIB) $(INSTALL_LIBDIR)/
+	-@cp lib$(MODLIB).a $(INSTALL_LIBDIR)/
 	@echo ""
 
 uninstall:
 	@echo ""
 	@echo "----------- Uninstall ------------------- "
-	rm -rf $(INSTALL_LIBDIR)/$(MODLIB)
+	rm -rf $(INSTALL_LIBDIR)/lib$(MODLIB).a
 	@echo ""
 
 # not removing include
 clean:
-	rm -rf $(CLEAN_TARGETS)
-
+	@echo "Cleaning"
+	@rm -rf $(CLEAN_TARGETS)
+debug:
+	@$(MAKE) clean
+	@$(MAKE) -e BUILD_ENV=debug
 # <====== COMPLING RULES ========>
 $(OBJECT_C) : %.o : %.c
 	@echo "-- COMPILING FILE: " $*.c

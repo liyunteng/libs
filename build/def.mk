@@ -52,7 +52,7 @@ SOURCE_CXX	:= $(wildcard *.cpp)
 OBJECT_C	:= $(SOURCE_C:.c=.o)
 OBJECT_CXX	:= $(SOURCE_CXX:.cpp=.o)
 
-INC_PATH	:= -I. -I${INCDIR} -I/usr/include
+INC_PATH	:= -I. -I${INCDIR}
 CXX_INC_PATH	+= $(INC_PATH)
 
 # libraries to use in static link, xxx.a

@@ -4,7 +4,7 @@
  * Copyright (C) 2016 liyunteng
  * Auther: liyunteng <li_yunteng@163.com>
  * License: GPL
- * Update time:  2016/04/19 14:23:45
+ * Update time:  2016/04/20 06:38:37
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -153,6 +153,7 @@ int bst_delete(Node *root, datatype data)
 		return -1;
 
 	if (data > root->data)
+
 		return bst_delete(root->rchild, data);
 	else if (data < root->data)
 		return bst_delete(root->lchild, data);

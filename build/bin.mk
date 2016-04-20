@@ -10,7 +10,7 @@ headers:
 		echo ""; \
 	fi;
 
-libs :
+libs : exe
 
 exe : $(PROGBIN)
 $(PROGBIN) : $(OBJECT_C:.o=.lo) $(OBJECT_CXX:.o=.lo)

@@ -4,7 +4,7 @@
  * Copyright (C) 2016 liyunteng
  * Auther: liyunteng <li_yunteng@163.com>
  * License: GPL
- * Update time:  2016/04/19 10:43:32
+ * Update time:  2016/06/05 17:33:06
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -26,7 +26,7 @@
 
 #ifndef NULL
 # if defined __GNUG__ &&						\
-	(__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 8))
+        (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 8))
 #  define NULL (__null)
 # else
 #  if !defined(__cplusplus)
@@ -38,7 +38,7 @@
 #endif
 
 #ifdef __CHECKER__
-# define __force		 __attribute__((force))
+# define __force                 __attribute__((force))
 #else
 # define __force
 #endif
@@ -68,72 +68,115 @@ typedef unsigned short __u16;
 typedef unsigned int   __u32;
 typedef unsigned long  __u64;
 
-#define barrier()	 __asm__ __volatile__("":::"memory")
+#ifndef barrier
+#define barrier()        __asm__ __volatile__("":::"memory")
+#endif
+
+#ifndef WRITE_ONCE
 static __always_inline void __write_once_size(volatile void *p, void *res, int size)
 {
-	switch (size) {
-	case 1: *(volatile __u8 *)p = *(__u8 *)res; break;
-	case 2: *(volatile __u16 *)p = *(__u16 *)res; break;
-	case 4: *(volatile __u32 *)p = *(__u32 *)res; break;
-	case 8: *(volatile __u64 *)p = *(__u64 *)res; break;
-	default:
-		barrier();
-		__builtin_memcpy((void *)p, (const void *)res, size);
-		barrier();
-	}
+        switch (size) {
+        case 1: *(volatile __u8 *)p = *(__u8 *)res; break;
+        case 2: *(volatile __u16 *)p = *(__u16 *)res; break;
+        case 4: *(volatile __u32 *)p = *(__u32 *)res; break;
+        case 8: *(volatile __u64 *)p = *(__u64 *)res; break;
+        default:
+                barrier();
+                __builtin_memcpy((void *)p, (const void *)res, size);
+                barrier();
+        }
 }
 
-#define WRITE_ONCE(x, val)                                              \
-	({                                                              \
-		union { typeof(x) __val; char __c[1]; } __u =           \
-								{ .__val = (__force typeof(x)) (val) };	\
-		__write_once_size(&(x), __u.__c, sizeof(x));            \
-		__u.__val;                                              \
-	})
 
+#define WRITE_ONCE(x, val)                                              \
+        ({                                                              \
+                union { typeof(x) __val; char __c[1]; } __u =           \
+                                                                { .__val = (__force typeof(x)) (val) };	\
+                __write_once_size(&(x), __u.__c, sizeof(x));            \
+                __u.__val;                                              \
+        })
+#endif
+
+#ifndef READ_ONCE
 #define __READ_ONCE_SIZE						\
-	({								\
-		switch (size) {						\
-		case 1: *(__u8 *)res = *(volatile __u8 *)p; break;	\
-		case 2: *(__u16 *)res = *(volatile __u16 *)p; break;	\
-		case 4: *(__u32 *)res = *(volatile __u32 *)p; break;	\
-		case 8: *(__u64 *)res = *(volatile __u64 *)p; break;	\
-		default:						\
-			barrier();					\
-			__builtin_memcpy((void *)res, (const void *)p, size); \
-			barrier();					\
-		}							\
-	})
+        ({								\
+                switch (size) {						\
+                case 1: *(__u8 *)res = *(volatile __u8 *)p; break;	\
+                case 2: *(__u16 *)res = *(volatile __u16 *)p; break;	\
+                case 4: *(__u32 *)res = *(volatile __u32 *)p; break;	\
+                case 8: *(__u64 *)res = *(volatile __u64 *)p; break;	\
+                default:						\
+                        barrier();					\
+                        __builtin_memcpy((void *)res, (const void *)p, size); \
+                        barrier();					\
+                }							\
+        })
 
 static __always_inline
 void __read_once_size(const volatile void *p, void *res, int size)
 {
-	__READ_ONCE_SIZE;
+        __READ_ONCE_SIZE;
 }
 
 static __always_inline
 void __read_once_size_nocheck(const volatile void *p, void *res, int size)
 {
-	__READ_ONCE_SIZE;
+        __READ_ONCE_SIZE;
 }
 
 #define __READ_ONCE(x, check)						\
-	({								\
-		union { typeof(x) __val; char __c[1]; } __u;		\
-		if (check)						\
-			__read_once_size(&(x), __u.__c, sizeof(x));	\
-		else							\
-			__read_once_size_nocheck(&(x), __u.__c, sizeof(x)); \
-		__u.__val;						\
-	})
+        ({								\
+                union { typeof(x) __val; char __c[1]; } __u;		\
+                if (check)						\
+                        __read_once_size(&(x), __u.__c, sizeof(x));	\
+                else							\
+                        __read_once_size_nocheck(&(x), __u.__c, sizeof(x)); \
+                __u.__val;						\
+        })
 #define READ_ONCE(x) __READ_ONCE(x, 1)
+#endif
 
-
+#ifndef offsetof
+#ifdef __compiler_offsetof
+#define offsetof(TYPE, MEMBER) __compiler_offset(TYPE, MEMBER)
+#else
 #define offsetof(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
-#define container_of(ptr, type, member) ({				\
-			const typeof( ((type *)0)->member ) *__mptr = (ptr); \
-			(type *)( (char *)__mptr - offsetof(type, member) );})
+#endif
+#endif
 
+#ifndef container_of
+#define container_of(ptr, type, member) ({				\
+                        const typeof( ((type *)0)->member ) *__mptr = (ptr); \
+                        (type *)( (char *)__mptr - offsetof(type, member) );})
+#endif
+
+#ifndef ARRAY_SIZE
 #define ARRAY_SIZE(name)			\
-	(size_t)((sizeof(name)) / (sizeof(name[0])))
+        (size_t)((sizeof(name)) / (sizeof(name[0])))
+#endif
+
+#ifndef min
+#define min(x, y) ({                            \
+            typeof(x) _min1 = (x);              \
+            typeof(y) _min2 = (y);              \
+            (void) (&_min1 == &_min2);          \
+            _min1 < _min2 ? _min1 : _min2; })
+#endif
+
+#ifndef max
+#define max(x, y) ({                            \
+            typeof(x) _max1 = (x);              \
+            typeof(y) _max2 = (y);              \
+            (void) (&_max1 == &_max2);          \
+            _max1 > _max2 ? _max1 : _max2; })
+#endif
+
+#ifndef TRUE
+#define TRUE 1
+#endif
+
+#ifndef FALSE
+#define FALSE 0
+#endif
+
 #endif

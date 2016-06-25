@@ -50,9 +50,9 @@ LIBDIR		:= $(ROOT)/lib
 BINDIR		:= $(ROOT)/bin
 CFGDIR		:= $(ROOT)/cfg
 
-INSTALL_BINDIR	:= /usr/local/lyt/bin/
-INSTALL_LIBDIR  := /usr/local/lyt/lib/
-INSTALL_INCDIR  := /usr/local/lyt/include/
+INSTALL_BINDIR	:= ~/sysroot/bin/
+INSTALL_LIBDIR  := ~/sysroot/lib/
+INSTALL_INCDIR  := ~/sysroot/include/
 
 SOURCE_C	:= $(wildcard *.c)
 SOURCE_CXX	:= $(wildcard *.cpp)

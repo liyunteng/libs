@@ -445,8 +445,6 @@ void vlog(loghandler *handle, LOGLEVEL level, const char *file, size_t filelen,
         socklen_t addrlen = sizeof(handle->addr);
         if (handle->sockfd != -1)
             sendto(handle->sockfd, handle->bufferp, len+1, 0, (struct sockaddr *)&handle->addr, addrlen);
-        /* handle->lfp->count++; */
-        /* pthread_mutex_unlock(&logmutex); */
     }
 
     pthread_mutex_unlock(&handle->mutex);

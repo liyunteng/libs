@@ -23,6 +23,9 @@
 
 #ifndef MPOOL_H
 #define MPOOL_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include <stdint.h>
 #include "types.h"
@@ -94,4 +97,7 @@ static inline int mpool_count(mpool_ctx_t *ctx)
     return ctx->max + ctx->head - ctx->tail;
 }
 
+#ifdef __cplusplus
+}
+#endif
 #endif

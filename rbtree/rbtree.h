@@ -23,6 +23,9 @@
 
 #ifndef RBTREE_H
 #define RBTREE_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "types.h"
 
 struct rb_node {
@@ -115,4 +118,8 @@ static inline void rb_link_node_rcu(struct rb_node *node, struct rb_node *parent
 	     pos && ({ n = rb_entry_safe(rb_next_postorder(&pos->field), \
 						     typeof(*pos), field); 1; }); \
 		pos = n)
+
+#ifdef __cplusplus
+}
+#endif
 #endif

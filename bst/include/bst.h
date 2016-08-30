@@ -23,6 +23,10 @@
 
 #ifndef BST_H
 #define BST_H
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdlib.h>
 #include "types.h"
 
@@ -57,4 +61,7 @@ extern int bst_delete(Node *root, datatype data);
 
 extern void bst_destroy(Node **root);
 
+#ifdef __cplusplus
+}
+#endif
 #endif

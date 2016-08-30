@@ -23,6 +23,10 @@
 
 #ifndef AVL_H
 #define AVL_H
+#ifdef __cplusplus
+extern "C" {
+}
+#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -146,5 +150,8 @@ avl_tree_shutdown(avl_tree_h_td *avl_tree,
 void
 avl_tree_debug(avl_tree_h_td avl_tree);
 
+#ifdef __cplusplus
+}
+#endif
 
 #endif

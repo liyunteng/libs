@@ -23,6 +23,9 @@
 
 #ifndef LIST_H
 #define LIST_H
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "types.h"
 
 #define POISON_POINTER_DELTA	0
@@ -784,4 +787,7 @@ static inline void hlist_move_list(struct hlist_head *old,
 	     pos && ({ n = pos->member.next; 1; });			\
 	     pos = hlist_entry_safe(n, typeof(*pos), member))
 
+#ifdef __cplusplus
+}
+#endif
 #endif

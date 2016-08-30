@@ -304,6 +304,7 @@ void vlog(loghandler *handle, LOGLEVEL level, const char *file, size_t filelen,
     int n = vsnprintf(handle->bufferp + idx, handle->buffer_size - idx, format, args);
     if (n < 0) {
         fprintf(stderr, "vsnprintf failed\n");
+        pthread_mutex_unlock(&handle->mutex);
         return ;
     }
 

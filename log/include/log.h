@@ -16,39 +16,22 @@ extern "C" {
 
 #include <stdarg.h>
 #include <stdio.h>
-
-#define STDERRLOG       0x001
-#define LOGCAT          0x002
-#define SOCKLOG         0x004
-#define SYSLOG          0x008
-#define LOGVERBOSE      0x010
-#define LOGFILE         0x020
+#include <stdint.h>
+#include <sys/types.h>
 
 #ifdef ANDROID
 #include <android/log.h>
 #endif
-enum LOG_OPTS {
-    LOG_OPT_FLAGS,              /* uint32_t */
-    LOG_OPT_BUFFERSIZE,         /* uint64_t */
-    LOG_OPT_SERVERADDR,         /* char * */
-    LOG_OPT_SERVERPORT,         /* uint16_t */
-    LOG_OPT_FILENAME,           /* char * */
-    LOG_OPT_BACKUP,             /* uint16_t */
-    LOG_OPT_FILEPERM,           /* mode_t */
-    LOG_OPT_FILESIZE,           /* uint64_t */
-    LOG_OPT_LEVEL,              /* LOGLEVEL */
-    LOG_OPT_VERBOSEFORMAT,      /* char * */
-};
 
-typedef enum {
-    LOGLEVEL_EMERG,
-    LOGLEVEL_ALERT,
-    LOGLEVEL_CRIT,
-    LOGLEVEL_ERROR,
-    LOGLEVEL_WARNING,
-    LOGLEVEL_NOTICE,
-    LOGLEVEL_INFO,
-    LOGLEVEL_DEBUG,
+    typedef enum {
+        LOGLEVEL_EMERG,
+        LOGLEVEL_ALERT,
+        LOGLEVEL_CRIT,
+        LOGLEVEL_ERROR,
+        LOGLEVEL_WARNING,
+        LOGLEVEL_NOTICE,
+        LOGLEVEL_INFO,
+        LOGLEVEL_DEBUG,
 #undef LOG_EMERG
 #undef LOG_ALERT
 #undef LOG_FATAL
@@ -68,78 +51,135 @@ typedef enum {
 #define LOG_NOTICE      LOGLEVEL_NOTICE
 #define LOG_INFO        LOGLEVEL_INFO
 #define LOG_DEBUG       LOGLEVEL_DEBUG
+    } LOGLEVEL;
 
-} LOGLEVEL;
 
-struct _loghandler;
-typedef struct _loghandler loghandler;
+    enum LOGDSTTYPE {
+        LOGDSTTYPE_STDOUT,    
+        LOGDSTTYPE_STDERR,
+        LOGDSTTYPE_FILE,
+        LOGDSTTYPE_SOCK,
+        LOGDSTTYPE_LOGCAT,
+        LOGDSTTYPE_SYSLOG,
+        LOGDSTTYPE_NONE,
+    };
 
-loghandler *log_init();
-int log_set_opt(loghandler *, enum LOG_OPTS, void *arg);
-void mlog(loghandler *handle,
-          LOGLEVEL level,
-          const char *file,
-          size_t filelen,
-          const char *function,
-          size_t functionlen,
-          long line,
-          const char *format,
-          ...);
+    struct logdst {
+        LOGLEVEL level;
+        char format[128];
+        enum LOGDSTTYPE type;
+        union {
+            struct {
+                char filename[256];
+                mode_t filemode;
+                uint16_t backup;
+                uint64_t filesize;
+                FILE *fp;
+            } file;
+            struct {
+                char addr[256];
+                uint16_t port;
+                int sockfd;
+            } sock;
+        } u;
+    };
 
-void vlog(loghandler *handle,
-          LOGLEVEL level,
-          const char *file,
-          size_t filelen,
-          const char *function,
-          size_t functionlen,
-          long line,
-          const char *format,
-          va_list args);
-void log_dump(loghandler *handle);
 
+    enum LOG_OPTS {
+        LOG_OPT_SET_BUFFERSIZE,         /* uint64_t */
+        LOG_OPT_GET_BUFFERSIZE,         /* uint64_t */
+        LOG_OPT_SET_DST,                /* struct logdst * */
+        LOG_OPT_GET_DST_COUNT,             /* uint16_t */
+        LOG_OPT_GET_DST,                /* struct logdst * */
+    };
+
+    struct _loghandler;
+    typedef struct _loghandler loghandler;
+
+    loghandler *log_init();
+    int log_ctl(loghandler *,
+            enum LOG_OPTS,
+            ...);
+
+    void mlog(loghandler *handle,
+            LOGLEVEL level,
+            const char *file,
+            const char *function,
+            long line,
+            const char *format,
+            ...);
+
+    void vlog(loghandler *handle,
+            LOGLEVEL level,
+            const char *file,
+            const char *function,
+            long line,
+            const char *format,
+            va_list args);
+
+    void log_dump(loghandler *handle);
+#ifndef MLOG
+#define MLOG(handle, level, format, ...) \
+    mlog(handle, level,  __FILE__, __FUNCTION__, __LINE__, format, ##__VA_ARGS__);
+#endif
+
+#ifndef DBG
 #define DBG(handle, format, ...)                                        \
-    mlog(handle, LOGLEVEL_DEBUG,   __FILE__, sizeof(__FILE__), __FUNCTION__, sizeof(__FUNCTION__), __LINE__, format, ##__VA_ARGS__);
+    MLOG(handle, LOGLEVEL_DEBUG, format)
+#endif
+
+#ifndef INFO
 #define INFO(handle, format, ...)                                       \
-    mlog(handle, LOGLEVEL_INFO,    __FILE__, sizeof(__FILE__), __FUNCTION__, sizeof(__FUNCTION__), __LINE__, format, ##__VA_ARGS__);
+    MLOG(handle, LOGLEVEL_INFO, format)
+#endif
+
+#ifndef WARNING
 #define WARNING(handle, format, ...)                                    \
-    mlog(handle, LOGLEVEL_WARNING, __FILE__, sizeof(__FILE__), __FUNCTION__, sizeof(__FUNCTION__), __LINE__, format, ##__VA_ARGS__);
+    MLOG(handle, LOGLEVEL_WARNING, format)
+#endif
+
+#ifndef ERROR
 #define ERROR(handle, format, ...)                                      \
-    mlog(handle, LOGLEVEL_ERROR,   __FILE__, sizeof(__FILE__), __FUNCTION__, sizeof(__FUNCTION__), __LINE__, format, ##__VA_ARGS__);
+    MLOG(handle, LOGLEVEL_ERROR, format)
+#endif
+
+#ifndef FATAL
 #define FATAL(handle, format, ...)                                      \
-    mlog(handle, LOGLEVEL_CRIT,    __FILE__, sizeof(__FILE__), __FUNCTION__, sizeof(__FUNCTION__), __LINE__, format, ##__VA_ARGS__);
+    MLOG(handle, LOGLEVEL_FATAL, format)
+#endif
+
+#ifndef ALERT
 #define ALERT(handle, format, ...)                                      \
-    mlog(handle, LOGLEVEL_ALERT,   __FILE__, sizeof(__FILE__), __FUNCTION__, sizeof(__FUNCTION__), __LINE__, format, ##__VA_ARGS__);
+    MLOG(handle, LOGLEVEL_ALERT, format)
+#endif
+
+#ifndef EMERG
 #define EMERG(handle, format, ...)                                      \
-    mlog(handle, LOGLEVEL_EMERG,   __FILE__, sizeof(__FILE__), __FUNCTION__, sizeof(__FUNCTION__), __LINE__, format, ##__VA_ARGS__);
+    MLOG(handle, LOGLEVEL_EMERG, format)
+#endif
 
 
-int slog_init();
-int slog_set_opt(enum LOG_OPTS, void *arg);
-void slog(LOGLEVEL level,
-          const char * file,
-          size_t filelen,
-          const char * function,
-          size_t functionlen,
-          long line,
-          const char *format,
-          ...);
-void slog_dump();
+    int slog_init();
+    int slog_ctl(enum LOG_OPTS opt, ...);
+    void slog(LOGLEVEL level,
+            const char * file,
+            const char * function,
+            long line,
+            const char *format,
+            ...);
+    void slog_dump();
 
 #define LOG(level, format, ...)                                         \
-    slog((LOGLEVEL)level, __FILE__, sizeof(__FILE__), __FUNCTION__, sizeof(__FUNCTION__), __LINE__, format, ##__VA_ARGS__)
+    slog((LOGLEVEL)level, __FILE__, __FUNCTION__, __LINE__, format, ##__VA_ARGS__)
 
 #define LOG_INIT(filename, level)                               \
     do {                                                        \
         slog_init();                                            \
-        slog_set_opt(LOG_OPT_FILENAME, (void *)(filename));     \
-        LOGLEVEL l = (level);                                   \
-        slog_set_opt(LOG_OPT_LEVEL, &(l));                      \
     } while (0);
 
 
 #ifdef __cplusplus
 }
 #endif
-
 
 #endif

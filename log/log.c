@@ -30,45 +30,27 @@
 
 #include "log.h"
 
-#define DEFAULT_LOG_MAX_INSTANCE 256
-
-#define DEFAULT_FLAGS LOGFILE
+#define DEFAULT_MAX_DST 16
 #define DEFAULT_BUFFERSIZE 4096 * 4
-#define DEFAULT_SERVERADDR "bj-w.ml.streamocean.com"
-#define DEFAULT_SERVERPORT 34567
 #define DEFAULT_FILENAME "ihi.log"
 #define DEFAULT_BACKUP 4
-#define DEFAULT_FILEPERM  (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
+#define DEFAULT_FILEMODE  (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 #define DEFAULT_FILESIZE 10*1024*1024
 #define DEFAULT_LEVEL LOGLEVEL_DEBUG
-#define DEFAULT_VERBOSEFORMAT "%Y-%m-%d %H:%M:%S"
+#define DEFAULT_FORMAT "%Y-%m-%d %H:%M:%S"
+
 
 struct  _loghandler {
     pthread_mutex_t mutex;
-    uint32_t flags;
-
-    LOGLEVEL level;
 
     char *bufferp;
-    uint64_t buffer_size;
-    char verbose_format[128];
-
-    // int fd;
-    char file_name[256];
-    FILE *fp;
-    uint16_t backup;
-    uint64_t file_size;
-    mode_t file_mode;
-
-    char server_addr[256];
-    uint16_t server_port;
-    int sockfd;
+    size_t buffer_size;
     struct sockaddr_in addr;
 
+    struct logdst* dsts[DEFAULT_MAX_DST];
+    uint16_t dsts_count;
+
     uint64_t success_count;
-    uint64_t success_byte;
-    size_t fprintf_fail_count;
-    size_t makebak_count;
     uint64_t debug_count;
     uint64_t info_count;
     uint64_t warning_count;
@@ -91,25 +73,25 @@ static const char * const LOGLEVELSTR[] = {
     "DEBUG",
 };
 
-static inline void _dobak(loghandler *handle)
+static inline void _dobak(struct logdst *dst)
 {
     int bakcnt;
     char old_bakfile[256];
     char new_bakfile[256];
-    bakcnt = handle->backup;
+    bakcnt = dst->u.file.backup;
     while (bakcnt >= 0) {
         if (bakcnt == 0) {
-            snprintf(old_bakfile, sizeof(old_bakfile), "%s", handle->file_name);
+            snprintf(old_bakfile, sizeof(old_bakfile), "%s", dst->u.file.filename);
         } else {
-            snprintf(old_bakfile, sizeof(old_bakfile), "%s.%d", handle->file_name, bakcnt-1);
+            snprintf(old_bakfile, sizeof(old_bakfile), "%s.%d", dst->u.file.filename, bakcnt-1);
         }
         if(!access(old_bakfile, F_OK)) {
-            if (bakcnt == handle->backup) {
+            if (bakcnt == dst->u.file.backup) {
                 unlink(old_bakfile);
                 /* fprintf(stderr, "unlink %s bakcnt: %d\n", old_bakfile, bakcnt); */
                 continue;
             } else {
-                snprintf(new_bakfile, sizeof(new_bakfile), "%s.%d", handle->file_name, bakcnt);
+                snprintf(new_bakfile, sizeof(new_bakfile), "%s.%d", dst->u.file.filename, bakcnt);
                 /* fprintf(stderr, "rename %s to %s bakcnt: %d\n", old_bakfile, new_bakfile, bakcnt); */
                 rename(old_bakfile, new_bakfile);
 
@@ -117,103 +99,170 @@ static inline void _dobak(loghandler *handle)
         }
         bakcnt--;
     }
-    handle->makebak_count++;
 }
 
-static inline void checkbak(loghandler *handle, size_t len)
+static inline void checkbak(struct logdst *dst, size_t len)
 {
-    if (handle == NULL)
+    if (dst == NULL)
         return;
 
-    if (handle->backup <= 0)
+    if (dst->type != LOGDSTTYPE_FILE)
+        return;
+
+    if (dst->u.file.backup <= 0)
         return;
 
     /* create file */
-    if (access(handle->file_name, F_OK)) {
-        mode_t mask_old = umask(~(handle->file_mode));
-        handle->fp = fopen(handle->file_name, "a+");
+    if (access(dst->u.file.filename, F_OK)) {
+        mode_t mask_old = umask(~(dst->u.file.filemode));
+        dst->u.file.fp = fopen(dst->u.file.filename, "a+");
         umask(mask_old);
         return;
     }
 
     /* bak old log file */
-    if (handle->fp == NULL) {
-        _dobak(handle);
-        mode_t mask_old = umask(~(handle->file_mode));
-        handle->fp = fopen(handle->file_name, "a+");
+    if (dst->u.file.fp == NULL) {
+        _dobak(dst);
+        mode_t mask_old = umask(~(dst->u.file.filemode));
+        dst->u.file.fp = fopen(dst->u.file.filename, "a+");
         umask(mask_old);
         return;
     }
 
     /* limit by size */
     struct stat st;
-    if (stat(handle->file_name, &st) == 0) {
-        if (handle->backup > 0 && (st.st_size + len  >= handle->file_size)) {
-            if (handle->fp) {
-                fclose(handle->fp);
+    if (stat(dst->u.file.filename, &st) == 0) {
+        if (dst->u.file.backup > 0 && (st.st_size + len  >= dst->u.file.filesize)) {
+            if (dst->u.file.fp) {
+                fclose(dst->u.file.fp);
             }
-            _dobak(handle);
-            mode_t mask_old = umask(~(handle->file_mode));
-            handle->fp = fopen(handle->file_name, "a+");
+            _dobak(dst);
+            mode_t mask_old = umask(~(dst->u.file.filemode));
+            dst->u.file.fp = fopen(dst->u.file.filename, "a+");
             umask(mask_old);
         }
     }
     return;
 }
 
-int slog_set_opt(enum LOG_OPTS opt, void *arg)
+int slog_ctl(enum LOG_OPTS opt, ...)
 {
     if (sloger) {
-        return log_set_opt(sloger, opt, arg);
+        va_list ap;
+        va_start(ap, opt);
+        int ret = log_ctl(sloger, opt, ap);
+        va_end(ap);
+        return ret;
     }
     return -1;
 }
 
-int log_set_opt(loghandler *lp, enum LOG_OPTS opt, void *arg)
+static inline int __log_ctl(loghandler *lp, enum LOG_OPTS opt, va_list ap)
 {
-    if (lp == NULL)
-        return -1;
     switch (opt) {
-    case LOG_OPT_FLAGS:
-        lp->flags = *(uint32_t *)arg;
-        break;
-    case LOG_OPT_BUFFERSIZE:
-        lp->buffer_size = (*(uint64_t *)arg);
-        if (lp->bufferp) {
-            free(lp->bufferp);
-        }
-        lp->bufferp = (char *)malloc(lp->buffer_size);
-        if (lp->bufferp == NULL)
-            return -1;
-        break;
-    case LOG_OPT_SERVERADDR:
-        strncpy(lp->server_addr, (char *)arg, strlen((char *)arg)+1);
-        break;
-    case LOG_OPT_SERVERPORT:
-        lp->server_port = (*(uint16_t *)arg);
-        break;
-    case LOG_OPT_FILENAME:
-        strncpy(lp->file_name, (char *)arg, strlen((char *)arg)+1);
-        break;
-    case LOG_OPT_BACKUP:
-        lp->backup = *(uint16_t *)arg;
-        break;
-    case LOG_OPT_FILEPERM:
-        lp->file_mode = *(mode_t *)arg;
-        break;
-    case LOG_OPT_FILESIZE:
-        lp->file_size = *(uint64_t *)arg;
-        break;
-    case LOG_OPT_LEVEL:
-        lp->level = *(LOGLEVEL *)arg;
-        break;
-    case LOG_OPT_VERBOSEFORMAT:
-        strncpy(lp->verbose_format, (char *)arg, strlen((char *)arg)+1);
-        break;
-    default:
-        return -1;
+        case LOG_OPT_SET_BUFFERSIZE: {
+                                         lp->buffer_size = va_arg(ap, size_t);
+                                         if (lp->bufferp) {
+                                             free(lp->bufferp);
+                                         }
+                                         lp->bufferp = (char *)malloc(lp->buffer_size);
+                                         if (lp->bufferp == NULL) {
+                                             fprintf(stderr, "SET BUFFERSIZE failed\n");
+                                             return -1;
+                                         }
+                                         break;
+                                     }
+        case LOG_OPT_GET_BUFFERSIZE: {
+                                         uint64_t *size = va_arg(ap, uint64_t *);
+                                         *size = lp->buffer_size;
+                                         break;
+                                     }
+        case LOG_OPT_SET_DST: {
+                                  int idx = va_arg(ap, int);
+                                  struct logdst *dst = va_arg(ap, struct logdst *);
+                                  if (dst == NULL)
+                                      return -1;
+                                  struct logdst *ndst = NULL;
+                                  switch (dst->type) {
+                                      case LOGDSTTYPE_STDOUT:
+                                      case LOGDSTTYPE_STDERR:
+                                      case LOGDSTTYPE_LOGCAT:
+                                      case LOGDSTTYPE_SYSLOG:
+                                          ndst = (struct logdst *) malloc(sizeof(struct logdst));
+                                          if (ndst == NULL)
+                                              return -1;
+                                          ndst->level = dst->level;
+                                          strncpy(ndst->format, dst->format, strlen(dst->format)+1);
+                                          ndst->type = dst->type;
+                                          break;
+                                      case LOGDSTTYPE_FILE:
+                                          ndst = (struct logdst *) malloc(sizeof(struct logdst));
+                                          if (ndst == NULL)
+                                              return -1;
+                                          ndst->level = dst->level;
+                                          strncpy(ndst->format, dst->format, strlen(dst->format)+1);
+                                          ndst->type = dst->type;
+                                          strncpy(ndst->u.file.filename, dst->u.file.filename, strlen(dst->u.file.filename)+1);
+                                          ndst->u.file.fp = NULL;
+                                          ndst->u.file.filemode = dst->u.file.filemode;
+                                          ndst->u.file.backup = dst->u.file.backup;
+                                          ndst->u.file.filesize = dst->u.file.filesize;
+                                          break;
+                                      case LOGDSTTYPE_SOCK:
+                                          ndst = (struct logdst *) malloc(sizeof(struct logdst));
+                                          if (ndst == NULL)
+                                              return -1;
+                                          ndst->level = dst->level;
+                                          strncpy(ndst->format, dst->format, strlen(dst->format)+1);
+                                          ndst->type = dst->type;
+                                          strncpy(ndst->u.sock.addr, dst->u.sock.addr, strlen(dst->u.sock.addr)+1);
+                                          ndst->u.sock.port = dst->u.sock.port;
+                                          ndst->u.sock.sockfd = -1;
+                                          break;
+                                      case LOGDSTTYPE_NONE:
+                                          break;
+                                      default:
+                                          break;
+                                  }
+                                  if (lp->dsts[idx] != NULL) {
+                                      free(lp->dsts[idx]);
+                                      lp->dsts[idx] = NULL;
+                                      lp->dsts_count --;
+                                  }
+                                  if (ndst) {
+                                      lp->dsts[idx] = ndst;
+                                      lp->dsts_count ++;
+                                  }
+                                  break;
+                              }
+        case LOG_OPT_GET_DST: {
+                                  uint16_t idx = va_arg(ap, uint16_t);
+                                  struct logdst *dst = va_arg(ap, struct logdst *);
+                                  dst = lp->dsts[idx];
+                                  break;
+                              }
+        case LOG_OPT_GET_DST_COUNT: {
+                                        uint16_t *count = va_arg(ap, uint16_t *);
+                                        *count = lp->dsts_count;
+                                        break;
+                                    }
+        default:
+                                    return -1;
     }
+
     return 0;
+}
+
+int log_ctl(loghandler *lp, enum LOG_OPTS opt, ...)
+{
+    if (lp) {
+        va_list ap;
+        va_start(ap, opt);
+        int ret = __log_ctl(lp, opt, ap);
+        va_end(ap);
+        return ret;
+    }
+    return -1;
 }
 
 static int log_set_default(loghandler *lp)
@@ -223,31 +272,26 @@ static int log_set_default(loghandler *lp)
     }
     memset(lp, 0, sizeof(loghandler));
     pthread_mutex_init(&(lp->mutex), NULL);
-    uint32_t flags = DEFAULT_FLAGS;
-    log_set_opt(lp, LOG_OPT_FLAGS, &flags);
-    uint64_t size = DEFAULT_BUFFERSIZE;
-    int rc = log_set_opt(lp, LOG_OPT_BUFFERSIZE, &size);
-    if (rc != 0)
-        return rc;
-    const char *server = DEFAULT_SERVERADDR;
-    log_set_opt(lp, LOG_OPT_SERVERADDR, (void *)server);
-    uint16_t serverport = DEFAULT_SERVERPORT;
-    log_set_opt(lp, LOG_OPT_SERVERPORT, &serverport);
-    const char *filename = DEFAULT_FILENAME;
-    log_set_opt(lp, LOG_OPT_FILENAME, (void *)filename);
-    uint16_t backup = DEFAULT_BACKUP;
-    log_set_opt(lp, LOG_OPT_BACKUP, &backup);
-    mode_t perm = DEFAULT_FILEPERM;
-    log_set_opt(lp, LOG_OPT_FILEPERM, &perm);
-    uint64_t filesize = DEFAULT_FILESIZE;
-    log_set_opt(lp, LOG_OPT_FILESIZE, &filesize);
-    LOGLEVEL level = DEFAULT_LEVEL;
-    log_set_opt(lp, LOG_OPT_LEVEL, &level);
-    const char *verbose =  DEFAULT_VERBOSEFORMAT;
-    log_set_opt(lp, LOG_OPT_VERBOSEFORMAT, (void *)verbose);
-
-    lp->sockfd = -1;
-    lp->fp = NULL;
+    struct logdst filedst;
+    filedst.type = LOGDSTTYPE_FILE;
+    filedst.level = DEFAULT_LEVEL;
+    strncpy(filedst.format, DEFAULT_FORMAT, strlen(DEFAULT_FORMAT)+1);
+    strncpy(filedst.u.file.filename, DEFAULT_FILENAME,
+            strlen(DEFAULT_FILENAME)+1);
+    filedst.u.file.filemode = DEFAULT_FILEMODE;
+    filedst.u.file.backup = DEFAULT_BACKUP;
+    filedst.u.file.filesize = DEFAULT_FILESIZE;
+    filedst.u.file.fp = NULL;
+    log_ctl(lp, LOG_OPT_SET_DST, 0, &filedst);
+#if 0
+    struct logdst errdst;
+    errdst.type = LOGDSTTYPE_STDERR;
+    errdst.level = DEFAULT_LEVEL;
+    strncpy(errdst.format, DEFAULT_FORMAT, strlen(DEFAULT_FORMAT)+1);
+    log_ctl(lp, LOG_OPT_SET_DST, 1, &errdst);
+#endif
+    size_t size = DEFAULT_BUFFERSIZE;
+    log_ctl(lp, LOG_OPT_SET_BUFFERSIZE, size);
     return 0;
 }
 
@@ -265,40 +309,29 @@ loghandler *log_init()
     return lp;
 }
 
-void vlog(loghandler *handle, LOGLEVEL level, const char *file, size_t filelen,
-          const char *function, size_t functionlen, long line, const char *format, va_list args)
+void vlog(loghandler *handle, LOGLEVEL level, const char *file,
+        const char *function, long line, const char *format, va_list args)
 {
-    (void)filelen;
-    (void)functionlen;
     if (handle == NULL)
         return;
-
-    if (level > LOGLEVEL_DEBUG)
-        level = LOGLEVEL_DEBUG;
-    if (level < LOGLEVEL_EMERG)
-        level = LOGLEVEL_EMERG;
-
-    if (handle->level < level) {
-        handle->unhandle_count++;
-        return;
-    }
 
     if (handle->bufferp == NULL) {
         handle->unhandle_count++;
         return;
     }
     pthread_mutex_lock(&handle->mutex);
-    memset(handle->bufferp, 0, handle->buffer_size);
-    int idx = 0;
 
-    if (handle->flags & LOGVERBOSE) {
+    memset(handle->bufferp, 0, handle->buffer_size);
+#if 0
+    int idx = 0;
+    if (handle->flags & LOGFLAG_VERBOSE) {
         char timebuf[24];
         time_t t= time(NULL);
         struct tm now;
         localtime_r(&t, &now);
-        strftime(timebuf, sizeof(timebuf), handle->verbose_format, &now);
+        strftime(timebuf, sizeof(timebuf), handle->format, &now);
         idx = snprintf(handle->bufferp, handle->buffer_size, "%s [%-5.5s]  %s %s():%ld ",
-                       timebuf, LOGLEVELSTR[level], file, function, line);
+                timebuf, LOGLEVELSTR[level], file, function, line);
     }
 
     int n = vsnprintf(handle->bufferp + idx, handle->buffer_size - idx, format, args);
@@ -319,143 +352,146 @@ void vlog(loghandler *handle, LOGLEVEL level, const char *file, size_t filelen,
         len++;
         handle->bufferp[len] = '\0';
     }
-
-    if (handle->flags & LOGFILE) {
-        #if 0
-        struct stat st;
-        if (stat(handle->file_name, &st) == 0) {
-            if (handle->backup > 0 && (st.st_size + len  >= handle->file_size)) {
-                if (handle->fp) {
-                    fclose(handle->fp);
-                    handle->fp = NULL;
-                }
-                makebak(handle);
-                /*
-                 * close(handle->lfp->fd);
-                 * handle->lfp->fd = open(handle->lfp->logfile, O_CREAT | O_APPEND | O_WRONLY, FILEPERM);
-                 */
-            }
-        }
-        #endif
-        checkbak(handle, len);
-
-        if (handle->fp == NULL) {
-            mode_t mask_old = umask(~(handle->file_mode));
-            handle->fp = fopen(handle->file_name, "a+");
-            umask(mask_old);
-        }
-
-        /* write(handle->lfp->fd, buf, len); */
-        if (handle->fp) {
-            if (fprintf(handle->fp, "%s", handle->bufferp) != (int)len) {
-                if (errno != 0) {
-                    perror("fprintf");
-                    handle->fprintf_fail_count ++;
-                }
-            } else {
-                handle->success_count ++;
-                handle->success_byte += len;
-                switch(level) {
-                case LOG_DEBUG:
-                    handle->debug_count++;
-                    break;
-                case LOG_INFO:
-                    handle->info_count++;
-                    break;
-                case LOG_WARNING:
-                    handle->warning_count++;
-                    break;
-                case LOG_ERROR:
-                    handle->error_count++;
-                    break;
-                case LOG_FATAL:
-                    handle->fatal_count++;
-                    break;
-                case LOG_ALERT:
-                    handle->alert_count++;
-                    break;
-                case LOG_EMERG:
-                    handle->emerg_count++;
-                    break;
-                default:
-                    handle->unhandle_count++;
-                }
-            }
-            fflush(handle->fp);
-            /* fclose(handle->fp); */
-        }
-
+#endif
+    int n = vsnprintf(handle->bufferp, handle->buffer_size, format, args);
+    if (n < 0) {
+        fprintf(stderr, "vsnprintf failed\n");
+        pthread_mutex_unlock(&handle->mutex);
+        return;
     }
+    size_t len = n;
 
-    if (handle->flags & STDERRLOG) {
-        fprintf(stderr, "%s", handle->bufferp);
-    }
+    for (uint16_t i = 0; i < DEFAULT_MAX_DST; i++) {
+        if (handle->dsts[i] == NULL)
+            continue;
+        struct logdst *dst = handle->dsts[i];
 
-    if (handle->flags & LOGCAT) {
+        if (level > LOGLEVEL_DEBUG)
+            level = LOGLEVEL_DEBUG;
+        if (level < LOGLEVEL_EMERG)
+            level = LOGLEVEL_EMERG;
+
+        if (dst->level < level) {
+            handle->unhandle_count++;
+            continue;
+        }
+
+        switch (dst->type) {
+            case LOGDSTTYPE_STDOUT:
+                fprintf(stdout, "%s", handle->bufferp);
+                fflush(stderr);
+                break;
+            case LOGDSTTYPE_STDERR:
+                fprintf(stderr, "%s", handle->bufferp);
+                break;
+            case LOGDSTTYPE_FILE:
+                checkbak(dst, len);
+                if (dst->u.file.fp == NULL) {
+                    mode_t mask_old = umask(~(dst->u.file.filemode));
+                    dst->u.file.fp = fopen(dst->u.file.filename, "a+");
+                    umask(mask_old); 
+                }
+                if (fprintf(dst->u.file.fp, "%s", handle->bufferp) != (int)len) {
+                    if (errno != 0) {
+                        perror("fprintf");
+                    }
+                }
+                fflush(dst->u.file.fp);
+                break;
+            case LOGDSTTYPE_SOCK:
+                if (dst->u.sock.sockfd == -1) {
+                    struct hostent *host = NULL;
+                    if ((host = gethostbyname(dst->u.sock.addr))) {
+                        dst->u.sock.sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+                        if (dst->u.sock.sockfd != -1) {
+                            struct sockaddr_in addr;
+                            memset(&addr, 0, sizeof(addr));
+                            addr.sin_family = AF_INET;
+                            addr.sin_port = htons(dst->u.sock.port);
+                            addr.sin_addr = *(struct in_addr *)host->h_addr_list[0];
+                            bind(dst->u.sock.sockfd, (struct sockaddr *)&addr, sizeof(addr));
+                        }
+                    }
+                }
+                if (dst->u.sock.sockfd != -1)
+                    send(dst->u.sock.sockfd, handle->bufferp, len+1, 0);
+                break;
+            case LOGDSTTYPE_LOGCAT:
 #if defined ANDROID
-        android_LogPriority l;
-        switch (level) {
+                android_LogPriority l;
+                switch (level) {
+                    case LOG_DEBUG:
+                        l = ANDROID_LOG_DEBUG;
+                        break;
+                    case LOG_INFO:
+                        l = ANDROID_LOG_INFO;
+                        break;
+                    case LOG_WARNING:
+                        l = ANDROID_LOG_WARN;
+                        break;
+                    case LOG_ERROR:
+                        l = ANDROID_LOG_ERROR;
+                        break;
+                    case LOG_FATAL:
+                        l = ANDROID_LOG_FATAL;
+                        break;
+                    case LOG_ALERT:
+                        l = ANDROID_LOG_FATAL;
+                        break;
+                    case LOG_EMERG:
+                        l = ANDROID_LOG_SILENT;
+                        break;
+                    default:
+                        l = ANDROID_LOG_DEFAULT;
+                        break;
+                }
+                __android_log_vprint(l, "ihi", format, args);
+#endif
+                break;
+            case LOGDSTTYPE_SYSLOG:
+                syslog(level, "%s", handle->bufferp);
+                break;
+            default:
+                break;
+        } 
+    }
+
+    handle->success_count ++;
+    switch(level) {
         case LOG_DEBUG:
-            l = ANDROID_LOG_DEBUG;
+            handle->debug_count++;
             break;
         case LOG_INFO:
-            l = ANDROID_LOG_INFO;
+            handle->info_count++;
             break;
         case LOG_WARNING:
-            l = ANDROID_LOG_WARN;
+            handle->warning_count++;
             break;
         case LOG_ERROR:
-            l = ANDROID_LOG_ERROR;
+            handle->error_count++;
             break;
         case LOG_FATAL:
-            l = ANDROID_LOG_FATAL;
+            handle->fatal_count++;
             break;
         case LOG_ALERT:
-            l = ANDROID_LOG_FATAL;
+            handle->alert_count++;
             break;
         case LOG_EMERG:
-            l = ANDROID_LOG_SILENT;
+            handle->emerg_count++;
             break;
         default:
-            l = ANDROID_LOG_DEFAULT;
-            break;
-        }
-        __android_log_vprint(l, "ihi", format, args);
-#endif
-    }
-
-    if (handle->flags & SYSLOG) {
-        /* openlog("test", LOG_CONS | LOG_PID, 0); */
-        syslog(level, "%s", handle->bufferp);
-    }
-
-    if (handle->flags & SOCKLOG) {
-        if (handle->sockfd == -1) {
-            struct hostent *host = NULL;
-            if ((host = gethostbyname(handle->server_addr))) {
-                handle->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-                if (handle->sockfd != -1) {
-                    memset(&handle->addr, 0, sizeof(handle->addr));
-                    handle->addr.sin_family = AF_INET;
-                    handle->addr.sin_port = htons(handle->server_port);
-                    handle->addr.sin_addr = *(struct in_addr *)host->h_addr_list[0];
-                }
-            }
-        }
-        socklen_t addrlen = sizeof(handle->addr);
-        if (handle->sockfd != -1)
-            sendto(handle->sockfd, handle->bufferp, len+1, 0, (struct sockaddr *)&handle->addr, addrlen);
+            handle->unhandle_count++;
     }
 
     pthread_mutex_unlock(&handle->mutex);
 }
 
-void mlog(loghandler *handle, LOGLEVEL level, const char *file, size_t filelen,
-          const char *function, size_t functionlen, long line, const char *format, ...)
+void mlog(loghandler *handle, LOGLEVEL level, const char *file, 
+        const char *function, long line, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
-    vlog(handle, level, file, filelen, function, functionlen, line, format, args);
+    vlog(handle, level, file, function, line, format, args);
     va_end(args);
     return;
 }
@@ -463,18 +499,20 @@ void mlog(loghandler *handle, LOGLEVEL level, const char *file, size_t filelen,
 
 int slog_init()
 {
-    sloger = log_init();
-    if (sloger)
-        return 0;
+    if (sloger == NULL) {
+        sloger = log_init();
+        if (sloger)
+            return 0;
+    }
     return -1;
 }
 
-void slog(LOGLEVEL level, const char * file, size_t filelen, const char * function, size_t functionlen, long line, const char *format, ...)
+void slog(LOGLEVEL level, const char * file, const char * function, long line, const char *format, ...)
 {
     if (sloger) {
         va_list args;
         va_start(args, format);
-        vlog(sloger, level, file, filelen, function, functionlen, line, format,  args);
+        vlog(sloger, level, file, function, line, format,  args);
         va_end(args);
     }
     return ;
@@ -484,31 +522,7 @@ void log_dump(loghandler *handle)
 {
     if (handle) {
         printf("=============================================================\n");
-        printf("output:\n");
-        printf("level: %s\n", LOGLEVELSTR[handle->level]);
-        if (handle->flags & LOGVERBOSE) {
-            printf("verbose format: %s\n", handle->verbose_format);
-        }
-        if (handle->flags & STDERRLOG) {
-            printf("stderr\n");
-        }
-        if (handle->flags & LOGCAT) {
-#ifdef ANDROID
-            printf("logcat\n");
-#endif
-        }
-        if (handle->flags & SOCKLOG) {
-            printf("socklog : %s:%u""\n", handle->server_addr, handle->server_port);
-        }
-        if (handle->flags & LOGFILE) {
-            printf("logfile: %s backup: %u filesize: %"PRIu64"\n", handle->file_name, handle->backup, handle->file_size);
-        }
-
-        printf("\n");
         printf("success count: %"PRIu64"\n", handle->success_count);
-        printf("success byte : %"PRIu64"\n", handle->success_byte);
-        printf("fprintf fail count: %lu\n", handle->fprintf_fail_count);
-        printf("make backup count: %lu\n", handle->makebak_count);
         printf("debug count: %"PRIu64"\n", handle->debug_count);
         printf("info count: %"PRIu64"\n", handle->info_count);
         printf("warning count: %"PRIu64"\n", handle->warning_count);

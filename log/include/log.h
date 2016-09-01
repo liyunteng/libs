@@ -63,6 +63,20 @@ extern "C" {
         LOGDSTTYPE_SYSLOG,
         LOGDSTTYPE_NONE,
     };
+//format
+//%Y year
+//%M month
+//%D day
+//%h hour
+//%m min
+//%s sec
+//%u ms
+//%F file
+//%f func
+//%l line
+//%n \n
+//%p pid
+//%c content
 
     struct logdst {
         LOGLEVEL level;
@@ -96,8 +110,8 @@ extern "C" {
     struct _loghandler;
     typedef struct _loghandler loghandler;
 
-    loghandler *log_init();
-    int log_ctl(loghandler *,
+    loghandler *mlog_init();
+    int mlog_ctl(loghandler *,
             enum LOG_OPTS,
             ...);
 
@@ -109,15 +123,7 @@ extern "C" {
             const char *format,
             ...);
 
-    void vlog(loghandler *handle,
-            LOGLEVEL level,
-            const char *file,
-            const char *function,
-            long line,
-            const char *format,
-            va_list args);
-
-    void log_dump(loghandler *handle);
+    void mlog_dump(loghandler *handle);
 #ifndef MLOG
 #define MLOG(handle, level, format, ...) \
     mlog(handle, level,  __FILE__, __FUNCTION__, __LINE__, format, ##__VA_ARGS__);
@@ -159,22 +165,22 @@ extern "C" {
 #endif
 
 
-    int slog_init();
-    int slog_ctl(enum LOG_OPTS opt, ...);
+    int log_init();
+    int log_ctl(enum LOG_OPTS opt, ...);
     void slog(LOGLEVEL level,
             const char * file,
             const char * function,
             long line,
             const char *format,
             ...);
-    void slog_dump();
+    void log_dump();
 
 #define LOG(level, format, ...)                                         \
     slog((LOGLEVEL)level, __FILE__, __FUNCTION__, __LINE__, format, ##__VA_ARGS__)
 
 #define LOG_INIT(filename, level)                               \
     do {                                                        \
-        slog_init();                                            \
+        log_init();                                            \
     } while (0);
 
 

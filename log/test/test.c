@@ -4,7 +4,7 @@
  * Copyright (C) 2016 liyunteng
  * Auther: liyunteng <li_yunteng@163.com>
  * License: GPL
- * Update time:  2016/08/30 17:47:42
+ * Update time:  2016/08/31 10:41:20
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -24,8 +24,9 @@
 #include "log.h"
 #include <stdint.h>
 #include <pthread.h>
+#include <string.h>
 
-
+#if 0
 void test1()
 {
     const char *s = "this is a test.";
@@ -67,7 +68,7 @@ void test1()
     LOG(LOG_WARNING, "this is a warning");
     LOG(LOG_ERROR, "this is a error");
     LOG(LOG_FATAL, "this is a fatal");
-    slog_dump();
+    log_dump();
 }
 void *run(void *arg)
 {
@@ -103,7 +104,7 @@ void test2()
     pthread_join(tid1, NULL);
     pthread_join(tid2, NULL);
     pthread_join(tid3, NULL);
-    slog_dump();
+    log_dump();
 }
 
 void test3()
@@ -162,23 +163,53 @@ void test3()
     log_dump(h3);
 }
 
+#endif
 void test4()
 {
     /* LOG_INIT("abc.log", LOG_DEBUG); */
 
     unsigned i;
+    log_init();
+
+    struct logdst dst;
+    dst.level = LOG_ERROR;
+    dst.type = LOGDSTTYPE_FILE;
+    strncpy(dst.u.file.filename, "abc.log", 8);
+    dst.u.file.filemode = 0777;
+    dst.u.file.backup = 0;
+    dst.u.file.filesize = 1024 * 1024 *10;
+    int rt = log_ctl(LOG_OPT_SET_DST, 1, &dst);
+    if (rt != 0)
+        fprintf(stderr, "set dst failed: %d\n", rt);
+    struct logdst std;
+    dst.level = LOG_DEBUG;
+    dst.type =LOGDSTTYPE_STDOUT;
+    rt = log_ctl(LOG_OPT_SET_DST, 2, &std);
+    if (rt != 0)
+        fprintf(stderr, "set dst failed: %d\n", rt);
+
     for (i = 0; i < 1024 * 1024; i++) {
-        LOG(LOG_DEBUG, "debug");
-        LOG(LOG_ERROR, "error");
-        LOG(LOG_FATAL, "fatal");
+        LOG(LOG_DEBUG, "%lu debug", getpid());
+        LOG(LOG_ERROR, "%lu error", getpid());
+        LOG(LOG_FATAL, "%lu fatal", getpid());
     }
-    slog_dump();
+    log_dump();
+}
+
+void test5()
+{
+    loghandler *handle = NULL;
+    handle = mlog_init();
+    int i;
+    for (i = 0; i < 100; i++)
+        DBG(handle, "this is a test");
 }
 int main(int argc, char *argv[])
 {
     /* test1(); */
-    test2();
+    /* test2(); */
     /* test3(); */
-    /* test4(); */
+    test4();
+    //test5();
     return 0;
 }

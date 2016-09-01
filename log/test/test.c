@@ -25,27 +25,44 @@
 #include <stdint.h>
 #include <pthread.h>
 #include <string.h>
+#include <unistd.h>
 
-#if 0
 void test1()
 {
     const char *s = "this is a test.";
-    loghandler *h = log_init();
+    loghandler *h = mlog_init();
+    
+    struct logdst dst;
+    dst.level = LOG_INFO;
+    dst.type = LOGDSTTYPE_FILE;
+    char *format = "%D %T [%L] %C%n";
+    strncpy(dst.format, format, strlen(format)+1);
+    strncpy(dst.u.file.filename, "abc.log", 8);
+    dst.u.file.filemode = DEFAULT_FILEMODE;
+    dst.u.file.backup = 0;
+    dst.u.file.filesize = 1024 * 1024 *10;
+    int rt = mlog_ctl(h, LOG_OPT_SET_DST, 1, &dst);
+    if (rt != 0)
+        fprintf(stderr, "set dst failed\n");
 
-    unsigned flags = STDERRLOG | SYSLOG | LOGVERBOSE | LOGFILE | SOCKLOG;
-    log_set_opt(h, LOG_OPT_FLAGS, &flags);
-    unsigned long len = 1024;
-    log_set_opt(h, LOG_OPT_FILESIZE, &len);
-    const char *file = "abc.log";
-    log_set_opt(h, LOG_OPT_FILENAME, (void *)file);
-    const char *server = "127.0.0.1";
-    log_set_opt(h, LOG_OPT_SERVERADDR, (void *)server);
-    unsigned port = 34567;
-    log_set_opt(h, LOG_OPT_SERVERPORT, &port);
-    LOGLEVEL lv = LOG_WARNING;
-    log_set_opt(h, LOG_OPT_LEVEL, &lv);
-    unsigned bk = 0;
-    log_set_opt(h, LOG_OPT_BACKUP, &bk);
+    struct logdst sock;
+    sock.level = LOG_ERROR;
+    sock.type = LOGDSTTYPE_SOCK;
+    strncpy(sock.format, DEFAULT_FORMAT, strlen(DEFAULT_FORMAT)+1);
+    strncpy(sock.u.sock.addr, "127.0.0.1", 10);
+    sock.u.sock.port = 34567;
+    rt = mlog_ctl(h, LOG_OPT_SET_DST, 2, &sock);
+    if (rt != 0)
+        fprintf(stderr, "set dst failed\n");
+
+    struct logdst std;
+    std.level = LOG_DEBUG;
+    std.type = LOGDSTTYPE_STDOUT;
+    strncpy(std.format, DEFAULT_FORMAT, strlen(DEFAULT_FORMAT)+1);
+    rt = mlog_ctl(h, LOG_OPT_SET_DST, 3, &std);
+    if (rt != 0)
+        fprintf(stderr, "set dst failed\n");
+
 
     DBG(h, "this is a debug");
     INFO(h, "%s","this is a info");
@@ -53,23 +70,9 @@ void test1()
     ERROR(h, "this is a error");
     FATAL(h, "this is a fatal");
 
-    log_dump(h);
-
-    slog_init();
-    slog_set_opt(LOG_OPT_FLAGS, &flags);
-    slog_set_opt(LOG_OPT_FILESIZE, &len);
-    slog_set_opt(LOG_OPT_FILENAME, (void *)"ihi.log");
-    slog_set_opt(LOG_OPT_SERVERADDR, (void *)server);
-    slog_set_opt(LOG_OPT_SERVERPORT, &port);
-    slog_set_opt(LOG_OPT_LEVEL, &lv);
-    slog_set_opt(LOG_OPT_BACKUP, &bk);
-    LOG(LOG_DEBUG, "this is a debug");
-    LOG(LOG_INFO, "this is a info");
-    LOG(LOG_WARNING, "this is a warning");
-    LOG(LOG_ERROR, "this is a error");
-    LOG(LOG_FATAL, "this is a fatal");
-    log_dump();
+    mlog_dump(h);
 }
+
 void *run(void *arg)
 {
     unsigned i;
@@ -85,18 +88,39 @@ void *run(void *arg)
 void test2()
 {
     pthread_t tid1, tid2, tid3;
-    slog_init();
-    unsigned flags =  LOGVERBOSE | LOGFILE ;
-    slog_set_opt(LOG_OPT_FLAGS, &flags);
-    slog_set_opt(LOG_OPT_FILENAME, (void *)"ihi.log");
-    slog_set_opt(LOG_OPT_SERVERADDR, (void *)"127.0.0.1");
-    unsigned port = 34567;
-    slog_set_opt(LOG_OPT_SERVERPORT, &port);
-    unsigned bak = 4;
-    slog_set_opt(LOG_OPT_BACKUP, &bak);
-    unsigned long len = 1024 * 1024;
-    slog_set_opt(LOG_OPT_FILESIZE, &len);
+    log_init();
 
+    struct logdst dst;
+    dst.level = LOG_INFO;
+    dst.type = LOGDSTTYPE_FILE;
+    char *format = "%D %T [%L] %C%n";
+    strncpy(dst.format, format, strlen(format)+1);
+    strncpy(dst.u.file.filename, "abc.log", 8);
+    dst.u.file.filemode = DEFAULT_FILEMODE;
+    dst.u.file.backup = 0;
+    dst.u.file.filesize = 1024 * 1024 *10;
+    int rt = log_ctl(LOG_OPT_SET_DST, 1, &dst);
+    if (rt != 0)
+        fprintf(stderr, "set dst failed\n");
+
+    struct logdst sock;
+    sock.level = LOG_ERROR;
+    sock.type = LOGDSTTYPE_SOCK;
+    strncpy(dst.format, DEFAULT_FORMAT, strlen(format)+1);
+    strncpy(dst.u.sock.addr, "127.0.0.1", 10);
+    sock.u.sock.port = 34567;
+    rt = log_ctl(LOG_OPT_SET_DST, 2, &sock);
+    if (rt != 0)
+        fprintf(stderr, "set dst failed\n");
+
+
+    struct logdst std;
+    std.level = LOG_DEBUG;
+    std.type = LOGDSTTYPE_STDOUT;
+    strncpy(dst.format, DEFAULT_FORMAT, strlen(format)+1);
+    rt = log_ctl(LOG_OPT_SET_DST, 3, &std);
+    if (rt != 0)
+        fprintf(stderr, "set dst failed\n");
 
     pthread_create(&tid1, NULL, run, NULL);
     pthread_create(&tid2, NULL, run, NULL);
@@ -109,34 +133,9 @@ void test2()
 
 void test3()
 {
-    loghandler *h1 = log_init();
-    loghandler *h2 = log_init();
-    loghandler *h3 = log_init();
-
-    unsigned flags =  LOGFILE;
-    unsigned long len = 1024 * 256;
-    unsigned port = 34567;
-    LOGLEVEL lv = LOG_WARNING;
-    log_set_opt(h1, LOG_OPT_FILENAME, (void *)"h1.log");
-    log_set_opt(h1, LOG_OPT_FLAGS, &flags);
-    log_set_opt(h1, LOG_OPT_FILESIZE, &len);
-    log_set_opt(h1, LOG_OPT_SERVERADDR, (void *)"127.0.0.1");
-    log_set_opt(h1, LOG_OPT_SERVERPORT, &port);
-    log_set_opt(h1, LOG_OPT_LEVEL, &lv);
-
-    log_set_opt(h2, LOG_OPT_FILENAME, (void *)"h2.log");
-    log_set_opt(h2, LOG_OPT_FLAGS, &flags);
-    log_set_opt(h2, LOG_OPT_FILESIZE, &len);
-    log_set_opt(h2, LOG_OPT_SERVERADDR, (void *)"127.0.0.1");
-    log_set_opt(h2, LOG_OPT_SERVERPORT, &port);
-    log_set_opt(h2, LOG_OPT_LEVEL, &lv);
-
-    log_set_opt(h3, LOG_OPT_FILENAME, (void *)"h3.log");
-    log_set_opt(h3, LOG_OPT_FLAGS, &flags);
-    log_set_opt(h3, LOG_OPT_FILESIZE, &len);
-    log_set_opt(h3, LOG_OPT_SERVERADDR, (void *)"127.0.0.1");
-    log_set_opt(h3, LOG_OPT_SERVERPORT, &port);
-    log_set_opt(h3, LOG_OPT_LEVEL, &lv);
+    loghandler *h1 = mlog_init();
+    loghandler *h2 = mlog_init();
+    loghandler *h3 = mlog_init();
 
     unsigned i;
     for (i = 0; i < 1024 * 10; i++) {
@@ -158,12 +157,11 @@ void test3()
         ERROR(h3, "this is a error");
         FATAL(h3, "this is a fatal");
     }
-    log_dump(h1);
-    log_dump(h2);
-    log_dump(h3);
+    mlog_dump(h1);
+    mlog_dump(h2);
+    mlog_dump(h3);
 }
 
-#endif
 void test4()
 {
     /* LOG_INIT("abc.log", LOG_DEBUG); */
@@ -172,26 +170,32 @@ void test4()
     log_init();
 
     struct logdst dst;
-    dst.level = LOG_ERROR;
+    dst.level = LOG_DEBUG;
     dst.type = LOGDSTTYPE_FILE;
+    char *format = "%D %T [%L] %C%n";
+    strncpy(dst.format, format, strlen(format)+1);
     strncpy(dst.u.file.filename, "abc.log", 8);
-    dst.u.file.filemode = 0777;
+    dst.u.file.filemode = 0644;
     dst.u.file.backup = 0;
     dst.u.file.filesize = 1024 * 1024 *10;
     int rt = log_ctl(LOG_OPT_SET_DST, 1, &dst);
     if (rt != 0)
         fprintf(stderr, "set dst failed: %d\n", rt);
+
     struct logdst std;
-    dst.level = LOG_DEBUG;
-    dst.type =LOGDSTTYPE_STDOUT;
+    std.level = LOG_DEBUG;
+    std.type =LOGDSTTYPE_STDOUT;
+    strncpy(std.format, format, strlen(format)+1);
     rt = log_ctl(LOG_OPT_SET_DST, 2, &std);
     if (rt != 0)
         fprintf(stderr, "set dst failed: %d\n", rt);
 
-    for (i = 0; i < 1024 * 1024; i++) {
-        LOG(LOG_DEBUG, "%lu debug", getpid());
-        LOG(LOG_ERROR, "%lu error", getpid());
-        LOG(LOG_FATAL, "%lu fatal", getpid());
+    for (i = 0; i < 1024; i++) {
+        LOG(LOG_DEBUG, "this is a debug");
+        LOG(LOG_NOTICE, "this is a notice");
+        LOG(LOG_INFO, "this is a info");
+        LOG(LOG_ERROR, "this is a error");
+        LOG(LOG_FATAL, "this is a fatal");
     }
     log_dump();
 }
@@ -206,10 +210,10 @@ void test5()
 }
 int main(int argc, char *argv[])
 {
-    /* test1(); */
-    /* test2(); */
-    /* test3(); */
-    test4();
+    test1(); 
+    //test2(); 
+    //test3(); 
+    //test4();
     //test5();
     return 0;
 }

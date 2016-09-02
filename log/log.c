@@ -32,18 +32,26 @@
 #include <netdb.h>
 #include <pthread.h>
 
+#include <fcntl.h>
+
 #include "log.h"
 
-#define DEFAULT_MAX_DST 16
-#define DEFAULT_BUFFERSIZE 4096 * 4
-#define DEFAULT_IDENT "ihi"
-#define DEFAULT_FILENAME "ihi.log"
-#define DEFAULT_BACKUP 4
-#define DEFAULT_FILEMODE  (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
-#define DEFAULT_FILESIZE 10*1024*1024
-#define DEFAULT_LEVEL LOGLEVEL_DEBUG
-#define DEFAULT_FORMAT "%D %T.%u %i:%p [%L] %F:%f(%l) %C%n"
-//#define DEFAULT_FORMAT "%D %T [%L] %C%n"
+
+#define ESC_START       "\033["
+#define ESC_END         "\033[0m"
+#define COLOR_EMERG     ESC_START"31;40;5m" 
+#define COLOR_ALERT     ESC_START"31;40;3m"
+#define COLOR_FATAL     ESC_START"31;40;1m"
+#define COLOR_ERROR     ESC_START"33;40;1m"
+#define COLOR_WARNING   ESC_START"35;40;1m"
+#define COLOR_NOTICE    ESC_START"32;40;1m"
+#define COLOR_INFO      ESC_START"37;40;1m"
+//#define COLOR_DEBUG    ESC_START"37;40;0m"
+#define COLOR_DEBUG    ""
+
+#define BACK_LOCK_FILE ".back.lock"
+
+#define DEBUG
 
 struct  _loghandler {
     pthread_mutex_t mutex;
@@ -52,6 +60,7 @@ struct  _loghandler {
     size_t buffer_size;
 
     char ident[128];
+    char colord;
 
     struct logdst* dsts[DEFAULT_MAX_DST];
     uint16_t dsts_count;
@@ -78,82 +87,139 @@ static const char * const LOGLEVELSTR[] = {
     "INFO",
     "DEBUG",
 };
+int lock_get(int fd, int type, int start, int len, int whence)
+{
+    struct flock lock;
+    lock.l_type = type;
+    lock.l_whence = whence;
+    lock.l_start = start;
+    lock.l_len = len;
+
+    fcntl(fd, F_GETLK, &lock);
+    if (lock.l_type == F_UNLCK) {
+        return 0;
+    }
+    return -1;
+}
+
+int lock_set(int fd, int type, int start, int len, int whence)
+{
+    struct flock lock;
+    lock.l_type = type;
+    lock.l_whence = whence;
+    lock.l_start = start;
+    lock.l_len = len;
+
+    if (fcntl(fd, F_SETLK, &lock) != 0) {
+        if (type == F_UNLCK) {
+            //perror("unlock file failed");
+        } else {
+            //perror("lock file failed");
+        }
+        return -1;
+    }
+    return 0;
+}
 
 static inline void _dobak(struct logdst *dst)
 {
     int bakcnt;
     char old_bakfile[256];
     char new_bakfile[256];
-    bakcnt = dst->u.file.backup;
-    while (bakcnt >= 0) {
-        if (bakcnt == 0) {
-            snprintf(old_bakfile, sizeof(old_bakfile), "%s", dst->u.file.filename);
-        } else {
-            snprintf(old_bakfile, sizeof(old_bakfile), "%s.%d", dst->u.file.filename, bakcnt-1);
-        }
-        if(!access(old_bakfile, F_OK)) {
-            if (bakcnt == dst->u.file.backup) {
-                unlink(old_bakfile);
-                /* fprintf(stderr, "unlink %s bakcnt: %d\n", old_bakfile, bakcnt); */
-                continue;
-            } else {
-                snprintf(new_bakfile, sizeof(new_bakfile), "%s.%d", dst->u.file.filename, bakcnt);
-                /* fprintf(stderr, "rename %s to %s bakcnt: %d\n", old_bakfile, new_bakfile, bakcnt); */
-                rename(old_bakfile, new_bakfile);
 
-            }
-        }
-        bakcnt--;
+    int fd;
+    fd = open(BACK_LOCK_FILE, O_RDWR|O_CREAT, DEFAULT_FILEMODE);
+    if (fd < 0) {
+        perror("open lockfile failed");
+        return; 
     }
+
+    if(lock_set(fd, F_WRLCK, 0, 0, SEEK_SET) == 0) {
+#ifdef DEBUG
+        fprintf(stderr, "log: do bak\n");
+#endif
+        bakcnt = dst->u.file.backup;
+        while (bakcnt >= 0) {
+            if (bakcnt == 0) {
+                snprintf(old_bakfile, sizeof(old_bakfile), "%s", dst->u.file.filename);
+            } else {
+                snprintf(old_bakfile, sizeof(old_bakfile), "%s.%d", dst->u.file.filename, bakcnt-1);
+            }
+            if(!access(old_bakfile, F_OK)) {
+                if (bakcnt == dst->u.file.backup) {
+                    if (unlink(old_bakfile) != 0) {
+                        perror("unlink");
+                    }
+                    /* fprintf(stderr, "unlink %s bakcnt: %d\n", old_bakfile, bakcnt); */
+                    continue;
+                } else {
+                    snprintf(new_bakfile, sizeof(new_bakfile), "%s.%d", dst->u.file.filename, bakcnt);
+                    /* fprintf(stderr, "rename %s to %s bakcnt: %d\n", old_bakfile, new_bakfile, bakcnt); */
+                    if (rename(old_bakfile, new_bakfile) != 0) {
+                        perror("rename");
+                    }
+
+                }
+            }
+            bakcnt--;
+        }
+
+        if (lock_set(fd, F_UNLCK, 0, 0, SEEK_SET) != 0) {
+            close(fd);
+            return;
+        }
+
+    } else {
+#ifdef DEBUG
+        fprintf(stderr, "log: wait other process bak\n");
+#endif
+        int ret = 1;
+        do { 
+            ret = lock_get(fd, F_WRLCK, 0, 0, SEEK_SET);
+        } while (ret);
+    }
+    close(fd);
 }
 
-static inline void checkbak(struct logdst *dst, size_t len)
+static inline void checkfile(struct logdst *dst, size_t len)
 {
-    /* file not exist, create file */
-    if (access(dst->u.file.filename, F_OK)) {
-        if (dst->u.file.fp != NULL) {
-            fclose(dst->u.file.fp);
-            dst->u.file.fp = NULL;
-        }
-        mode_t mask_old = umask(~(dst->u.file.filemode));
-        dst->u.file.fp = fopen(dst->u.file.filename, "a+");
-        umask(mask_old);
-        return;
-    }
-
-    /* dont bak, if file not open , open file */
-    if (dst->u.file.backup <= 0) {
-        if (dst->u.file.fp == NULL) {
-            mode_t mask_old = umask(~(dst->u.file.filemode));
-            dst->u.file.fp = fopen(dst->u.file.filename, "a+");
-            umask(mask_old);
-        }
-        return;
-    }
-
-    /* file exist, but not open. */
     if (dst->u.file.fp == NULL) {
-        //_dobak(dst);
         mode_t mask_old = umask(~(dst->u.file.filemode));
         dst->u.file.fp = fopen(dst->u.file.filename, "a+");
         umask(mask_old);
+        if (dst->u.file.fp == NULL) {
+            fprintf(stderr, "create file %s failed\n", dst->u.file.filename);
+            return ;
+        }
+    }
+
+    /* dont bak */
+    if (dst->u.file.backup <= 0) {
         return;
     }
 
     /* limit by size */
     struct stat st;
     if (fstat(fileno(dst->u.file.fp), &st) == 0) {
-        if (dst->u.file.backup > 0 && (st.st_size + len  >= dst->u.file.filesize)) {
-            if (dst->u.file.fp) {
+        if ((st.st_size + len  >= dst->u.file.filesize)) {
+            if (dst->u.file.fp != NULL) {
+                fsync(fileno(dst->u.file.fp));
                 fclose(dst->u.file.fp);
                 dst->u.file.fp = NULL;
             }
+
             _dobak(dst);
-            mode_t mask_old = umask(~(dst->u.file.filemode));
-            dst->u.file.fp = fopen(dst->u.file.filename, "a+");
-            umask(mask_old);
+
+            if (dst->u.file.fp == NULL) {
+                mode_t mask_old = umask(~(dst->u.file.filemode));
+                dst->u.file.fp = fopen(dst->u.file.filename, "a+");
+                umask(mask_old);
+            }
         }
+    } else {
+        fprintf(stderr, "fstat failed\n");
     }
+
     return;
 }
 
@@ -260,9 +326,13 @@ static inline int __log_ctl(loghandler *lp, enum LOG_OPTS opt, va_list ap)
                                     ident = lp->ident;
                                     break;
                                 }
-
+        case LOG_OPT_SET_USECOLOR: {
+                                       int color = va_arg(ap, int);
+                                       lp->colord = color;
+                                       break;
+                                   }
         default:
-                                return -1;
+                                   return -1;
     }
 
     return 0;
@@ -342,7 +412,7 @@ loghandler *mlog_init()
 }
 
 static size_t parse_format(struct logdst *dst, char *buf, size_t len, 
-        const char *ident, LOGLEVEL level,
+        int color, const char *ident, LOGLEVEL level,
         const char *file, const char *func, const long line, 
         const char *fmt, va_list ap)
 {
@@ -357,6 +427,38 @@ static size_t parse_format(struct logdst *dst, char *buf, size_t len,
     time_t t = time(NULL);
     struct tm now;
     localtime_r(&t, &now);
+
+    if (color) {
+        switch (level) {
+            case LOG_EMERG:
+                idx += snprintf(buf+idx, len-idx, "%s", COLOR_EMERG);
+                break;
+            case LOG_ALERT:
+                idx += snprintf(buf+idx, len-idx, "%s", COLOR_ALERT);
+                break;
+            case LOG_FATAL:
+                idx += snprintf(buf+idx, len-idx, "%s", COLOR_FATAL);
+                break;
+            case LOG_ERROR:
+                idx += snprintf(buf+idx, len-idx, "%s", COLOR_ERROR);
+                break;
+            case LOG_WARNING:
+                idx += snprintf(buf+idx, len-idx, "%s", COLOR_WARNING);
+                break;
+            case LOG_NOTICE:
+                idx += snprintf(buf+idx, len-idx, "%s", COLOR_NOTICE);
+                break;
+            case LOG_INFO:
+                idx += snprintf(buf+idx, len-idx, "%s", COLOR_INFO);
+                break;
+            case LOG_DEBUG:
+                idx += snprintf(buf+idx, len-idx, "%s", COLOR_DEBUG);
+                break; 
+            default:
+                idx += snprintf(buf+idx, len-idx, "%s", COLOR_DEBUG);
+                break;
+        }
+    }
 
     for (i = 0; i < strlen(dst->format); i++) {
         if (idx >= len)
@@ -396,7 +498,7 @@ static size_t parse_format(struct logdst *dst, char *buf, size_t len,
                     break;
                 case 'p':
                     i++;
-                    idx += snprintf(buf+idx, len-idx, "%lu", getpid());
+                    idx += snprintf(buf+idx, len-idx, "%u", getpid());
                     break;
                 case 'C':
                     i++;
@@ -423,11 +525,18 @@ static size_t parse_format(struct logdst *dst, char *buf, size_t len,
             idx += snprintf(buf+idx, len-idx, "%c", dst->format[i]);
         }
     }
+
+
+    if (color) {
+        idx += snprintf(buf+idx, len-idx, "%s", ESC_END);
+    }
     return idx;
 }
 
 void vlog(loghandler *handle, LOGLEVEL level, const char *file,
         const char *function, long line, const char *format, va_list args) {
+
+
     if (handle == NULL)
         return;
 
@@ -498,7 +607,7 @@ void vlog(loghandler *handle, LOGLEVEL level, const char *file,
         }
         va_list ap;
         va_copy(ap, args);
-        size_t len = parse_format(dst, handle->bufferp, handle->buffer_size,
+        size_t len = parse_format(dst, handle->bufferp, handle->buffer_size, handle->colord,
                 handle->ident, level, file, function, line, format, ap);
         va_end(ap);
 
@@ -511,7 +620,7 @@ void vlog(loghandler *handle, LOGLEVEL level, const char *file,
                 fprintf(stderr, "%s", handle->bufferp);
                 break;
             case LOGDSTTYPE_FILE:
-                checkbak(dst, len);
+                checkfile(dst, len);
                 if (dst->u.file.fp) {
                     fseek(dst->u.file.fp, 0, SEEK_END);
                     if (fprintf(dst->u.file.fp, "%s", handle->bufferp) != (int)len) {
@@ -605,6 +714,7 @@ void vlog(loghandler *handle, LOGLEVEL level, const char *file,
             break;
         default:
             handle->unhandle_count++;
+            break;
     }
 
     pthread_mutex_unlock(&handle->mutex);
@@ -613,6 +723,7 @@ void vlog(loghandler *handle, LOGLEVEL level, const char *file,
 void mlog(loghandler *handle, LOGLEVEL level, const char *file, 
         const char *function, long line, const char *format, ...)
 {
+
     va_list args;
     va_start(args, format);
     vlog(handle, level, file, function, line, format, args);

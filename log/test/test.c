@@ -63,12 +63,18 @@ void test1()
     if (rt != 0)
         fprintf(stderr, "set dst failed\n");
 
+    int color = 1;
+    mlog_ctl(h, LOG_OPT_SET_USECOLOR, color);
+
 
     DBG(h, "this is a debug");
     INFO(h, "%s","this is a info");
+    NOTICE(h, "this is a notice");
     WARNING(h, "this is a warning");
     ERROR(h, "this is a error");
     FATAL(h, "this is a fatal");
+    ALERT(h, "this is a alert");
+    EMERG(h, "this is a emergency");
 
     mlog_dump(h);
 }
@@ -138,7 +144,7 @@ void test3()
     loghandler *h3 = mlog_init();
 
     unsigned i;
-    for (i = 0; i < 1024 * 10; i++) {
+    for (i = 0; i < 1024 * 1024; i++) {
         DBG(h1, "this is a debug");
         INFO(h1, "%s","this is a info");
         WARNING(h1, "this is a warning");
@@ -202,16 +208,25 @@ void test4()
 
 void test5()
 {
-    loghandler *handle = NULL;
-    handle = mlog_init();
+    loghandler *h = mlog_init();
     int i;
-    for (i = 0; i < 100; i++)
-        DBG(handle, "this is a test");
+    for (i = 0; i < 1024  * 1024; i++) {
+    DBG(h, "this is a debug");
+    INFO(h, "%s","this is a info");
+    NOTICE(h, "this is a notice");
+    WARNING(h, "this is a warning");
+    ERROR(h, "this is a error");
+    FATAL(h, "this is a fatal");
+    ALERT(h, "this is a alert");
+    EMERG(h, "this is a emergency");
+
+    }
+
 }
 int main(int argc, char *argv[])
 {
-    test1(); 
-    //test2(); 
+    //test1(); 
+    test2(); 
     //test3(); 
     //test4();
     //test5();

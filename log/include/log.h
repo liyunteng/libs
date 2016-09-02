@@ -30,7 +30,7 @@ extern "C" {
 #define DEFAULT_FILENAME "ihi.log"
 #define DEFAULT_BACKUP 4
 #define DEFAULT_FILEMODE  (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
-#define DEFAULT_FILESIZE 10*1024*1024
+#define DEFAULT_FILESIZE 4*1024*1024
 #define DEFAULT_LEVEL LOGLEVEL_DEBUG
 #define DEFAULT_FORMAT "%D %T.%u %i:%p [%L] %F:%f(%l) %C%n"
 //#define DEFAULT_FORMAT "%D %T [%L] %C%n"
@@ -116,6 +116,7 @@ extern "C" {
         LOG_OPT_GET_DST,                /* struct logdst * */
         LOG_OPT_SET_IDENT,
         LOG_OPT_GET_IDENT,
+        LOG_OPT_SET_USECOLOR,
     };
 
     struct _loghandler;
@@ -148,6 +149,11 @@ extern "C" {
 #ifndef INFO
 #define INFO(handle, format, ...)                                       \
     MLOG(handle, LOGLEVEL_INFO, format, ##__VA_ARGS__)
+#endif
+
+#ifndef NOTICE
+#define NOTICE(handle, format, ...)                                     \
+    MLOG(handle, LOGLEVEL_NOTICE, format, ##__VA_ARGS__)
 #endif
 
 #ifndef WARNING

@@ -4,7 +4,7 @@
  * Copyright (C) 2016 liyunteng
  * Auther: liyunteng <li_yunteng@163.com>
  * License: GPL
- * Update time:  2016/08/31 10:41:20
+ * Update time:  2016/09/03 16:32:26
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -27,11 +27,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#if 0
 void test1()
 {
     const char *s = "this is a test.";
     loghandler *h = mlog_init();
-    
+
     struct logdst dst;
     dst.level = LOG_INFO;
     dst.type = LOGDSTTYPE_FILE;
@@ -205,12 +206,42 @@ void test4()
     }
     log_dump();
 }
-
+#endif
 void test5()
 {
-    loghandler *h = mlog_init();
+
+    char b[4096];
     int i;
-    for (i = 0; i < 1024  * 1024; i++) {
+    //log_init();
+    LOG_INIT("ihi.log", LOG_ERROR);
+    for (i = 0; i < 1024 * 4 - 1; i++) {
+        b[i] = 'b';
+    }
+    b[i] = '\0';
+    #if 1
+    for (i = 0; i < 1024 ;i++) {
+        LOG(LOG_DEBUG, "this is a debug");
+        LOG(LOG_NOTICE, "this is a notice");
+        LOG(LOG_INFO, "this is a info");
+        LOG(LOG_ERROR, "this is a error");
+        LOG(LOG_FATAL, "this is a fatal");
+        //LOG(LOG_EMERG, "this is a long msg: %s", b);
+    }
+#endif
+
+#if 0
+    loghandler *h = loghandler_create("abc");
+    logformat *f = logformat_create("%d %c %V %m%n", 0);
+    logformat *vf = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
+    logoutput *fileout = logoutput_create(LOGOUTTYPE_FILE, "ihi.log", 1024*1024*4, 0600, 1);
+    logoutput *out = logoutput_create(LOGOUTTYPE_STDOUT);
+    //logbind(h, LOG_ERROR, -1, vf, fileout);
+    logbind(h, LOG_DEBUG, -1, f, out);
+    logbind(h, LOG_ERROR, -1, vf, out);
+    logbind(h, LOG_ERROR, LOG_ERROR, vf, fileout);
+
+    //loghandler *h = loghandler_get("ihi");
+    for (i = 0; i < 1 ; i++) {
     DBG(h, "this is a debug");
     INFO(h, "%s","this is a info");
     NOTICE(h, "this is a notice");
@@ -218,17 +249,20 @@ void test5()
     ERROR(h, "this is a error");
     FATAL(h, "this is a fatal");
     ALERT(h, "this is a alert");
-    EMERG(h, "this is a emergency");
-
+    //EMERG(h, "this is a long msg: %s", b);
     }
+#endif
+
+
+    log_dump();
 
 }
 int main(int argc, char *argv[])
 {
-    //test1(); 
-    test2(); 
-    //test3(); 
+    //test1();
+    //test2();
+    //test3();
     //test4();
-    //test5();
+    test5();
     return 0;
 }

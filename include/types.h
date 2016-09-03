@@ -47,8 +47,13 @@
 #define __always_inline	inline __attribute__((always_inline))
 #endif
 
+#if defined(__x86_64__) && !defined(__ILP32__)
+# define __BITS_PER_LONG 64
+#else
+# define __BITS_PER_LONG 32
+#endif
 
-#define BITS_PER_LONG 64
+#define BITS_PER_LONG __BITS_PER_LONG
 typedef _Bool bool;
 
 typedef signed char s8;

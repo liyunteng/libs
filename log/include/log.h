@@ -4,7 +4,7 @@
  *
  *   @author liyunteng <liyunteng@streamocean.com>
  *   @copyright CopyRight (C) 2015 StreamOcean
- *   @date Update time:  2016/09/04 02:28:05
+ *   @date Update time:  2016/09/04 16:13:26
  */
 
 #ifndef LOG_H
@@ -24,17 +24,17 @@ extern "C" {
 #include <android/log.h>
 #endif
 
-#define DEFAULT_IDENT "ihi"
-#define DEFAULT_SOCKADDR "127.0.0.1"
-#define DEFAULT_SOCKPORT  12345
-#define DEFAULT_FILENAME "ihi.log"
-//#define DEFAULT_BAKUP 4
-#define DEFAULT_BAKUP 0
-#define DEFAULT_FILEMODE  (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
-#define DEFAULT_FILESIZE 10*1024*1024
-#define DEFAULT_LEVEL LOGLEVEL_DEBUG
-#define DEFAULT_FORMAT "%d.%ms %c:%p:%t [%V] %F:%U(%L) %m%n"
-#define DEFAULT_TIME_FORMAT "%F %T"
+#define DEFAULT_IDENT           "ihi"
+#define DEFAULT_SOCKADDR        "127.0.0.1"
+#define DEFAULT_SOCKPORT        12345
+#define DEFAULT_FILENAME        "ihi.log"
+#define DEFAULT_BAKUP           4
+//#define DEFAULT_BAKUP         0
+#define DEFAULT_FILEMODE        (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
+#define DEFAULT_FILESIZE        10*1024*1024
+#define DEFAULT_LEVEL           LOGLEVEL_DEBUG
+#define DEFAULT_TIME_FORMAT     "%F %T"
+#define DEFAULT_FORMAT          "%d.%ms %c:%p:%t [%V] %F:%U(%L) %m%n"
 
 //format
 //%d(%F %T)  timeformat
@@ -116,21 +116,19 @@ typedef struct _loghandler loghandler;
 typedef struct _logformat logformat;
 typedef struct _logoutput logoutput;
 
-int log_init();
 loghandler *loghandler_create(const char *ident);
 loghandler *loghandler_get(const char *ident);
 logformat *logformat_create(const char *format, int color);
-logformat *logformat_get_default();
 
 //LOGOUTTYPE_STDERR, LOGOUTTYPE_STDOUT, LOGOUTTYPE_LOGCAT, LOGOUTTYPE_SYSLOG  need not arg
 //LOGOUTTYPE_FILE char *filename unsigned long filesize mode_t filemode int bakupnum
 //LOGOUTTYPE_SOCK char *addr, int port
 logoutput *logoutput_create(enum LOGOUTTYPE type, ...);
-logoutput *logoutput_get_default();
 
 // if level_end == -1 , will output from level_beign to LOGLEVEL_EMERG
 // will print handler's log to output, use format, when loglevel between level_begin and level_end
 int logbind(loghandler *handler, LOGLEVEL level_beign, LOGLEVEL level_end, logformat *format, logoutput *output);
+int logunbind(loghandler *handler, logoutput *output);
 
 int log_ctl(enum LOG_OPTS, ...);
 void mlog(loghandler *handle,
@@ -142,7 +140,7 @@ void mlog(loghandler *handle,
           ...);
 
 #ifndef MLOG
-#define MLOG(handle, level, format, ...)                \
+#define MLOG(handle, level, format, ...)                                \
     mlog(handle, level,  __FILE__, __FUNCTION__, __LINE__, format, ##__VA_ARGS__);
 #endif
 
@@ -157,12 +155,12 @@ void mlog(loghandler *handle,
 #endif
 
 #ifndef NOTICE
-#define NOTICE(handle, format, ...)                     \
+#define NOTICE(handle, format, ...)                             \
     MLOG(handle, LOGLEVEL_NOTICE, format, ##__VA_ARGS__)
 #endif
 
 #ifndef WARNING
-#define WARNING(handle, format, ...)                    \
+#define WARNING(handle, format, ...)                            \
     MLOG(handle, LOGLEVEL_WARNING, format, ##__VA_ARGS__)
 #endif
 
@@ -199,14 +197,12 @@ void slog(LOGLEVEL level,
 
 #define LOG_INIT(filename, level)                                       \
     do {                                                                \
-        if (log_init() == 0) {                                          \
-            logformat *format = logformat_get_default();                \
-            logoutput *output = logoutput_create(LOGOUTTYPE_FILE,       \
-                (filename), DEFAULT_FILESIZE,  DEFAULT_FILEMODE, DEFAULT_BAKUP); \
-            loghandler *handler = loghandler_get(DEFAULT_IDENT);        \
-            if (format && output && handler) {                          \
-                logbind(handler, DEFAULT_LEVEL, -1, format, output);    \
-            }                                                           \
+        logformat *__format = logformat_create(DEFAULT_FORMAT, 0);      \
+        logoutput *__output = logoutput_create(LOGOUTTYPE_FILE,         \
+                  (filename), DEFAULT_FILESIZE,  DEFAULT_FILEMODE, DEFAULT_BAKUP); \
+        loghandler *__handler = loghandler_create(DEFAULT_IDENT);       \
+        if (__format && __output && __handler) {                        \
+            logbind(__handler, DEFAULT_LEVEL, -1, __format, __output);  \
         }                                                               \
     } while(0)
 

@@ -4,7 +4,7 @@
  * Copyright (C) 2016 liyunteng
  * Auther: liyunteng <li_yunteng@163.com>
  * License: GPL
- * Update time:  2016/09/03 16:32:26
+ * Update time:  2016/09/04 16:20:24
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -27,49 +27,21 @@
 #include <string.h>
 #include <unistd.h>
 
-#if 0
 void test1()
 {
     const char *s = "this is a test.";
-    loghandler *h = mlog_init();
+    loghandler *h = loghandler_create("h");
 
-    struct logdst dst;
-    dst.level = LOG_INFO;
-    dst.type = LOGDSTTYPE_FILE;
-    char *format = "%D %T [%L] %C%n";
-    strncpy(dst.format, format, strlen(format)+1);
-    strncpy(dst.u.file.filename, "abc.log", 8);
-    dst.u.file.filemode = DEFAULT_FILEMODE;
-    dst.u.file.backup = 0;
-    dst.u.file.filesize = 1024 * 1024 *10;
-    int rt = mlog_ctl(h, LOG_OPT_SET_DST, 1, &dst);
-    if (rt != 0)
-        fprintf(stderr, "set dst failed\n");
-
-    struct logdst sock;
-    sock.level = LOG_ERROR;
-    sock.type = LOGDSTTYPE_SOCK;
-    strncpy(sock.format, DEFAULT_FORMAT, strlen(DEFAULT_FORMAT)+1);
-    strncpy(sock.u.sock.addr, "127.0.0.1", 10);
-    sock.u.sock.port = 34567;
-    rt = mlog_ctl(h, LOG_OPT_SET_DST, 2, &sock);
-    if (rt != 0)
-        fprintf(stderr, "set dst failed\n");
-
-    struct logdst std;
-    std.level = LOG_DEBUG;
-    std.type = LOGDSTTYPE_STDOUT;
-    strncpy(std.format, DEFAULT_FORMAT, strlen(DEFAULT_FORMAT)+1);
-    rt = mlog_ctl(h, LOG_OPT_SET_DST, 3, &std);
-    if (rt != 0)
-        fprintf(stderr, "set dst failed\n");
-
-    int color = 1;
-    mlog_ctl(h, LOG_OPT_SET_USECOLOR, color);
-
+    logformat *format = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
+    logoutput *fileout = logoutput_create(LOGOUTTYPE_FILE, "ihi.log", 1024*1024*4, 0600, 4);
+    logoutput *std_out = logoutput_create(LOGOUTTYPE_STDOUT);
+    logbind(h, LOG_DEBUG, -1, format, fileout);
+    logbind(h, LOG_DEBUG, -1, format, std_out);
 
     DBG(h, "this is a debug");
+    logunbind(h, fileout);
     INFO(h, "%s","this is a info");
+    logbind(h, LOG_DEBUG, -1, format, fileout);
     NOTICE(h, "this is a notice");
     WARNING(h, "this is a warning");
     ERROR(h, "this is a error");
@@ -77,9 +49,11 @@ void test1()
     ALERT(h, "this is a alert");
     EMERG(h, "this is a emergency");
 
-    mlog_dump(h);
+
+    log_dump();
 }
 
+#if 0
 void *run(void *arg)
 {
     unsigned i;
@@ -95,40 +69,8 @@ void *run(void *arg)
 void test2()
 {
     pthread_t tid1, tid2, tid3;
-    log_init();
 
-    struct logdst dst;
-    dst.level = LOG_INFO;
-    dst.type = LOGDSTTYPE_FILE;
-    char *format = "%D %T [%L] %C%n";
-    strncpy(dst.format, format, strlen(format)+1);
-    strncpy(dst.u.file.filename, "abc.log", 8);
-    dst.u.file.filemode = DEFAULT_FILEMODE;
-    dst.u.file.backup = 0;
-    dst.u.file.filesize = 1024 * 1024 *10;
-    int rt = log_ctl(LOG_OPT_SET_DST, 1, &dst);
-    if (rt != 0)
-        fprintf(stderr, "set dst failed\n");
-
-    struct logdst sock;
-    sock.level = LOG_ERROR;
-    sock.type = LOGDSTTYPE_SOCK;
-    strncpy(dst.format, DEFAULT_FORMAT, strlen(format)+1);
-    strncpy(dst.u.sock.addr, "127.0.0.1", 10);
-    sock.u.sock.port = 34567;
-    rt = log_ctl(LOG_OPT_SET_DST, 2, &sock);
-    if (rt != 0)
-        fprintf(stderr, "set dst failed\n");
-
-
-    struct logdst std;
-    std.level = LOG_DEBUG;
-    std.type = LOGDSTTYPE_STDOUT;
-    strncpy(dst.format, DEFAULT_FORMAT, strlen(format)+1);
-    rt = log_ctl(LOG_OPT_SET_DST, 3, &std);
-    if (rt != 0)
-        fprintf(stderr, "set dst failed\n");
-
+    LOG_INIT("ihi.log", LOG_DEBUG);
     pthread_create(&tid1, NULL, run, NULL);
     pthread_create(&tid2, NULL, run, NULL);
     pthread_create(&tid3, NULL, run, NULL);
@@ -137,12 +79,19 @@ void test2()
     pthread_join(tid3, NULL);
     log_dump();
 }
+#endif
 
 void test3()
 {
-    loghandler *h1 = mlog_init();
-    loghandler *h2 = mlog_init();
-    loghandler *h3 = mlog_init();
+    loghandler *h1 = loghandler_create("h1");
+    loghandler *h2 = loghandler_create("h2");
+    loghandler *h3 = loghandler_create("h3");
+    logformat *format = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
+    logoutput *fileout = logoutput_create(LOGOUTTYPE_FILE, "ihi.log", 1024*1024*100, 0600, 4);
+
+    logbind(h1, LOG_DEBUG, -1, format, fileout);
+    logbind(h2, LOG_DEBUG, -1, format, fileout);
+    logbind(h3, LOG_DEBUG, -1, format, fileout);
 
     unsigned i;
     for (i = 0; i < 1024 * 1024; i++) {
@@ -164,40 +113,14 @@ void test3()
         ERROR(h3, "this is a error");
         FATAL(h3, "this is a fatal");
     }
-    mlog_dump(h1);
-    mlog_dump(h2);
-    mlog_dump(h3);
+    log_dump();
 }
-
 void test4()
 {
-    /* LOG_INIT("abc.log", LOG_DEBUG); */
+    LOG_INIT("abc.log", LOG_DEBUG);
 
     unsigned i;
-    log_init();
-
-    struct logdst dst;
-    dst.level = LOG_DEBUG;
-    dst.type = LOGDSTTYPE_FILE;
-    char *format = "%D %T [%L] %C%n";
-    strncpy(dst.format, format, strlen(format)+1);
-    strncpy(dst.u.file.filename, "abc.log", 8);
-    dst.u.file.filemode = 0644;
-    dst.u.file.backup = 0;
-    dst.u.file.filesize = 1024 * 1024 *10;
-    int rt = log_ctl(LOG_OPT_SET_DST, 1, &dst);
-    if (rt != 0)
-        fprintf(stderr, "set dst failed: %d\n", rt);
-
-    struct logdst std;
-    std.level = LOG_DEBUG;
-    std.type =LOGDSTTYPE_STDOUT;
-    strncpy(std.format, format, strlen(format)+1);
-    rt = log_ctl(LOG_OPT_SET_DST, 2, &std);
-    if (rt != 0)
-        fprintf(stderr, "set dst failed: %d\n", rt);
-
-    for (i = 0; i < 1024; i++) {
+    for (i = 0; i < 1024 * 1024 * 1024; i++) {
         LOG(LOG_DEBUG, "this is a debug");
         LOG(LOG_NOTICE, "this is a notice");
         LOG(LOG_INFO, "this is a info");
@@ -206,26 +129,25 @@ void test4()
     }
     log_dump();
 }
-#endif
+
 void test5()
 {
 
     char b[4096];
     int i;
-    //log_init();
     LOG_INIT("ihi.log", LOG_ERROR);
     for (i = 0; i < 1024 * 4 - 1; i++) {
         b[i] = 'b';
     }
     b[i] = '\0';
-    #if 1
+#if 1
     for (i = 0; i < 1024 ;i++) {
         LOG(LOG_DEBUG, "this is a debug");
         LOG(LOG_NOTICE, "this is a notice");
         LOG(LOG_INFO, "this is a info");
         LOG(LOG_ERROR, "this is a error");
         LOG(LOG_FATAL, "this is a fatal");
-        //LOG(LOG_EMERG, "this is a long msg: %s", b);
+        LOG(LOG_EMERG, "this is a long msg: %s", b);
     }
 #endif
 
@@ -242,20 +164,26 @@ void test5()
 
     //loghandler *h = loghandler_get("ihi");
     for (i = 0; i < 1 ; i++) {
-    DBG(h, "this is a debug");
-    INFO(h, "%s","this is a info");
-    NOTICE(h, "this is a notice");
-    WARNING(h, "this is a warning");
-    ERROR(h, "this is a error");
-    FATAL(h, "this is a fatal");
-    ALERT(h, "this is a alert");
-    //EMERG(h, "this is a long msg: %s", b);
+        DBG(h, "this is a debug");
+        INFO(h, "%s","this is a info");
+        NOTICE(h, "this is a notice");
+        WARNING(h, "this is a warning");
+        ERROR(h, "this is a error");
+        FATAL(h, "this is a fatal");
+        ALERT(h, "this is a alert");
+        //EMERG(h, "this is a long msg: %s", b);
     }
 #endif
 
 
     log_dump();
 
+}
+void test6()
+{
+    LOG_INIT("ihi.log", LOG_DEBUG);
+    LOG(LOG_DEBUG, "this is a debug");
+    log_dump();
 }
 int main(int argc, char *argv[])
 {
@@ -264,5 +192,6 @@ int main(int argc, char *argv[])
     //test3();
     //test4();
     test5();
+    //test6();
     return 0;
 }

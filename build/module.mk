@@ -49,9 +49,11 @@ debug:
 	@$(MAKE) -e BUILD_ENV=debug
 # <====== COMPLING RULES ========>
 $(OBJECT_C:.o=.lo) : $(OBJECT_C)
+	
 $(OBJECT_C) : %.o: %.c
 	$(LIBTOOL) --tag=CC --mode=compile $(CC) $(CFLAGS) $(INC_PATH) -c $<
 
 $(OBJECT_CXX:.o=.lo) : $(OBJECT_CXX)
+	
 $(OBJECT_CXX) : %.o: %.cpp
 	$(LIBTOOL) --tag=CXX --mode=compile $(CXX) $(CXXFLAGS) $(CXX_INC_PATH) -c $<

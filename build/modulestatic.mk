@@ -36,7 +36,7 @@ uninstall:
 
 # not removing include
 clean:
-	@echo "Cleaning"
+	@echo "Cleaning..."
 	@rm -rf $(CLEAN_TARGETS)
 debug:
 	@$(MAKE) clean

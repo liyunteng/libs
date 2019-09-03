@@ -46,6 +46,7 @@ clean :
 debug:
 	@$(MAKE) clean
 	@$(MAKE) -e BUILD_ENV=debug
+
 # <====== COMPLING RULES ========>
 $(OBJECT_C:.o=.lo) : $(OBJECT_C)
 	

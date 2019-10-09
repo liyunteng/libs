@@ -37,6 +37,21 @@
 
 #include "log.h"
 #include "list.h"
+#ifndef bool
+#define bool int8_t
+#endif
+#ifndef TRUE
+#define TRUE 1
+#endif
+#ifndef FALSE
+#define FALSE 0
+#endif
+#ifndef true
+#define true TRUE
+#endif
+#ifndef false
+#define false FALSE
+#endif
 
 #define ESC_START       "\033["
 #define ESC_END         "\033[0m"

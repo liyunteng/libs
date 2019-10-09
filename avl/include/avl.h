@@ -21,8 +21,8 @@
  *
  */
 
-#ifndef AVL_H
-#define AVL_H
+#ifndef __AVL_H__
+#define __AVL_H__
 #ifdef __cplusplus
 extern "C" {
 }

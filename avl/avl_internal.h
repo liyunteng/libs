@@ -24,6 +24,7 @@
 #ifndef AVL_INTERNAL_H
 #define AVL_INTERNAL_H
 #include "avl.h"
+#include "types.h"
 #include <stdint.h>
 
 #define AVL_MAGIC_NUM   0xBE3A41C6
@@ -51,29 +52,35 @@ typedef struct avl_tree_node_type_ {
 
 #define AVL_TREE_CHECK_MAGIC_NUM(object)                        \
 {                                                               \
-    if (rc == SUCCESS) {                                        \
+    if (rc == 0) {                                               \
         local_object = (avl_tree_object_td *)object - 1;        \
         if (local_object->magic_num != AVL_MAGIC_NUM) {         \
-            rc = AVL_TREE_ERROR_INVARG;                         \
+            rc = -1;                                            \
         }                                                       \
     }                                                           \
 }
 
 #define AVL_TREE_INCREMENT_TREE_COUNTER(object)                         \
 {                                                                       \
-    if (rc == SUCCESS) {                                                \
+    if (rc == 0) {                                                      \
         ((avl_tree_object_td *) object)->internal_data++;               \
-        assert((int)((avl_tree_object_td *) object)->internal_data >= 0); \
     }                                                                   \
 }
 
+#define AVL_TREE_DECREMENT_TREE_COUNTER(object)                         \
+{                                                                       \
+    if (rc == 0) {                                                       \
+        ((avl_tree_object_td *) object)->internal_data --;              \
+        assert((int) ((avl_tree_object_td *) object)->internal_data >= 0); \
+    }                                                                   \
+}
 
 typedef avl_tree_walk_code_td (*avl_walker_type_internal)
-                                (avl_tree_node_type_td *node,
-                                 void *internal_ctx,
-                                 void * ctx);
+                              (avl_tree_node_type_td *node,
+                               void *internal_ctx,
+                               void * ctx);
 
-typedef avl_tree_compare_code_t(*avl_compare_type_internal)
+typedef avl_tree_compare_code_td (*avl_compare_type_internal)
                                 (avl_tree_node_type_td *node_one,
                                  avl_tree_node_type_td *node_two,
                                  void *ctx);
@@ -100,10 +107,12 @@ extern void *avl_get_smaller_equal_v2(
 
 extern void *avl_get_next_v2 (avl_tree_node_type_td *top,
                               avl_tree_node_type_td *current,
+                              avl_compare_type_internal compare_func,
                               void *ctx);
 
 extern void *avl_get_prev_v2(avl_tree_node_type_td *top,
                              avl_tree_node_type_td *current,
+                             avl_compare_type_internal compare_func,
                              void *ctx);
 
 extern void *avl_insert_internal(avl_tree_node_type_td **top,

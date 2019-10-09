@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "xmlcfg.h"
 
@@ -193,9 +194,12 @@ int xmlcfg_get_int32(xmlcfg_ptr cfg, const char *key, int32_t *val)
     if (ret) {
         return ret;
     }
-
+#ifndef LONG_MAX
 #define	LONG_MAX	2147483647
+#endif
+#ifndef LONG_MIN
 #define LONG_MIN	(-LONG_MAX - 1)
+#endif
     char *q = (char *)p;
     int32_t v = strtol(p, &q, 10);
     if (v == LONG_MAX || v == LONG_MIN || p == q) {

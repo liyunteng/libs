@@ -1,5 +1,5 @@
 include ../build/def.mk
 
-MODLIB = libassoc_array.a
+MODLIB = assoc_array
 
 include ../build/modulestatic.mk

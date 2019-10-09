@@ -1,5 +1,5 @@
 include ./build/def.mk
 
-DIRS	:= bst assoc_array rbtree list mpool log xmlcfg aes
+DIRS	:= aes avl bst bst_no_parent list log mpool xmlcfg
 
 include ./build/moduletop.mk

@@ -21,10 +21,10 @@
  *
  */
 
+#include <errno.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <stdint.h>
-#include <errno.h>
 #include <string.h>
 
 #include "mpool.h"
@@ -34,8 +34,8 @@
 mpool_ctx_t *
 mpool_init(size_t msize, size_t total_size, void *pool)
 {
-    mpool_ctx_t *ctx = NULL;
-    size_t size = (sizeof(mpool_item_t) + msize + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
+    mpool_ctx_t *ctx  = NULL;
+    size_t       size = (sizeof(mpool_item_t) + msize + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
     if (msize == 0 || total_size < sizeof(mpool_ctx_t) + sizeof(void *) + size) {
         return NULL;
     }
@@ -55,7 +55,8 @@ mpool_init(size_t msize, size_t total_size, void *pool)
         return ctx;
     } else {
         if (atomic_cmpxchg(&ctx->ref, 0, 1) != 0) {
-            while (!(ctx->flag & MPOOL_FLAG_READY));
+            while (!(ctx->flag & MPOOL_FLAG_READY))
+                ;
             atomic_inc(&ctx->ref);
             return ctx;
         }
@@ -65,13 +66,13 @@ mpool_init(size_t msize, size_t total_size, void *pool)
         ctx->flag |= MPOOL_FLAG_ALLOC;
     }
 
-    ctx->size = size;
+    ctx->size  = size;
     ctx->msize = msize;
-    ctx->max = (total_size - sizeof(mpool_ctx_t)) / (sizeof(void *) + ctx->size);
-    ctx->head = 0;
-    ctx->tail = ctx->max;
-    ctx->queue = (mpool_item_t **)((uint8_t*)ctx + sizeof(mpool_ctx_t));
-    ctx->pool = (uint8_t *)ctx->queue + sizeof(void *) * ctx->max;
+    ctx->max   = (total_size - sizeof(mpool_ctx_t)) / (sizeof(void *) + ctx->size);
+    ctx->head  = 0;
+    ctx->tail  = ctx->max;
+    ctx->queue = (mpool_item_t **)((uint8_t *)ctx + sizeof(mpool_ctx_t));
+    ctx->pool  = (uint8_t *)ctx->queue + sizeof(void *) * ctx->max;
 
     uint32_t i = 0;
     for (; i < ctx->max; i++) {
@@ -89,13 +90,14 @@ mpool_callc(size_t nmem, size_t msize)
         return NULL;
     }
 
-    size_t size = (sizeof(mpool_item_t) + msize + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
+    size_t size       = (sizeof(mpool_item_t) + msize + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
     size_t total_size = sizeof(mpool_ctx_t) + sizeof(void *) * nmem + size * nmem;
 
     return mpool_init(msize, total_size, NULL);
 }
 
-void mpool_cleanup(mpool_ctx_t *ctx)
+void
+mpool_cleanup(mpool_ctx_t *ctx)
 {
     if (ctx) {
         if (atomic_dec_and_test(&ctx->ref)) {
@@ -108,9 +110,8 @@ void mpool_cleanup(mpool_ctx_t *ctx)
     }
 }
 
-
-static inline
-int mpool_enqueue(mpool_ctx_t *ctx, mpool_item_t *ptr)
+static inline int
+mpool_enqueue(mpool_ctx_t *ctx, mpool_item_t *ptr)
 {
     while (1) {
         if (mpool_full(ctx)) {
@@ -125,17 +126,16 @@ int mpool_enqueue(mpool_ctx_t *ctx, mpool_item_t *ptr)
     }
 }
 
-
-static inline
-mpool_item_t *mpool_dequeue(mpool_ctx_t *ctx)
+static inline mpool_item_t *
+mpool_dequeue(mpool_ctx_t *ctx)
 {
     while (1) {
         if (mpool_empty(ctx)) {
             return NULL;
         }
 
-        uint32_t idx = ctx->head;
-        mpool_item_t * ptr = NULL;
+        uint32_t      idx = ctx->head;
+        mpool_item_t *ptr = NULL;
         if (cmpxchg(&ctx->head, idx, idx + 1) == idx) {
             ptr = ctx->queue[idx % ctx->max];
             return ptr;
@@ -143,10 +143,11 @@ mpool_item_t *mpool_dequeue(mpool_ctx_t *ctx)
     }
 }
 
-void *__mpool_get(mpool_ctx_t *ctx, const char *file, int line)
+void *
+__mpool_get(mpool_ctx_t *ctx, const char *file, int line)
 {
     mpool_item_t *ptr = NULL;
-    void *ret = NULL;
+    void *        ret = NULL;
 
     if (!ctx) {
         return NULL;
@@ -159,19 +160,20 @@ void *__mpool_get(mpool_ctx_t *ctx, const char *file, int line)
             memset(ptr->data, 0, ctx->msize);
             ret = (void *)ptr->data;
         } else {
-
         }
     }
 
     return ret;
 }
 
-void  __mpool_put(void *p, const char *file, int line)
+void
+__mpool_put(void *p, const char *file, int line)
 {
-     mpool_ref_dec(p);
+    mpool_ref_dec(p);
 }
 
-inline void __mpool_ref_inc(void *p, const char *file, int line)
+inline void
+__mpool_ref_inc(void *p, const char *file, int line)
 {
     if (p) {
         mpool_item_t *ptr = container_of(p, mpool_item_t, data);
@@ -179,7 +181,8 @@ inline void __mpool_ref_inc(void *p, const char *file, int line)
     }
 }
 
-inline void __mpool_ref_dec(void *p, const char *file, int line)
+inline void
+__mpool_ref_dec(void *p, const char *file, int line)
 {
     if (p) {
         mpool_item_t *ptr = container_of(p, mpool_item_t, data);
@@ -189,14 +192,15 @@ inline void __mpool_ref_dec(void *p, const char *file, int line)
     }
 }
 
-int mpool_get_idx(mpool_ctx_t *ctx, void *p)
+int
+mpool_get_idx(mpool_ctx_t *ctx, void *p)
 {
     if (p == NULL || ctx == NULL) {
         return -EINVAL;
     }
 
     mpool_item_t *ptr = container_of(p, mpool_item_t, data);
-    int64_t l = (int64_t)((uint8_t*)ptr - ctx->pool);
+    int64_t       l   = (int64_t)((uint8_t *)ptr - ctx->pool);
     if (l < 0 || l % ctx->size != 0) {
         return -EINVAL;
     }
@@ -209,7 +213,8 @@ int mpool_get_idx(mpool_ctx_t *ctx, void *p)
     return idx;
 }
 
-void *mpool_get_by_idx(mpool_ctx_t *ctx, int idx)
+void *
+mpool_get_by_idx(mpool_ctx_t *ctx, int idx)
 {
     if (!ctx || idx < 0 || idx >= ctx->max) {
         return NULL;

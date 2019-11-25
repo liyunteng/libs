@@ -67,7 +67,8 @@
  * are left undone as of now. Nor did I check for loops involving parent
  * pointers.
  */
-static inline void rb_set_black(struct rb_node *rb)
+static inline void
+rb_set_black(struct rb_node *rb)
 {
-	rb->__rb_parent_color |= RB_BLACK;
+    rb->__rb_parent_color |= RB_BLACK;
 }

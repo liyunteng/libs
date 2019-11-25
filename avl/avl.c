@@ -22,14 +22,14 @@
  */
 
 #include <assert.h>
+#include <inttypes.h>
 #include <malloc.h>
-#include <unistd.h>
-#include <stdlib.h>
+#include <pthread.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
-#include <inttypes.h>
-#include <pthread.h>
+#include <unistd.h>
 
 #include "avl.h"
 #include "avl_internal.h"
@@ -41,13 +41,15 @@
 #define default_malloc_fn malloc
 #define default_free_fn free
 
-void default_cleanup_fn(void *mem_ptr)
+void
+default_cleanup_fn(void *mem_ptr)
 {
     (void)mem_ptr;
-    return ;
+    return;
 }
 
-int default_sanity_fn(void *obj)
+int
+default_sanity_fn(void *obj)
 {
     (void)obj;
     return 0;
@@ -76,15 +78,15 @@ int default_sanity_fn(void *obj)
  *   Variable containing the number nodes in the tree.
  */
 struct avl_tree {
-    avl_tree_node_type_td     *root;
-    avl_tree_malloc_fn         malloc_fn;
-    avl_tree_free_fn           free_fn;
-    avl_tree_cleanup_fn        cleanup_fn;
-    avl_tree_compare_fn        compare_fn;
-    avl_tree_object_sanity_fn  sanity_fn;
-    pthread_mutex_t            mutex;
-    avl_tree_options_td        options;
-    uint32_t		       node_cnt;
+    avl_tree_node_type_td *   root;
+    avl_tree_malloc_fn        malloc_fn;
+    avl_tree_free_fn          free_fn;
+    avl_tree_cleanup_fn       cleanup_fn;
+    avl_tree_compare_fn       compare_fn;
+    avl_tree_object_sanity_fn sanity_fn;
+    pthread_mutex_t           mutex;
+    avl_tree_options_td       options;
+    uint32_t                  node_cnt;
 };
 
 /*
@@ -104,11 +106,9 @@ struct avl_tree {
  *
  */
 static avl_tree_compare_code_td
-avl_tree_compare_internal (avl_tree_node_type_td  *node1,
-                           avl_tree_node_type_td  *node2,
-                           void                   *ctx)
+avl_tree_compare_internal(avl_tree_node_type_td *node1, avl_tree_node_type_td *node2, void *ctx)
 {
-    avl_tree_h_td     local_ctx = (avl_tree_h_td) ctx;
+    avl_tree_h_td local_ctx = (avl_tree_h_td)ctx;
 
     return local_ctx->compare_fn(node1->object->data, node2->object->data);
 }
@@ -130,13 +130,11 @@ avl_tree_compare_internal (avl_tree_node_type_td  *node1,
  *
  */
 static avl_tree_walk_code_td
-avl_tree_walk_internal (avl_tree_node_type_td  *node,
-                        void                   *internal_ctx,
-                        void                   *ctx)
+avl_tree_walk_internal(avl_tree_node_type_td *node, void *internal_ctx, void *ctx)
 {
-    avl_tree_walk_fn   walk_fn = internal_ctx;
+    avl_tree_walk_fn walk_fn = internal_ctx;
 
-    return ((walk_fn) (node->object->data, ctx));
+    return ((walk_fn)(node->object->data, ctx));
 }
 
 /*
@@ -149,12 +147,11 @@ avl_tree_walk_internal (avl_tree_node_type_td  *node,
  *
  */
 int
-avl_tree_lock (pthread_mutex_t *mutex, avl_tree_options_td options)
+avl_tree_lock(pthread_mutex_t *mutex, avl_tree_options_td options)
 {
     int rc = 0;
 
-    if ((options & AVL_TREE_OPTION_NOT_THREADSAFE) !=
-        AVL_TREE_OPTION_NOT_THREADSAFE) {
+    if ((options & AVL_TREE_OPTION_NOT_THREADSAFE) != AVL_TREE_OPTION_NOT_THREADSAFE) {
         if (pthread_mutex_lock(mutex) != 0) {
             rc = -1;
         }
@@ -173,12 +170,11 @@ avl_tree_lock (pthread_mutex_t *mutex, avl_tree_options_td options)
  *
  */
 int
-avl_tree_unlock (pthread_mutex_t *mutex, avl_tree_options_td options)
+avl_tree_unlock(pthread_mutex_t *mutex, avl_tree_options_td options)
 {
     int rc = 0;
 
-    if ((options & AVL_TREE_OPTION_NOT_THREADSAFE) !=
-        AVL_TREE_OPTION_NOT_THREADSAFE) {
+    if ((options & AVL_TREE_OPTION_NOT_THREADSAFE) != AVL_TREE_OPTION_NOT_THREADSAFE) {
         if (pthread_mutex_unlock(mutex) != 0) {
             rc = -1;
         }
@@ -187,18 +183,15 @@ avl_tree_unlock (pthread_mutex_t *mutex, avl_tree_options_td options)
     return rc;
 }
 
-
 /****************************************/
 /* implementation of avl.h functions    */
 /****************************************/
 
 int
-avl_tree_init (avl_tree_compare_fn          compare_fn,
-               avl_tree_options_td          options,
-               avl_tree_h_td               *avl_tree)
+avl_tree_init(avl_tree_compare_fn compare_fn, avl_tree_options_td options, avl_tree_h_td *avl_tree)
 {
-    int rc = 0;
-    bool   malloced_mem = FALSE;
+    int  rc           = 0;
+    bool malloced_mem = FALSE;
 
     DEBUG("%s: INIT request - options:%d", __FUNCTION__, options);
 
@@ -222,16 +215,15 @@ avl_tree_init (avl_tree_compare_fn          compare_fn,
         /*
          * Fill in the values in the avl tree struct
          */
-        (*avl_tree)->malloc_fn        = default_malloc_fn;
-        (*avl_tree)->free_fn          = default_free_fn;
-        (*avl_tree)->cleanup_fn       = default_cleanup_fn;
-        (*avl_tree)->compare_fn       = compare_fn;
-        (*avl_tree)->sanity_fn        = default_sanity_fn;
-        (*avl_tree)->root             = NULL;
-        (*avl_tree)->options          = options;
-        (*avl_tree)->node_cnt	      = 0;
-        if ((options & AVL_TREE_OPTION_NOT_THREADSAFE) !=
-            AVL_TREE_OPTION_NOT_THREADSAFE) {
+        (*avl_tree)->malloc_fn  = default_malloc_fn;
+        (*avl_tree)->free_fn    = default_free_fn;
+        (*avl_tree)->cleanup_fn = default_cleanup_fn;
+        (*avl_tree)->compare_fn = compare_fn;
+        (*avl_tree)->sanity_fn  = default_sanity_fn;
+        (*avl_tree)->root       = NULL;
+        (*avl_tree)->options    = options;
+        (*avl_tree)->node_cnt   = 0;
+        if ((options & AVL_TREE_OPTION_NOT_THREADSAFE) != AVL_TREE_OPTION_NOT_THREADSAFE) {
             if (pthread_mutex_init(&((*avl_tree)->mutex), NULL) != 0) {
                 rc = -1;
             }
@@ -246,30 +238,24 @@ avl_tree_init (avl_tree_compare_fn          compare_fn,
             free(*avl_tree);
             *avl_tree = NULL;
         }
-        ERR("%s: INIT request - FAIL retcode: %d",
-            __FUNCTION__, rc);
+        ERR("%s: INIT request - FAIL retcode: %d", __FUNCTION__, rc);
     } else {
-        DEBUG("%s: INIT request - SUCCESS tree handle: %p",
-              __FUNCTION__, *avl_tree);
+        DEBUG("%s: INIT request - SUCCESS tree handle: %p", __FUNCTION__, *avl_tree);
     }
 
     return rc;
 }
 
 int
-avl_tree_init_v2 (avl_tree_compare_fn          compare_fn,
-                  avl_tree_malloc_fn           malloc_fn,
-                  avl_tree_free_fn             free_fn,
-                  avl_tree_options_td          options,
-                  avl_tree_h_td               *avl_tree)
+avl_tree_init_v2(avl_tree_compare_fn compare_fn, avl_tree_malloc_fn malloc_fn,
+                 avl_tree_free_fn free_fn, avl_tree_options_td options, avl_tree_h_td *avl_tree)
 {
-    int rc = 0;
-    bool   malloced_mem = FALSE;
+    int  rc           = 0;
+    bool malloced_mem = FALSE;
 
     DEBUG("%s: INIT request - options:%d", __FUNCTION__, options);
 
-    if (compare_fn == NULL || malloc_fn == NULL ||
-        free_fn == NULL || avl_tree == NULL) {
+    if (compare_fn == NULL || malloc_fn == NULL || free_fn == NULL || avl_tree == NULL) {
         rc = -1;
     }
 
@@ -291,16 +277,16 @@ avl_tree_init_v2 (avl_tree_compare_fn          compare_fn,
         /*
          * Fill in the values in the avl tree struct
          */
-        (*avl_tree)->malloc_fn        = malloc_fn;
-        (*avl_tree)->free_fn          = free_fn;
-        (*avl_tree)->cleanup_fn       = default_cleanup_fn;
-        (*avl_tree)->compare_fn       = compare_fn;
-        (*avl_tree)->sanity_fn        = default_sanity_fn;
-        (*avl_tree)->root             = NULL;
-        (*avl_tree)->options          = options;
-        (*avl_tree)->node_cnt         = 0;
-        if (malloced_mem && (options & AVL_TREE_OPTION_NOT_THREADSAFE) !=
-            AVL_TREE_OPTION_NOT_THREADSAFE) {
+        (*avl_tree)->malloc_fn  = malloc_fn;
+        (*avl_tree)->free_fn    = free_fn;
+        (*avl_tree)->cleanup_fn = default_cleanup_fn;
+        (*avl_tree)->compare_fn = compare_fn;
+        (*avl_tree)->sanity_fn  = default_sanity_fn;
+        (*avl_tree)->root       = NULL;
+        (*avl_tree)->options    = options;
+        (*avl_tree)->node_cnt   = 0;
+        if (malloced_mem
+            && (options & AVL_TREE_OPTION_NOT_THREADSAFE) != AVL_TREE_OPTION_NOT_THREADSAFE) {
             if (pthread_mutex_init(&((*avl_tree)->mutex), NULL) != 0) {
                 rc = -1;
             }
@@ -315,22 +301,18 @@ avl_tree_init_v2 (avl_tree_compare_fn          compare_fn,
             free_fn(*avl_tree);
             *avl_tree = NULL;
         }
-        ERR("%s: INIT request - FAIL retcode: %d",
-            __FUNCTION__, rc);
+        ERR("%s: INIT request - FAIL retcode: %d", __FUNCTION__, rc);
     } else {
-        DEBUG("%s: INIT request - SUCCESS tree handle: %p",
-              __FUNCTION__, *avl_tree);
+        DEBUG("%s: INIT request - SUCCESS tree handle: %p", __FUNCTION__, *avl_tree);
     }
 
     return rc;
 }
 
 int
-avl_tree_init_fns (avl_tree_malloc_fn           malloc_fn,
-                   avl_tree_free_fn             free_fn,
-                   avl_tree_cleanup_fn          cleanup_fn,
-                   avl_tree_object_sanity_fn    sanity_fn,
-                   avl_tree_h_td                avl_tree)
+avl_tree_init_fns(avl_tree_malloc_fn malloc_fn, avl_tree_free_fn free_fn,
+                  avl_tree_cleanup_fn cleanup_fn, avl_tree_object_sanity_fn sanity_fn,
+                  avl_tree_h_td avl_tree)
 {
     int rc = 0;
 
@@ -343,43 +325,39 @@ avl_tree_init_fns (avl_tree_malloc_fn           malloc_fn,
      */
     if (rc == 0) {
         if (malloc_fn) {
-            avl_tree->malloc_fn        = malloc_fn;
+            avl_tree->malloc_fn = malloc_fn;
         }
         if (free_fn) {
-            avl_tree->free_fn          = free_fn;
+            avl_tree->free_fn = free_fn;
         }
         if (cleanup_fn) {
-            avl_tree->cleanup_fn       = cleanup_fn;
+            avl_tree->cleanup_fn = cleanup_fn;
         }
         if (sanity_fn) {
-            avl_tree->sanity_fn        = sanity_fn;
+            avl_tree->sanity_fn = sanity_fn;
         }
         rc = avl_tree_unlock(&(avl_tree->mutex), avl_tree->options);
     }
 
     if (rc != SUCCESS) {
         ERR("%s: INIT_FNS request - FAIL tree handle:%p "
-            " %d", __FUNCTION__, avl_tree,
-            rc);
+            " %d",
+            __FUNCTION__, avl_tree, rc);
     } else {
-        DEBUG("%s: INIT_FNS request - SUCCESS tree handle:%p",
-              __FUNCTION__, avl_tree);
+        DEBUG("%s: INIT_FNS request - SUCCESS tree handle:%p", __FUNCTION__, avl_tree);
     }
 
     return rc;
 }
 
 int
-avl_tree_allocate_object (avl_tree_h_td          avl_tree,
-                          void                 **object,
-                          uint32_t               size)
+avl_tree_allocate_object(avl_tree_h_td avl_tree, void **object, uint32_t size)
 {
-    uint32_t len;
-    int               rc = 0;
-    avl_tree_object_td  *local_object = NULL;
+    uint32_t            len;
+    int                 rc           = 0;
+    avl_tree_object_td *local_object = NULL;
 
-    DEBUG("%s: ALLOCATE request - tree handle:%p size:%d",
-          __FUNCTION__, avl_tree, size);
+    DEBUG("%s: ALLOCATE request - tree handle:%p size:%d", __FUNCTION__, avl_tree, size);
 
     if (avl_tree == NULL || object == NULL) {
         rc = -1;
@@ -397,7 +375,7 @@ avl_tree_allocate_object (avl_tree_h_td          avl_tree,
         /*
          * Insert Magic number #
          */
-        local_object = *object;
+        local_object                = *object;
         local_object->magic_num     = AVL_MAGIC_NUM;
         local_object->internal_data = 0;
 
@@ -418,14 +396,12 @@ avl_tree_allocate_object (avl_tree_h_td          avl_tree,
 }
 
 int
-avl_tree_free_object (avl_tree_h_td          avl_tree,
-                      void                  *object)
+avl_tree_free_object(avl_tree_h_td avl_tree, void *object)
 {
-    int               rc = 0;
-    avl_tree_object_td  *local_object = NULL;
+    int                 rc           = 0;
+    avl_tree_object_td *local_object = NULL;
 
-    DEBUG("%s: FREE request - tree handle:%p object:%p",
-          __FUNCTION__, avl_tree, object);
+    DEBUG("%s: FREE request - tree handle:%p object:%p", __FUNCTION__, avl_tree, object);
 
     if (avl_tree == NULL || object == NULL) {
         rc = -1;
@@ -434,46 +410,42 @@ avl_tree_free_object (avl_tree_h_td          avl_tree,
     AVL_TREE_CHECK_MAGIC_NUM(object);
 
     if (rc == 0) {
-        if (((avl_tree_object_td *) local_object)->internal_data != 0) {
+        if (((avl_tree_object_td *)local_object)->internal_data != 0) {
             rc = -1;
         }
     }
 
     if (rc == 0) {
         DEBUG("%s: FREE request - tree handle:0%p object:%p"
-              " tree_count: %d", __FUNCTION__, avl_tree, object,
-              local_object->internal_data);
+              " tree_count: %d",
+              __FUNCTION__, avl_tree, object, local_object->internal_data);
         avl_tree->cleanup_fn(object);
-        object = (avl_tree_object_td *) object - 1;
+        object = (avl_tree_object_td *)object - 1;
         avl_tree->free_fn(object);
     }
 
     if (rc == 0) {
-        DEBUG("%s: FREE request - SUCCESS tree handle:%p",
-              __FUNCTION__, avl_tree);
+        DEBUG("%s: FREE request - SUCCESS tree handle:%p", __FUNCTION__, avl_tree);
     } else {
         ERR("%s: FREE request - FAIL tree handle:%p object:%p"
-            " retcode:%d", __FUNCTION__, avl_tree, object, rc);
+            " retcode:%d",
+            __FUNCTION__, avl_tree, object, rc);
     }
 
     return rc;
 }
 
-
 int
-avl_tree_insert (avl_tree_h_td          avl_tree,
-                 void                  *object,
-                 void                 **existing_object)
+avl_tree_insert(avl_tree_h_td avl_tree, void *object, void **existing_object)
 {
-    int                    rc = SUCCESS;
-    avl_tree_node_type_td    *new_node = NULL;
-    bool                      balance_needed = TRUE;
-    avl_tree_node_type_td    *new_node_ptr = NULL;
-    avl_tree_object_td       *local_object = NULL;
-    bool                      is_new_node = FALSE;
+    int                    rc             = SUCCESS;
+    avl_tree_node_type_td *new_node       = NULL;
+    bool                   balance_needed = TRUE;
+    avl_tree_node_type_td *new_node_ptr   = NULL;
+    avl_tree_object_td *   local_object   = NULL;
+    bool                   is_new_node    = FALSE;
 
-    DEBUG("%s: INSERT request - tree handle:%p object:%p",
-          __FUNCTION__, avl_tree, object);
+    DEBUG("%s: INSERT request - tree handle:%p object:%p", __FUNCTION__, avl_tree, object);
 
     if (avl_tree == NULL || object == NULL) {
         rc = -1;
@@ -483,8 +455,8 @@ avl_tree_insert (avl_tree_h_td          avl_tree,
 
     if (rc == 0) {
         DEBUG("%s: INSERT request - tree handle:%p object:%p"
-              " tree_count: %d", __FUNCTION__, avl_tree, object,
-              local_object->internal_data);
+              " tree_count: %d",
+              __FUNCTION__, avl_tree, object, local_object->internal_data);
         rc = avl_tree->sanity_fn(object);
     }
 
@@ -501,17 +473,12 @@ avl_tree_insert (avl_tree_h_td          avl_tree,
     if (rc == 0) {
         memset(new_node, 0, sizeof(avl_tree_node_type_td));
         new_node->object = local_object;
-        rc = avl_tree_lock(&(avl_tree->mutex), avl_tree->options);
+        rc               = avl_tree_lock(&(avl_tree->mutex), avl_tree->options);
     }
 
     if (rc == 0) {
-        new_node_ptr = avl_insert_internal(
-            &avl_tree->root,
-            new_node,
-            &balance_needed,
-            avl_tree_compare_internal,
-            avl_tree,
-            &is_new_node);
+        new_node_ptr = avl_insert_internal(&avl_tree->root, new_node, &balance_needed,
+                                           avl_tree_compare_internal, avl_tree, &is_new_node);
 
         if (is_new_node == TRUE) {
             avl_tree->node_cnt++;
@@ -525,14 +492,14 @@ avl_tree_insert (avl_tree_h_td          avl_tree,
              */
             rc = -1;
             if (existing_object) {
-                local_object = new_node_ptr->object;
+                local_object     = new_node_ptr->object;
                 *existing_object = local_object->data;
             }
         }
     }
 
     if (rc == 0) {
-        local_object = (avl_tree_object_td *) object - 1;
+        local_object = (avl_tree_object_td *)object - 1;
         AVL_TREE_INCREMENT_TREE_COUNTER(local_object);
     }
 
@@ -544,7 +511,8 @@ avl_tree_insert (avl_tree_h_td          avl_tree,
             avl_tree->free_fn(new_node);
         }
         ERR("%s: INSERT request - FAIL tree handle:%p object:%p"
-                   " %d", __FUNCTION__, avl_tree, object, rc);
+            " %d",
+            __FUNCTION__, avl_tree, object, rc);
     } else {
         DEBUG("%s: INSERT request - SUCCESS tree handle:%p"
               "  object:%p tree_count: %d",
@@ -555,87 +523,69 @@ avl_tree_insert (avl_tree_h_td          avl_tree,
 }
 
 int
-avl_tree_delete (avl_tree_h_td          avl_tree,
-                 void                  *object,
-                 void                 **deleted_object)
+avl_tree_delete(avl_tree_h_td avl_tree, void *object, void **deleted_object)
 {
-    int                     rc = 0;
-    bool                       balance_needed = TRUE;
-    avl_tree_node_type_td    *del_node_ptr = NULL;
-    avl_tree_node_type_td     target_node;
-    avl_tree_object_td       *local_object = NULL;
+    int                    rc             = 0;
+    bool                   balance_needed = TRUE;
+    avl_tree_node_type_td *del_node_ptr   = NULL;
+    avl_tree_node_type_td  target_node;
+    avl_tree_object_td *   local_object = NULL;
 
-    DEBUG("%s: DELETE request - tree handle:%p object:%p",
-          __FUNCTION__, avl_tree, object);
+    DEBUG("%s: DELETE request - tree handle:%p object:%p", __FUNCTION__, avl_tree, object);
 
-    if (avl_tree == NULL || object == NULL)
-    {
+    if (avl_tree == NULL || object == NULL) {
         rc = -1;
-        DEBUG("%s: rc = AVL_TREE_ERROR_INVARG",  __FUNCTION__);
+        DEBUG("%s: rc = AVL_TREE_ERROR_INVARG", __FUNCTION__);
     }
 
     AVL_TREE_CHECK_MAGIC_NUM(object);
 
-    if (rc == 0)
-    {
+    if (rc == 0) {
         DEBUG("%s: DELETE request - tree handle:%p object:%p"
-              " tree_count: %d", __FUNCTION__, avl_tree, object,
-              local_object->internal_data);
+              " tree_count: %d",
+              __FUNCTION__, avl_tree, object, local_object->internal_data);
     }
 
-    if (rc == 0)
-    {
+    if (rc == 0) {
         rc = avl_tree->sanity_fn(object);
-        DEBUG("%s: rc = %d",  __FUNCTION__, avl_tree->sanity_fn(object));
+        DEBUG("%s: rc = %d", __FUNCTION__, avl_tree->sanity_fn(object));
     }
 
-    if (rc == 0)
-    {
-        DEBUG("%s: rc = SUCCESS",  __FUNCTION__);
+    if (rc == 0) {
+        DEBUG("%s: rc = SUCCESS", __FUNCTION__);
         memset(&target_node, 0, sizeof(avl_tree_node_type_td));
         target_node.object = local_object;
-        rc = avl_tree_lock(&(avl_tree->mutex), avl_tree->options);
+        rc                 = avl_tree_lock(&(avl_tree->mutex), avl_tree->options);
     }
 
-    if (rc == 0)
-    {
-        DEBUG("%s: rc = SUCCESS after avl_tree_lock",  __FUNCTION__);
-        del_node_ptr = avl_delete_internal(
-            &avl_tree->root,
-            &target_node,
-            &balance_needed,
-            avl_tree_compare_internal,
-            avl_tree);
+    if (rc == 0) {
+        DEBUG("%s: rc = SUCCESS after avl_tree_lock", __FUNCTION__);
+        del_node_ptr = avl_delete_internal(&avl_tree->root, &target_node, &balance_needed,
+                                           avl_tree_compare_internal, avl_tree);
 
-	    if (del_node_ptr != NULL)
-        {
-            DEBUG("%s: del_node_ptr != NULL",  __FUNCTION__);
-	        avl_tree->node_cnt--;
-	    }
+        if (del_node_ptr != NULL) {
+            DEBUG("%s: del_node_ptr != NULL", __FUNCTION__);
+            avl_tree->node_cnt--;
+        }
 
         rc = avl_tree_unlock(&(avl_tree->mutex), avl_tree->options);
 
-        if (del_node_ptr == NULL)
-        {
+        if (del_node_ptr == NULL) {
             /*
              * The node could not be found
              */
             rc = -1;
-            DEBUG("%s: del_node_ptr == NULL, rc == AVL_TREE_ERROR_NOTFOUND",  __FUNCTION__);
+            DEBUG("%s: del_node_ptr == NULL, rc == AVL_TREE_ERROR_NOTFOUND", __FUNCTION__);
         }
     }
 
     AVL_TREE_DECREMENT_TREE_COUNTER(del_node_ptr->object);
 
-    if (rc == 0)
-    {
-        DEBUG("%s: rc = SUCCESS after avl_tree_unlock",  __FUNCTION__);
-        if (deleted_object == NULL)
-        {
-            rc = avl_tree_free_object(avl_tree, (void *) (del_node_ptr->object->data));
-        }
-        else
-        {
+    if (rc == 0) {
+        DEBUG("%s: rc = SUCCESS after avl_tree_unlock", __FUNCTION__);
+        if (deleted_object == NULL) {
+            rc = avl_tree_free_object(avl_tree, (void *)(del_node_ptr->object->data));
+        } else {
             *deleted_object = del_node_ptr->object->data;
         }
         /*
@@ -644,37 +594,32 @@ avl_tree_delete (avl_tree_h_td          avl_tree,
         avl_tree->free_fn(del_node_ptr);
     }
 
-    if (rc == 0)
-    {
+    if (rc == 0) {
         DEBUG("%s: DELETE request - SUCCESS tree handle:%p"
               "  object:%p tree_count: %d",
               __FUNCTION__, avl_tree, object, local_object->internal_data);
-    }
-    else
-    {
+    } else {
         ERR("%s: DELETE request - FAIL tree handle:%p object:%p"
-                   " %d", __FUNCTION__, avl_tree, object, rc);
+            " %d",
+            __FUNCTION__, avl_tree, object, rc);
     }
 
     return rc;
 }
 
 int
-avl_tree_search (avl_tree_h_td                 avl_tree,
-                 avl_tree_search_options_td    options,
-                 void                         *compare_object,
-                 void                        **found_object,
-                 avl_tree_search_options_td   *result)
+avl_tree_search(avl_tree_h_td avl_tree, avl_tree_search_options_td options, void *compare_object,
+                void **found_object, avl_tree_search_options_td *result)
 {
-    int                     rc = 0;
-    avl_tree_node_type_td     *searched_node_ptr = NULL;
-    avl_tree_node_type_td      target_node;
-    bool                       is_equal = FALSE;
-    avl_tree_object_td        *local_object = NULL;
+    int                    rc                = 0;
+    avl_tree_node_type_td *searched_node_ptr = NULL;
+    avl_tree_node_type_td  target_node;
+    bool                   is_equal     = FALSE;
+    avl_tree_object_td *   local_object = NULL;
 
     DEBUG("%s: SEARCH request - tree handle:%p options:%d"
-          " compare object:%p", __FUNCTION__, avl_tree, options,
-          compare_object);
+          " compare object:%p",
+          __FUNCTION__, avl_tree, options, compare_object);
 
     if (avl_tree == NULL || found_object == NULL) {
         rc = -1;
@@ -692,29 +637,19 @@ avl_tree_search (avl_tree_h_td                 avl_tree,
 
     if (rc == 0) {
         target_node.object = local_object;
-        rc = avl_tree_lock(&(avl_tree->mutex), avl_tree->options);
+        rc                 = avl_tree_lock(&(avl_tree->mutex), avl_tree->options);
     }
 
     if (rc == 0) {
         if (options == AVL_TREE_OPTION_EQ) {
-            searched_node_ptr = avl_search_internal(
-                avl_tree->root,
-                &target_node,
-                avl_tree_compare_internal,
-                avl_tree);
+            searched_node_ptr = avl_search_internal(avl_tree->root, &target_node,
+                                                    avl_tree_compare_internal, avl_tree);
         } else if (options == AVL_TREE_OPTION_LT) {
-            searched_node_ptr = avl_get_prev_v2(
-                avl_tree->root,
-                &target_node,
-                avl_tree_compare_internal,
-                avl_tree);
+            searched_node_ptr =
+                avl_get_prev_v2(avl_tree->root, &target_node, avl_tree_compare_internal, avl_tree);
         } else if (options == AVL_TREE_OPTION_LE) {
             searched_node_ptr = avl_get_smaller_equal_v2(
-                avl_tree->root,
-                &target_node,
-                avl_tree_compare_internal,
-                avl_tree,
-                &is_equal);
+                avl_tree->root, &target_node, avl_tree_compare_internal, avl_tree, &is_equal);
             if (searched_node_ptr) {
                 if (result) {
                     if (is_equal) {
@@ -725,18 +660,11 @@ avl_tree_search (avl_tree_h_td                 avl_tree,
                 }
             }
         } else if (options == AVL_TREE_OPTION_GT) {
-            searched_node_ptr = avl_get_next_v2(
-                avl_tree->root,
-                &target_node,
-                avl_tree_compare_internal,
-                avl_tree);
+            searched_node_ptr =
+                avl_get_next_v2(avl_tree->root, &target_node, avl_tree_compare_internal, avl_tree);
         } else if (options == AVL_TREE_OPTION_GE) {
             searched_node_ptr = avl_get_greater_equal_v2(
-                avl_tree->root,
-                &target_node,
-                avl_tree_compare_internal,
-                avl_tree,
-                &is_equal);
+                avl_tree->root, &target_node, avl_tree_compare_internal, avl_tree, &is_equal);
             if (searched_node_ptr) {
                 if (result) {
                     if (is_equal) {
@@ -770,19 +698,19 @@ avl_tree_search (avl_tree_h_td                 avl_tree,
 
     if (rc == 0) {
         DEBUG("%s: SEARCH request - SUCCESS tree handle:%p options:%d"
-              " compare object:%p", __FUNCTION__,
-              avl_tree, options, compare_object);
+              " compare object:%p",
+              __FUNCTION__, avl_tree, options, compare_object);
     } else {
         ERR("%s: SEARCH request - FAIL tree handle:%p options:%d"
-                   " compare object:%p retcode:%d", __FUNCTION__,
-                   avl_tree, options, compare_object, rc);
+            " compare object:%p retcode:%d",
+            __FUNCTION__, avl_tree, options, compare_object, rc);
     }
 
     return rc;
 }
 
 uint32_t
-avl_tree_count (avl_tree_h_td avl_tree)
+avl_tree_count(avl_tree_h_td avl_tree)
 {
     if (avl_tree == NULL) {
         return (0);
@@ -795,15 +723,13 @@ avl_tree_count (avl_tree_h_td avl_tree)
  * This avl_tree_walk() CANNOT do deletion while walking.
  */
 int
-avl_tree_walk (avl_tree_h_td            avl_tree,
-               avl_tree_walk_fn         walk_fn,
-               void                    *ctx,
-               avl_tree_walk_code_td   *result)
+avl_tree_walk(avl_tree_h_td avl_tree, avl_tree_walk_fn walk_fn, void *ctx,
+              avl_tree_walk_code_td *result)
 {
-    int             rc = 0;
+    int rc = 0;
 
-    DEBUG("%s: WALK request - tree handle:%p walk fn:%p ctx:%p",
-          __FUNCTION__, avl_tree, walk_fn, ctx);
+    DEBUG("%s: WALK request - tree handle:%p walk fn:%p ctx:%p", __FUNCTION__, avl_tree, walk_fn,
+          ctx);
 
     if (avl_tree == NULL || walk_fn == NULL || result == NULL) {
         rc = -1;
@@ -812,7 +738,7 @@ avl_tree_walk (avl_tree_h_td            avl_tree,
     *result = AVL_CONT_WALK;
 
     if (avl_tree->root == NULL) {
-        return(0);
+        return (0);
     }
 
     if (rc == 0) {
@@ -820,21 +746,18 @@ avl_tree_walk (avl_tree_h_td            avl_tree,
     }
 
     if (rc == 0) {
-        *result = avl_walk_internal(avl_tree->root,
-                                    avl_tree_walk_internal,
-                                    (void *) walk_fn, ctx);
-        rc = avl_tree_unlock(&(avl_tree->mutex), avl_tree->options);
+        *result = avl_walk_internal(avl_tree->root, avl_tree_walk_internal, (void *)walk_fn, ctx);
+        rc      = avl_tree_unlock(&(avl_tree->mutex), avl_tree->options);
     }
 
     if (rc == 0) {
         DEBUG("%s: WALK request - SUCCESS tree handle:%p walk fn:%p"
-              " ctx:%p, result:%d", __FUNCTION__, avl_tree,
-              walk_fn, ctx, *result);
+              " ctx:%p, result:%d",
+              __FUNCTION__, avl_tree, walk_fn, ctx, *result);
     } else {
         ERR("%s: WALK request - FAILURE tree handle:%p walk fn:%p"
             " ctx:%p, result:%d, retcode:%d",
-            __FUNCTION__, avl_tree, walk_fn, ctx,
-            result ? *result : 0, rc);
+            __FUNCTION__, avl_tree, walk_fn, ctx, result ? *result : 0, rc);
     }
 
     return rc;
@@ -844,17 +767,15 @@ avl_tree_walk (avl_tree_h_td            avl_tree,
  * This avl_tree_walk_safe() CAN do deletion while walking.
  */
 int
-avl_tree_walk_safe (avl_tree_h_td            avl_tree,
-                    avl_tree_walk_fn         walk_fn,
-                    void                    *ctx,
-                    avl_tree_walk_code_td   *result)
+avl_tree_walk_safe(avl_tree_h_td avl_tree, avl_tree_walk_fn walk_fn, void *ctx,
+                   avl_tree_walk_code_td *result)
 {
     avl_tree_node_type_td *a_node;
     avl_tree_node_type_td *node_next;
-    int rc = 0;
+    int                    rc = 0;
 
-    DEBUG("%s: WALK request - tree handle:%p walk fn:%p ctx:%p",
-          __FUNCTION__, avl_tree, walk_fn, ctx);
+    DEBUG("%s: WALK request - tree handle:%p walk fn:%p ctx:%p", __FUNCTION__, avl_tree, walk_fn,
+          ctx);
 
     if (avl_tree == NULL || walk_fn == NULL || result == NULL) {
         rc = -1;
@@ -863,7 +784,7 @@ avl_tree_walk_safe (avl_tree_h_td            avl_tree,
     *result = AVL_CONT_WALK;
 
     if (avl_tree->root == NULL) {
-        return(0);
+        return (0);
     }
 
     if (rc == 0) {
@@ -872,47 +793,41 @@ avl_tree_walk_safe (avl_tree_h_td            avl_tree,
 
     if (rc == 0) {
         a_node = avl_tree_get_first(avl_tree->root);
-        for (; ((a_node != NULL) && (*result == AVL_CONT_WALK)) ; ) {
+        for (; ((a_node != NULL) && (*result == AVL_CONT_WALK));) {
             /*
              * Remember the next node first because a_node might be
              * deleted inside the loop.
              */
-            node_next = avl_get_next_v2(avl_tree->root,
-                                        a_node,
-                                        avl_tree_compare_internal,
-                                        avl_tree);
-            *result = avl_tree_walk_internal(a_node,
-                                             (void *)walk_fn,
-                                             ctx);
-            a_node = node_next;
+            node_next =
+                avl_get_next_v2(avl_tree->root, a_node, avl_tree_compare_internal, avl_tree);
+            *result = avl_tree_walk_internal(a_node, (void *)walk_fn, ctx);
+            a_node  = node_next;
         }
         rc = avl_tree_unlock(&(avl_tree->mutex), avl_tree->options);
     }
 
     if (rc == 0) {
         DEBUG("%s: WALK request - SUCCESS tree handle:%p walk fn:%p"
-              " ctx:%p, result:%d", __FUNCTION__, avl_tree,
-              walk_fn, ctx, *result);
+              " ctx:%p, result:%d",
+              __FUNCTION__, avl_tree, walk_fn, ctx, *result);
     } else {
         ERR("%s: WALK request - FAILURE tree handle:%p walk fn:%p"
             " ctx:%p, result:%d, retcode:%d",
-            __FUNCTION__, avl_tree, walk_fn, ctx,
-            result ? *result : 0, rc);
+            __FUNCTION__, avl_tree, walk_fn, ctx, result ? *result : 0, rc);
     }
 
     return rc;
 }
 
 int
-avl_tree_shutdown (avl_tree_h_td                 *avl_tree,
-                   avl_tree_shutdown_code_td      shutdown_code)
+avl_tree_shutdown(avl_tree_h_td *avl_tree, avl_tree_shutdown_code_td shutdown_code)
 {
-    int                 rc = SUCCESS;
-    avl_tree_node_type_td   *removed_node;
-    bool                     balance_needed = FALSE;
+    int                    rc = SUCCESS;
+    avl_tree_node_type_td *removed_node;
+    bool                   balance_needed = FALSE;
 
-    DEBUG("%s: SHUTDOWN request - tree handle:%p free object:%d",
-          __FUNCTION__, avl_tree, shutdown_code);
+    DEBUG("%s: SHUTDOWN request - tree handle:%p free object:%d", __FUNCTION__, avl_tree,
+          shutdown_code);
 
     if (avl_tree == NULL || *avl_tree == NULL) {
         rc = -1;
@@ -924,12 +839,9 @@ avl_tree_shutdown (avl_tree_h_td                 *avl_tree,
 
     if (rc == 0) {
         while ((*avl_tree)->root != NULL) {
-            removed_node = avl_delete_internal(
-                &(*avl_tree)->root,
-                (*avl_tree)->root,
-                &balance_needed,
-                avl_tree_compare_internal,
-                *avl_tree);
+            removed_node =
+                avl_delete_internal(&(*avl_tree)->root, (*avl_tree)->root, &balance_needed,
+                                    avl_tree_compare_internal, *avl_tree);
 
             assert(removed_node);
 
@@ -947,8 +859,8 @@ avl_tree_shutdown (avl_tree_h_td                 *avl_tree,
      * Free the avl structure
      */
     if (rc == 0) {
-        if (((*avl_tree)->options & AVL_TREE_OPTION_NOT_THREADSAFE) !=
-            AVL_TREE_OPTION_NOT_THREADSAFE) {
+        if (((*avl_tree)->options & AVL_TREE_OPTION_NOT_THREADSAFE)
+            != AVL_TREE_OPTION_NOT_THREADSAFE) {
             if (pthread_mutex_destroy(&((*avl_tree)->mutex)) != 0) {
                 rc = -1;
             }
@@ -959,8 +871,8 @@ avl_tree_shutdown (avl_tree_h_td                 *avl_tree,
 
     if (rc == 0) {
         DEBUG("%s: SHUTDOWN request - SUCCESS tree handle:%p"
-              " free object:%d\n", __FUNCTION__, avl_tree,
-              shutdown_code);
+              " free object:%d\n",
+              __FUNCTION__, avl_tree, shutdown_code);
     } else {
         ERR("%s: SHUTDOWN request - FAILURE tree handle:%p"
             " shutdown_code:%d retcode:%d",
@@ -975,23 +887,16 @@ avl_tree_shutdown (avl_tree_h_td                 *avl_tree,
  * Not memlock protected yet, tho it needs it.
  */
 void
-avl_tree_debug (avl_tree_h_td avl_tree)
+avl_tree_debug(avl_tree_h_td avl_tree)
 {
     avl_tree_node_type_td *a_node;
 
-    DEBUG("%s: avl_tree=%p, root=%p, first=%p, last=%p",
-          __FUNCTION__, avl_tree, avl_tree->root,
-          avl_tree_get_first(avl_tree->root),
-          avl_tree_get_last(avl_tree->root));
+    DEBUG("%s: avl_tree=%p, root=%p, first=%p, last=%p", __FUNCTION__, avl_tree, avl_tree->root,
+          avl_tree_get_first(avl_tree->root), avl_tree_get_last(avl_tree->root));
 
-    for (a_node = avl_tree_get_first(avl_tree->root);
-         a_node;
-         a_node = avl_get_next_v2(avl_tree->root,
-                                  a_node,
-                                  avl_tree_compare_internal,
-                                  avl_tree)) {
-        DEBUG("    %p, %p %p %s",
-              a_node, a_node->left, a_node->right,
+    for (a_node = avl_tree_get_first(avl_tree->root); a_node;
+         a_node = avl_get_next_v2(avl_tree->root, a_node, avl_tree_compare_internal, avl_tree)) {
+        DEBUG("    %p, %p %p %s", a_node, a_node->left, a_node->right,
               avl_balance_string_internal(a_node->balance));
     }
 }

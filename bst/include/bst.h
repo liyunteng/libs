@@ -27,23 +27,23 @@
 extern "C" {
 #endif
 
-#include <stdlib.h>
 #include "types.h"
+#include <stdlib.h>
 
-typedef int datatype;
+typedef int          datatype;
 typedef struct _Node Node;
-struct _Node{
-	Node *parent;
-	Node *lchild;
-	Node *rchild;
-	datatype data;
+struct _Node {
+    Node *   parent;
+    Node *   lchild;
+    Node *   rchild;
+    datatype data;
 };
 
 extern Node *bst_insert(Node **root, datatype data);
 extern Node *bst_create(Node **root, datatype arr[], size_t len);
-extern void bst_pre_iterate(Node *root);
-extern void bst_in_iterate(Node *root);
-extern void bst_post_iterate(Node *root);
+extern void  bst_pre_iterate(Node *root);
+extern void  bst_in_iterate(Node *root);
+extern void  bst_post_iterate(Node *root);
 extern Node *bst_min(Node *root);
 extern Node *bst_max(Node *root);
 extern Node *bst_search(Node *root, datatype data);

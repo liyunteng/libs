@@ -9,11 +9,11 @@
  */
 #include <assert.h>
 #include <malloc.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <syslog.h>
+#include <unistd.h>
 
 #include "avl_internal.h"
 
@@ -23,8 +23,8 @@
  * Called when we've just deleted an element from the right hand subtree,
  * and we may want to balance by moving nodes to the left.
  */
-void avl_balance_right_internal (avl_tree_node_type_td **element,
-                                 bool                   *balancing_needed)
+void
+avl_balance_right_internal(avl_tree_node_type_td **element, bool *balancing_needed)
 {
     avl_tree_node_type_td *left, *right;
 
@@ -34,7 +34,7 @@ void avl_balance_right_internal (avl_tree_node_type_td **element,
         break;
     case BALANCED:
         (*element)->balance = LEFT_HEAVY;
-        *balancing_needed = FALSE;
+        *balancing_needed   = FALSE;
         break;
     case LEFT_HEAVY:
         left = (*element)->left;
@@ -43,32 +43,30 @@ void avl_balance_right_internal (avl_tree_node_type_td **element,
          */
         if (left->balance <= BALANCED) { /* BALANCED or LEFT_HEAVY */
             (*element)->left = left->right;
-            left->right = *element;
+            left->right      = *element;
             if (left->balance == BALANCED) {
                 /* (*element)->balance = LEFT_HEAVY; */
-                left->balance = RIGHT_HEAVY;
+                left->balance     = RIGHT_HEAVY;
                 *balancing_needed = FALSE;
-            } else {                    /* left->balanced == LEFT_HEAVY */
+            } else { /* left->balanced == LEFT_HEAVY */
                 (*element)->balance = BALANCED;
-                left->balance = BALANCED;
+                left->balance       = BALANCED;
             }
             *element = left;
-        } else {                        /* RIGHT_HEAVY */
+        } else { /* RIGHT_HEAVY */
 
             /*
              * Double rotation.
              */
-            right = left->right;
-            left->right = right->left;
-            right->left = left;
-            (*element)->left = right->right;
-            right->right = *element;
-            (*element)->balance =
-                (right->balance == LEFT_HEAVY) ? RIGHT_HEAVY : BALANCED;
-            left->balance =
-                (right->balance == RIGHT_HEAVY) ? LEFT_HEAVY : BALANCED;
-            *element = right;
-            right->balance = BALANCED;
+            right               = left->right;
+            left->right         = right->left;
+            right->left         = left;
+            (*element)->left    = right->right;
+            right->right        = *element;
+            (*element)->balance = (right->balance == LEFT_HEAVY) ? RIGHT_HEAVY : BALANCED;
+            left->balance       = (right->balance == RIGHT_HEAVY) ? LEFT_HEAVY : BALANCED;
+            *element            = right;
+            right->balance      = BALANCED;
         }
         break;
     }
@@ -80,8 +78,8 @@ void avl_balance_right_internal (avl_tree_node_type_td **element,
  * Called when we've just deleted an element from the left subtree, and we
  * may want to balance by moving nodes to the left.
  */
-void avl_balance_left_internal (avl_tree_node_type_td **element,
-                                bool                   *balancing_needed)
+void
+avl_balance_left_internal(avl_tree_node_type_td **element, bool *balancing_needed)
 {
 
     avl_tree_node_type_td *left, *right;
@@ -92,7 +90,7 @@ void avl_balance_left_internal (avl_tree_node_type_td **element,
         break;
     case BALANCED:
         (*element)->balance = RIGHT_HEAVY;
-        *balancing_needed = FALSE;
+        *balancing_needed   = FALSE;
         break;
     case RIGHT_HEAVY:
         right = (*element)->right;
@@ -101,32 +99,30 @@ void avl_balance_left_internal (avl_tree_node_type_td **element,
              * Single rotation.
              */
             (*element)->right = right->left;
-            right->left = *element;
+            right->left       = *element;
             if (right->balance == BALANCED) {
                 /* (*element)->balance = RIGHT_HEAVY; */
-                right->balance = LEFT_HEAVY;
+                right->balance    = LEFT_HEAVY;
                 *balancing_needed = FALSE;
-            } else {                    /* right->balance == RIGHT_HEAVY */
+            } else { /* right->balance == RIGHT_HEAVY */
                 (*element)->balance = BALANCED;
-                right->balance = BALANCED;
+                right->balance      = BALANCED;
             }
             *element = right;
-        } else {                        /* LEFT_HEAVY */
+        } else { /* LEFT_HEAVY */
 
             /*
              * Double rotation.
              */
-            left = right->left;
-            right->left = left->right;
-            left->right = right;
-            (*element)->right = left->left;
-            left->left = *element;
-            (*element)->balance =
-                (left->balance == RIGHT_HEAVY) ? LEFT_HEAVY : BALANCED;
-            right->balance =
-                (left->balance == LEFT_HEAVY) ? RIGHT_HEAVY : BALANCED;
-            *element = left;
-            left->balance = BALANCED;
+            left                = right->left;
+            right->left         = left->right;
+            left->right         = right;
+            (*element)->right   = left->left;
+            left->left          = *element;
+            (*element)->balance = (left->balance == RIGHT_HEAVY) ? LEFT_HEAVY : BALANCED;
+            right->balance      = (left->balance == LEFT_HEAVY) ? RIGHT_HEAVY : BALANCED;
+            *element            = left;
+            left->balance       = BALANCED;
         }
         break;
     }
@@ -139,23 +135,21 @@ void avl_balance_left_internal (avl_tree_node_type_td **element,
  * down and find the maximum child less than the deleted node.  Return the
  * node that we extracted.
  */
-avl_tree_node_type_td *avl_delete_replacement_internal (
-    avl_tree_node_type_td **link,
-    bool                   *balancing_needed)
+avl_tree_node_type_td *
+avl_delete_replacement_internal(avl_tree_node_type_td **link, bool *balancing_needed)
 {
     avl_tree_node_type_td *retnode;
 
     if ((*link)->right) {
-        retnode = avl_delete_replacement_internal(&(*link)->right,
-                                                  balancing_needed);
+        retnode = avl_delete_replacement_internal(&(*link)->right, balancing_needed);
         if (*balancing_needed)
             avl_balance_right_internal(link, balancing_needed);
     } else {
-        retnode = *link;
-        *link = (*link)->left;
+        retnode           = *link;
+        *link             = (*link)->left;
         *balancing_needed = TRUE;
     }
-    return(retnode);
+    return (retnode);
 }
 
 /*
@@ -168,37 +162,36 @@ avl_tree_node_type_td *avl_delete_replacement_internal (
  * AVL_CONT_WALK if the walk completed successfully.
  *
  */
-avl_tree_walk_code_td avl_walk_internal (avl_tree_node_type_td   *element,
-                                         avl_walker_type_internal  proc,
-                                         void                     *internal_ctx,
-                                         void                     *paramptr)
+avl_tree_walk_code_td
+avl_walk_internal(avl_tree_node_type_td *element, avl_walker_type_internal proc, void *internal_ctx,
+                  void *paramptr)
 {
     avl_tree_walk_code_td res;
 
     if (NULL == element) {
-        return(AVL_CONT_WALK);
+        return (AVL_CONT_WALK);
     }
 
     if (element->left) {
         res = avl_walk_internal(element->left, proc, internal_ctx, paramptr);
         if (res != AVL_CONT_WALK) {
-            return(res);
+            return (res);
         }
     }
 
     res = (*proc)(element, internal_ctx, paramptr);
     if (res != AVL_CONT_WALK) {
-        return(res);
+        return (res);
     }
 
     if (element->right) {
         res = avl_walk_internal(element->right, proc, internal_ctx, paramptr);
         if (res != AVL_CONT_WALK) {
-            return(res);
+            return (res);
         }
     }
 
-    return(AVL_CONT_WALK);
+    return (AVL_CONT_WALK);
 }
 
 /*
@@ -209,26 +202,25 @@ avl_tree_walk_code_td avl_walk_internal (avl_tree_node_type_td   *element,
  * node which the caller must allocate and search with the desired search
  * value.
  */
-void *avl_search_internal (avl_tree_node_type_td      *top,
-                           avl_tree_node_type_td      *goal,
-                           avl_compare_type_internal   compare_func,
-                           void                       *ctx)
+void *
+avl_search_internal(avl_tree_node_type_td *top, avl_tree_node_type_td *goal,
+                    avl_compare_type_internal compare_func, void *ctx)
 {
     while (TRUE) {
         if (!top)
             break;
 
-        switch((*compare_func)(top, goal, ctx)) {
-        case AVL_TREE_EQ:			/* Found it */
-            return(top);
-        case AVL_TREE_LT:			/* top < goal */
-            top = top->right;		        /* Search right */
+        switch ((*compare_func)(top, goal, ctx)) {
+        case AVL_TREE_EQ: /* Found it */
+            return (top);
+        case AVL_TREE_LT:     /* top < goal */
+            top = top->right; /* Search right */
             break;
-        case AVL_TREE_GT:			/* top > goal */
-            top = top->left;	        	/* Search left */
+        case AVL_TREE_GT:    /* top > goal */
+            top = top->left; /* Search left */
             break;
-        default:		        	/* bogus case */
-            return(NULL);
+        default: /* bogus case */
+            return (NULL);
         }
     }
     return (NULL);
@@ -240,54 +232,49 @@ void *avl_search_internal (avl_tree_node_type_td      *top,
  * Guts of avl_get_next, and avl_get_greater_equal
  */
 static avl_tree_node_type_td *
-avl_get_next_internal_v2 (avl_tree_node_type_td    *top,
-                          avl_tree_node_type_td    *element,
-                          avl_compare_type_internal  compare_func,
-                          void                      *ctx,
-                          bool                       equal_match,
-                          bool                      *is_equal)
+avl_get_next_internal_v2(avl_tree_node_type_td *top, avl_tree_node_type_td *element,
+                         avl_compare_type_internal compare_func, void *ctx, bool equal_match,
+                         bool *is_equal)
 {
     avl_tree_node_type_td *subtree;
 
     if (!top)
-        return(NULL);
-
-    switch((*compare_func)(top, element, ctx)) {
-
-    default:				/* bogus case */
         return (NULL);
 
-    case AVL_TREE_EQ:			/* Found it */
+    switch ((*compare_func)(top, element, ctx)) {
+
+    default: /* bogus case */
+        return (NULL);
+
+    case AVL_TREE_EQ: /* Found it */
         if (equal_match) {
             *is_equal = TRUE;
-            return(top);
-        } else {			/* Return the least member of the */
+            return (top);
+        } else { /* Return the least member of the */
             *is_equal = FALSE;
-            return(avl_tree_get_first(top->right)); /* right subtree */
+            return (avl_tree_get_first(top->right)); /* right subtree */
         }
-    case AVL_TREE_LT:			/* top < element */
+    case AVL_TREE_LT: /* top < element */
         /*
          * If top < element, then there can be nothing greater than element
          * in the left subtree, AND top is uninteresting.
          */
-        return(avl_get_next_internal_v2(top->right, element,
-                                        compare_func, ctx, equal_match, is_equal));
+        return (avl_get_next_internal_v2(top->right, element, compare_func, ctx, equal_match,
+                                         is_equal));
 
-    case AVL_TREE_GT:			/* top > element */
+    case AVL_TREE_GT: /* top > element */
         /*
          * If top > element, then the right subtree is uninteresting.
          * Get the next least next element from the left subtree.  If it's
          * non-NULL, then it's less than top, so return that.  Otherwise,
          * return top.
          */
-        subtree = avl_get_next_internal_v2(top->left, element,
-                                           compare_func, ctx,
-                                           equal_match, is_equal);
+        subtree =
+            avl_get_next_internal_v2(top->left, element, compare_func, ctx, equal_match, is_equal);
         *is_equal = FALSE;
-        return(subtree ? subtree : top);
+        return (subtree ? subtree : top);
     }
 }
-
 
 /*
  * avl_get_next_v2
@@ -300,15 +287,12 @@ avl_get_next_internal_v2 (avl_tree_node_type_td    *top,
  * Return values: NULL if there is no such element, or the next element.
  */
 void *
-avl_get_next_v2 (avl_tree_node_type_td       *top,
-                 avl_tree_node_type_td       *current,
-                 avl_compare_type_internal     compare_func,
-                 void                         *ctx)
+avl_get_next_v2(avl_tree_node_type_td *top, avl_tree_node_type_td *current,
+                avl_compare_type_internal compare_func, void *ctx)
 {
-    bool     is_equal;
+    bool is_equal;
 
-    return (avl_get_next_internal_v2(top, current,
-                                     compare_func, ctx, FALSE, &is_equal));
+    return (avl_get_next_internal_v2(top, current, compare_func, ctx, FALSE, &is_equal));
 }
 
 /*
@@ -322,14 +306,10 @@ avl_get_next_v2 (avl_tree_node_type_td       *top,
  * Return values: NULL if there's no such element, or the next GE element
  */
 void *
-avl_get_greater_equal_v2 (avl_tree_node_type_td        *top,
-                          avl_tree_node_type_td        *element,
-                          avl_compare_type_internal      compare_func,
-                          void                          *ctx,
-                          bool                          *is_equal)
+avl_get_greater_equal_v2(avl_tree_node_type_td *top, avl_tree_node_type_td *element,
+                         avl_compare_type_internal compare_func, void *ctx, bool *is_equal)
 {
-    return (avl_get_next_internal_v2(top, element, compare_func, ctx, TRUE,
-                                     is_equal));
+    return (avl_get_next_internal_v2(top, element, compare_func, ctx, TRUE, is_equal));
 }
 
 /*
@@ -338,49 +318,44 @@ avl_get_greater_equal_v2 (avl_tree_node_type_td        *top,
  * Guts of avl_get_prev, and avl_get_smaller_equal
  */
 static avl_tree_node_type_td *
-avl_get_prev_internal_v2 (avl_tree_node_type_td             *top,
-                          avl_tree_node_type_td             *element,
-                          avl_compare_type_internal           compare_func,
-                          void                               *ctx,
-                          bool                                equal_match,
-                          bool                               *is_equal)
+avl_get_prev_internal_v2(avl_tree_node_type_td *top, avl_tree_node_type_td *element,
+                         avl_compare_type_internal compare_func, void *ctx, bool equal_match,
+                         bool *is_equal)
 {
     avl_tree_node_type_td *subtree;
 
     if (!top)
-        return(NULL);
-
-    switch((*compare_func)(top, element, ctx)) {
-
-    default:				/* bogus case */
         return (NULL);
 
-    case AVL_TREE_EQ:			/* Found it */
+    switch ((*compare_func)(top, element, ctx)) {
+
+    default: /* bogus case */
+        return (NULL);
+
+    case AVL_TREE_EQ: /* Found it */
         if (equal_match) {
             *is_equal = TRUE;
-            return(top);
-        } else {			/* Return the greatest member of the */
+            return (top);
+        } else { /* Return the greatest member of the */
             *is_equal = FALSE;
-            return(avl_tree_get_last(top->left)); /* left subtree */
+            return (avl_tree_get_last(top->left)); /* left subtree */
         }
-    case AVL_TREE_LT:			/* top < element */
+    case AVL_TREE_LT: /* top < element */
         /*
          * If top < element, then there can be nothing greater than element
          * in the left subtree, AND top is uninteresting.
          */
-        subtree = avl_get_prev_internal_v2(top->right, element,
-                                           compare_func, ctx,
-                                           equal_match, is_equal);
+        subtree =
+            avl_get_prev_internal_v2(top->right, element, compare_func, ctx, equal_match, is_equal);
         *is_equal = FALSE;
-        return(subtree ? subtree : top);
+        return (subtree ? subtree : top);
 
-    case AVL_TREE_GT:			/* top > element */
+    case AVL_TREE_GT: /* top > element */
         /*
          * If top > element, then the right subtree is uninteresting.
          */
-        return(avl_get_prev_internal_v2(top->left, element,
-                                        compare_func, ctx,
-                                        equal_match, is_equal));
+        return (
+            avl_get_prev_internal_v2(top->left, element, compare_func, ctx, equal_match, is_equal));
     }
 }
 
@@ -395,15 +370,12 @@ avl_get_prev_internal_v2 (avl_tree_node_type_td             *top,
  * Return values: NULL if there is no such element, or the next element.
  */
 void *
-avl_get_prev_v2 (avl_tree_node_type_td         *top,
-                 avl_tree_node_type_td         *current,
-                 avl_compare_type_internal       compare_func,
-                 void                           *ctx)
+avl_get_prev_v2(avl_tree_node_type_td *top, avl_tree_node_type_td *current,
+                avl_compare_type_internal compare_func, void *ctx)
 {
     bool is_equal;
 
-    return (avl_get_prev_internal_v2(top, current,
-                                     compare_func, ctx, FALSE, &is_equal));
+    return (avl_get_prev_internal_v2(top, current, compare_func, ctx, FALSE, &is_equal));
 }
 
 /*
@@ -415,14 +387,10 @@ avl_get_prev_v2 (avl_tree_node_type_td         *top,
  * Return values: NULL if there's no such element, or the prev LE element
  */
 void *
-avl_get_smaller_equal_v2 (avl_tree_node_type_td        *top,
-                          avl_tree_node_type_td        *element,
-                          avl_compare_type_internal      compare_func,
-                          void                          *ctx,
-                          bool                          *is_equal)
+avl_get_smaller_equal_v2(avl_tree_node_type_td *top, avl_tree_node_type_td *element,
+                         avl_compare_type_internal compare_func, void *ctx, bool *is_equal)
 {
-    return (avl_get_prev_internal_v2(top, element, compare_func, ctx,
-                                     TRUE, is_equal));
+    return (avl_get_prev_internal_v2(top, element, compare_func, ctx, TRUE, is_equal));
 }
 
 /*
@@ -434,11 +402,9 @@ avl_get_smaller_equal_v2 (avl_tree_node_type_td        *top,
  * Return NULL if we can't find anything.
  */
 
-void *avl_delete_internal (avl_tree_node_type_td     **top,
-                           avl_tree_node_type_td      *target,
-		                   bool                        *balancing_needed,
-	         	           avl_compare_type_internal    compare_func,
-                           void                        *ctx)
+void *
+avl_delete_internal(avl_tree_node_type_td **top, avl_tree_node_type_td *target,
+                    bool *balancing_needed, avl_compare_type_internal compare_func, void *ctx)
 {
     avl_tree_node_type_td *del_node;
 
@@ -446,18 +412,16 @@ void *avl_delete_internal (avl_tree_node_type_td     **top,
      * Did not find node in tree.
      */
     del_node = NULL;
-    if (!*top)
-    {
-	    *balancing_needed = FALSE;
-	    return(NULL);
+    if (!*top) {
+        *balancing_needed = FALSE;
+        return (NULL);
     }
 
-    switch ((*compare_func)(target, *top, ctx))
-    {
+    switch ((*compare_func)(target, *top, ctx)) {
 
-    default:				/* bogus case */
+    default: /* bogus case */
         *balancing_needed = FALSE;
-        del_node = NULL;
+        del_node          = NULL;
         break;
 
     case AVL_TREE_LT:
@@ -465,9 +429,7 @@ void *avl_delete_internal (avl_tree_node_type_td     **top,
         /*
          * Target is less than top, traverse the left link.
          */
-        del_node = avl_delete_internal(&(*top)->left,
-                                       target, balancing_needed,
-                                       compare_func, ctx);
+        del_node = avl_delete_internal(&(*top)->left, target, balancing_needed, compare_func, ctx);
         if (*balancing_needed)
             avl_balance_left_internal(top, balancing_needed);
         break;
@@ -477,8 +439,7 @@ void *avl_delete_internal (avl_tree_node_type_td     **top,
         /*
          * Target is more than top, traverse the right link.
          */
-        del_node = avl_delete_internal(&(*top)->right, target,
-                                       balancing_needed, compare_func, ctx);
+        del_node = avl_delete_internal(&(*top)->right, target, balancing_needed, compare_func, ctx);
         if (*balancing_needed)
             avl_balance_right_internal(top, balancing_needed);
         break;
@@ -490,41 +451,35 @@ void *avl_delete_internal (avl_tree_node_type_td     **top,
          */
         del_node = *top;
 
-        if (!del_node->right)
-        {
-            *top = del_node->left;
+        if (!del_node->right) {
+            *top              = del_node->left;
             *balancing_needed = TRUE;
-            del_node->left = NULL;
-            del_node->right = NULL;
+            del_node->left    = NULL;
+            del_node->right   = NULL;
             del_node->balance = BALANCED;
-        }
-        else if (!del_node->left)
-        {
-            *top = del_node->right;
+        } else if (!del_node->left) {
+            *top              = del_node->right;
             *balancing_needed = TRUE;
-            del_node->left = NULL;
-            del_node->right = NULL;
+            del_node->left    = NULL;
+            del_node->right   = NULL;
             del_node->balance = BALANCED;
-        }
-        else
-        {
+        } else {
             avl_tree_node_type_td *new_node;
 
-            new_node = avl_delete_replacement_internal(&del_node->left,
-                                                       balancing_needed);
-            new_node->left = del_node->left;
-            new_node->right = del_node->right;
+            new_node          = avl_delete_replacement_internal(&del_node->left, balancing_needed);
+            new_node->left    = del_node->left;
+            new_node->right   = del_node->right;
             new_node->balance = del_node->balance;
-            *top = new_node;
-            del_node->left = NULL;
-            del_node->right = NULL;
+            *top              = new_node;
+            del_node->left    = NULL;
+            del_node->right   = NULL;
             del_node->balance = BALANCED;
             if (*balancing_needed)
                 avl_balance_left_internal(top, balancing_needed);
         }
     }
 
-    return(del_node);
+    return (del_node);
 }
 
 /*
@@ -533,12 +488,9 @@ void *avl_delete_internal (avl_tree_node_type_td     **top,
  * Given an initialized node, which is NOT in the tree, insert it into the
  * tree.  Return a pointer to the node or NULL if there's a duplicate.
  */
-void *avl_insert_internal (avl_tree_node_type_td     **top,
-               	           avl_tree_node_type_td      *new,
-                           bool                       *balancing_needed,
-                           avl_compare_type_internal   compare_func,
-                           void                       *ctx,
-                           bool                       *is_new_node)
+void *
+avl_insert_internal(avl_tree_node_type_td **top, avl_tree_node_type_td *new, bool *balancing_needed,
+                    avl_compare_type_internal compare_func, void *ctx, bool *is_new_node)
 {
     avl_tree_node_type_td *left, *right;
     avl_tree_node_type_td *return_node = NULL;
@@ -547,18 +499,18 @@ void *avl_insert_internal (avl_tree_node_type_td     **top,
     if (!*top) {
         /* new element - insert it here */
         *balancing_needed = TRUE;
-        *top = new;
-        new->left = NULL;
-        new->right = NULL;
-        new->balance = BALANCED;
-        *is_new_node = TRUE;
-        return(new);
+        *top              = new;
+        new->left         = NULL;
+        new->right        = NULL;
+        new->balance      = BALANCED;
+        *is_new_node      = TRUE;
+        return (new);
     }
 
-    switch((*compare_func)(new, *top, ctx)) {
+    switch ((*compare_func)(new, *top, ctx)) {
 
-    default:				/* bogus case */
-        return_node = NULL;
+    default: /* bogus case */
+        return_node       = NULL;
         *balancing_needed = FALSE;
         break;
 
@@ -567,19 +519,18 @@ void *avl_insert_internal (avl_tree_node_type_td     **top,
         /*
          * Walk left.
          */
-        return_node = avl_insert_internal(&(*top)->left, new,
-                                          balancing_needed,
-                                          compare_func, ctx, is_new_node);
+        return_node = avl_insert_internal(&(*top)->left, new, balancing_needed, compare_func, ctx,
+                                          is_new_node);
         if (!*balancing_needed)
             break;
 
-        switch((*top)->balance) {
+        switch ((*top)->balance) {
         case RIGHT_HEAVY:
 
             /*
              * Node was right heavy, now is balanced.
              */
-            (*top)->balance = BALANCED;
+            (*top)->balance   = BALANCED;
             *balancing_needed = FALSE;
             break;
 
@@ -602,30 +553,26 @@ void *avl_insert_internal (avl_tree_node_type_td     **top,
              * Single LL rotation.
              */
             if (left->balance == LEFT_HEAVY) {
-                (*top)->left = left->right;
-                left->right = *top;
+                (*top)->left    = left->right;
+                left->right     = *top;
                 (*top)->balance = BALANCED;
-                *top = left;
+                *top            = left;
             } else {
 
                 /*
                  * Double LR rotation
                  */
                 if ((right = left->right) != NULL) {
-                    left->right = right->left;
-                    right->left = left;
-                    (*top)->left = right->right;
-                    right->right = *top;
-                    (*top)->balance =
-                        (right->balance == LEFT_HEAVY) ?
-                        RIGHT_HEAVY : BALANCED;
-                    left->balance =
-                        (right->balance == RIGHT_HEAVY) ?
-                        LEFT_HEAVY : BALANCED;
-                    *top = right;
+                    left->right     = right->left;
+                    right->left     = left;
+                    (*top)->left    = right->right;
+                    right->right    = *top;
+                    (*top)->balance = (right->balance == LEFT_HEAVY) ? RIGHT_HEAVY : BALANCED;
+                    left->balance   = (right->balance == RIGHT_HEAVY) ? LEFT_HEAVY : BALANCED;
+                    *top            = right;
                 }
             }
-            (*top)->balance = BALANCED;
+            (*top)->balance   = BALANCED;
             *balancing_needed = FALSE;
             break;
         }
@@ -636,9 +583,8 @@ void *avl_insert_internal (avl_tree_node_type_td     **top,
         /*
          * Walk right.
          */
-        return_node = avl_insert_internal(&(*top)->right, new,
-                                          balancing_needed,
-                                          compare_func, ctx, is_new_node);
+        return_node = avl_insert_internal(&(*top)->right, new, balancing_needed, compare_func, ctx,
+                                          is_new_node);
 
         if (!*balancing_needed)
             break;
@@ -649,7 +595,7 @@ void *avl_insert_internal (avl_tree_node_type_td     **top,
             /*
              * Node was left heavy, is now balanced.
              */
-            (*top)->balance = BALANCED;
+            (*top)->balance   = BALANCED;
             *balancing_needed = FALSE;
             break;
 
@@ -672,30 +618,26 @@ void *avl_insert_internal (avl_tree_node_type_td     **top,
              * Single RR rotation.
              */
             if (right->balance == RIGHT_HEAVY) {
-                (*top)->right = right->left;
-                right->left = *top;
+                (*top)->right   = right->left;
+                right->left     = *top;
                 (*top)->balance = BALANCED;
-                *top = right;
+                *top            = right;
             } else {
 
                 /*
                  * Double RL rotation.
                  */
                 if ((left = right->left) != NULL) {
-                    right->left = left->right;
-                    left->right = right;
-                    (*top)->right = left->left;
-                    left->left = *top;
-                    (*top)->balance =
-                        (left->balance == RIGHT_HEAVY) ?
-                        LEFT_HEAVY : BALANCED;
-                    right->balance =
-                        (left->balance == LEFT_HEAVY) ?
-                        RIGHT_HEAVY : BALANCED;
-                    *top = left;
+                    right->left     = left->right;
+                    left->right     = right;
+                    (*top)->right   = left->left;
+                    left->left      = *top;
+                    (*top)->balance = (left->balance == RIGHT_HEAVY) ? LEFT_HEAVY : BALANCED;
+                    right->balance  = (left->balance == LEFT_HEAVY) ? RIGHT_HEAVY : BALANCED;
+                    *top            = left;
                 }
             }
-            (*top)->balance = BALANCED;
+            (*top)->balance   = BALANCED;
             *balancing_needed = FALSE;
             break;
         }
@@ -706,11 +648,11 @@ void *avl_insert_internal (avl_tree_node_type_td     **top,
         /*
          * Found existing entry.
          */
-        return_node = *top;
+        return_node       = *top;
         *balancing_needed = FALSE;
         break;
     }
-    return(return_node);
+    return (return_node);
 }
 
 /*
@@ -718,17 +660,18 @@ void *avl_insert_internal (avl_tree_node_type_td     **top,
  *
  * Return a balance string representing the balance state.
  */
-const char *avl_balance_string_internal (avl_tree_balance_type_td bal)
+const char *
+avl_balance_string_internal(avl_tree_balance_type_td bal)
 {
-    switch(bal) {
+    switch (bal) {
     case LEFT_HEAVY:
-        return("Left heavy");
+        return ("Left heavy");
     case BALANCED:
-        return("Balanced");
+        return ("Balanced");
     case RIGHT_HEAVY:
-        return("Right heavy");
+        return ("Right heavy");
     default:
-        return("Confused");
+        return ("Confused");
     }
 }
 
@@ -737,15 +680,16 @@ const char *avl_balance_string_internal (avl_tree_balance_type_td bal)
  *
  * Return the least node in the tree, or NULL if there is no tree.
  */
-avl_tree_node_type_td *avl_tree_get_first (avl_tree_node_type_td *top)
+avl_tree_node_type_td *
+avl_tree_get_first(avl_tree_node_type_td *top)
 {
     if (!top)
-        return(NULL);
+        return (NULL);
 
-    while (top->left)                   /* Leftmost node is least */
+    while (top->left) /* Leftmost node is least */
         top = top->left;
 
-    return(top);
+    return (top);
 }
 
 /*
@@ -753,13 +697,14 @@ avl_tree_node_type_td *avl_tree_get_first (avl_tree_node_type_td *top)
  *
  * Return the greatest node in the tree, or NULL if there is no tree.
  */
-avl_tree_node_type_td *avl_tree_get_last (avl_tree_node_type_td *top)
+avl_tree_node_type_td *
+avl_tree_get_last(avl_tree_node_type_td *top)
 {
     if (!top)
-        return(NULL);
+        return (NULL);
 
-    while (top->right)                  /* Rightmost node is greatest */
+    while (top->right) /* Rightmost node is greatest */
         top = top->right;
 
-    return(top);
+    return (top);
 }

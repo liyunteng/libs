@@ -22,25 +22,26 @@
  */
 
 #include "log.h"
-#include <stdint.h>
 #include <pthread.h>
+#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 
-void test1()
+void
+test1()
 {
     const char *s = "this is a test.";
     loghandler *h = loghandler_create("h");
 
-    logformat *format = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
-    logoutput *fileout = logoutput_create(LOGOUTTYPE_FILE, "ihi.log", 1024*1024*4, 0600, 4);
+    logformat *format  = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
+    logoutput *fileout = logoutput_create(LOGOUTTYPE_FILE, "ihi.log", 1024 * 1024 * 4, 0600, 4);
     logoutput *std_out = logoutput_create(LOGOUTTYPE_STDOUT);
     logbind(h, LOG_DEBUG, -1, format, fileout);
     logbind(h, LOG_DEBUG, -1, format, std_out);
 
     DBG(h, "this is a debug");
     logunbind(h, fileout);
-    INFO(h, "%s","this is a info");
+    INFO(h, "%s", "this is a info");
     logbind(h, LOG_DEBUG, -1, format, fileout);
     NOTICE(h, "this is a notice");
     WARNING(h, "this is a warning");
@@ -48,7 +49,6 @@ void test1()
     FATAL(h, "this is a fatal");
     ALERT(h, "this is a alert");
     EMERG(h, "this is a emergency");
-
 
     log_dump();
 }
@@ -81,13 +81,14 @@ void test2()
 }
 #endif
 
-void test3()
+void
+test3()
 {
-    loghandler *h1 = loghandler_create("h1");
-    loghandler *h2 = loghandler_create("h2");
-    loghandler *h3 = loghandler_create("h3");
-    logformat *format = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
-    logoutput *fileout = logoutput_create(LOGOUTTYPE_FILE, "ihi.log", 1024*1024*100, 0600, 4);
+    loghandler *h1      = loghandler_create("h1");
+    loghandler *h2      = loghandler_create("h2");
+    loghandler *h3      = loghandler_create("h3");
+    logformat * format  = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
+    logoutput * fileout = logoutput_create(LOGOUTTYPE_FILE, "ihi.log", 1024 * 1024 * 100, 0600, 4);
 
     logbind(h1, LOG_DEBUG, -1, format, fileout);
     logbind(h2, LOG_DEBUG, -1, format, fileout);
@@ -96,26 +97,27 @@ void test3()
     unsigned i;
     for (i = 0; i < 1024 * 1024; i++) {
         DBG(h1, "this is a debug");
-        INFO(h1, "%s","this is a info");
+        INFO(h1, "%s", "this is a info");
         WARNING(h1, "this is a warning");
         ERROR(h1, "this is a error");
         FATAL(h1, "this is a fatal");
 
         DBG(h2, "this is a debug");
-        INFO(h2, "%s","this is a info");
+        INFO(h2, "%s", "this is a info");
         WARNING(h2, "this is a warning");
         ERROR(h2, "this is a error");
         FATAL(h2, "this is a fatal");
 
         DBG(h3, "this is a debug");
-        INFO(h3, "%s","this is a info");
+        INFO(h3, "%s", "this is a info");
         WARNING(h3, "this is a warning");
         ERROR(h3, "this is a error");
         FATAL(h3, "this is a fatal");
     }
     log_dump();
 }
-void test4()
+void
+test4()
 {
     LOG_INIT("abc.log", LOG_DEBUG);
 
@@ -130,18 +132,19 @@ void test4()
     log_dump();
 }
 
-void test5()
+void
+test5()
 {
 
     char b[4096];
-    int i;
+    int  i;
     LOG_INIT("ihi.log", LOG_ERROR);
     for (i = 0; i < 1024 * 4 - 1; i++) {
         b[i] = 'b';
     }
     b[i] = '\0';
 #if 1
-    for (i = 0; i < 1024 ;i++) {
+    for (i = 0; i < 1024; i++) {
         LOG(LOG_DEBUG, "this is a debug");
         LOG(LOG_NOTICE, "this is a notice");
         LOG(LOG_INFO, "this is a info");
@@ -175,23 +178,23 @@ void test5()
     }
 #endif
 
-
     log_dump();
-
 }
-void test6()
+void
+test6()
 {
     LOG_INIT("ihi.log", LOG_DEBUG);
     LOG(LOG_DEBUG, "this is a debug");
     log_dump();
 }
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
-    //test1();
-    //test2();
-    //test3();
-    //test4();
+    // test1();
+    // test2();
+    // test3();
+    // test4();
     test5();
-    //test6();
+    // test6();
     return 0;
 }

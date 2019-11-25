@@ -29,15 +29,17 @@
 
 typedef int datatype;
 typedef struct {
-	datatype val;
-	struct list_head list;
+    datatype         val;
+    struct list_head list;
 } data_t;
 
 static struct list_head head = LIST_HEAD_INIT(head);
-static void print_list(struct list_head *h)
+static void
+print_list(struct list_head *h)
 {
     data_t *p = NULL;
-    list_for_each_entry(p, h, list) {
+    list_for_each_entry(p, h, list)
+    {
         printf("%d ", p->val);
     }
 
@@ -48,13 +50,14 @@ static void print_list(struct list_head *h)
     printf("\n");
 }
 
-int test1()
+int
+test1()
 {
-    int count = 100;
-    struct list_head *x = &head;
+    int               count = 100;
+    struct list_head *x     = &head;
     for (int i = 0; i < count; i++) {
         data_t *d = (data_t *)malloc(sizeof(data_t));
-        d->val = i;
+        d->val    = i;
         list_add(&d->list, x);
         x = &d->list;
         /* list_add(&d->list, &head); */
@@ -69,11 +72,11 @@ int test1()
         INIT_LIST_HEAD(&data[i].list);
     }
 
-
     data_t *p = NULL;
     data_t *n = NULL;
-    int c = 0;
-    list_for_each_entry_safe(p, n, &head, list) {
+    int     c = 0;
+    list_for_each_entry_safe(p, n, &head, list)
+    {
         if (p->val % 2 == 0) {
             /* list_del(&p->list); */
             list_replace(&p->list, &data[c++].list);
@@ -88,8 +91,9 @@ int test1()
     return 0;
 }
 
-int main(void)
+int
+main(void)
 {
     test1();
-	return 0;
+    return 0;
 }

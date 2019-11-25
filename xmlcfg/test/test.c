@@ -7,8 +7,8 @@
  * Copyright (C) 2019 StreamOcean, Inc.
  * All rights reserved.
  */
-#include <string.h>
 #include "xmlcfg.h"
+#include <string.h>
 #define ERR(fmt, args...) fprintf(stderr, fmt, ##args)
 const char *xml_template = "                                        \
 <root>                                                              \
@@ -40,10 +40,11 @@ const char *xml_template = "                                        \
 </root>                                                             \
 ";
 
-int test1()
+int
+test1()
 {
     xmlcfg_ptr cfg = NULL;
-    cfg= xmlcfg_init_bymem(xml_template, strlen(xml_template));
+    cfg            = xmlcfg_init_bymem(xml_template, strlen(xml_template));
     if (cfg == NULL) {
         ERR("xmlcfg_init_byemem");
         return -1;
@@ -76,7 +77,8 @@ int test1()
     return 0;
 }
 
-int main(void)
+int
+main(void)
 {
     test1();
     return 0;

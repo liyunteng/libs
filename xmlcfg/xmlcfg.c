@@ -8,11 +8,11 @@
  * All rights reserved.
  */
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <string.h>
-#include <stdint.h>
+#include <unistd.h>
 
 #include "xmlcfg.h"
 
@@ -20,10 +20,10 @@
 #define ERR(fmt, args...) fprintf(stderr, "%s:L%d" fmt "\n", __FILE__, __LINE__, ##args)
 #endif
 
-
-xmlcfg_ptr xmlcfg_init_bypath(const char *filepath)
+xmlcfg_ptr
+xmlcfg_init_bypath(const char *filepath)
 {
-    xmlDocPtr doc = NULL;
+    xmlDocPtr  doc = NULL;
     xmlcfg_ptr cfg = NULL;
 
     if (!filepath) {
@@ -40,12 +40,12 @@ xmlcfg_ptr xmlcfg_init_bypath(const char *filepath)
         goto err;
     }
 
-    cfg = (xmlcfg_ptr) malloc(sizeof(xmlcfg_t));
+    cfg = (xmlcfg_ptr)malloc(sizeof(xmlcfg_t));
     if (!cfg) {
         ERR("Out of memory!");
         goto err;
     }
-    cfg->doc = doc;
+    cfg->doc  = doc;
     cfg->root = xmlDocGetRootElement(doc);
     return cfg;
 
@@ -57,9 +57,10 @@ err:
     return NULL;
 }
 
-xmlcfg_ptr xmlcfg_init_bymem(const char *buffer, int size)
+xmlcfg_ptr
+xmlcfg_init_bymem(const char *buffer, int size)
 {
-    xmlDocPtr doc = NULL;
+    xmlDocPtr  doc = NULL;
     xmlcfg_ptr cfg = NULL;
 
     if (!buffer) {
@@ -85,7 +86,7 @@ xmlcfg_ptr xmlcfg_init_bymem(const char *buffer, int size)
         ERR("Out of memory");
         goto err;
     }
-    cfg->doc = doc;
+    cfg->doc  = doc;
     cfg->root = xmlDocGetRootElement(doc);
     return cfg;
 
@@ -96,7 +97,8 @@ err:
     return NULL;
 }
 
-void xmlcfg_cleanup(xmlcfg_ptr cfg)
+void
+xmlcfg_cleanup(xmlcfg_ptr cfg)
 {
     if (cfg) {
         if (cfg->root) {
@@ -106,12 +108,13 @@ void xmlcfg_cleanup(xmlcfg_ptr cfg)
     }
 }
 
-static xmlNodePtr search_node(xmlNodePtr root, const char *key)
+static xmlNodePtr
+search_node(xmlNodePtr root, const char *key)
 {
     const char *p = strstr(key, KEY_TOKEN);
     const char *q = key;
-    char buffer[MAX_KEY_LEN];
-    xmlNodePtr node = NULL;
+    char        buffer[MAX_KEY_LEN];
+    xmlNodePtr  node = NULL;
 
     if (*key == '\0') {
         return root;
@@ -152,7 +155,8 @@ static xmlNodePtr search_node(xmlNodePtr root, const char *key)
     return NULL;
 }
 
-int xmlcfg_get_str(xmlcfg_ptr cfg, const char *key, const char **val)
+int
+xmlcfg_get_str(xmlcfg_ptr cfg, const char *key, const char **val)
 {
     xmlNodePtr node = search_node(cfg->root, key);
     if (node) {
@@ -169,15 +173,16 @@ int xmlcfg_get_str(xmlcfg_ptr cfg, const char *key, const char **val)
     return -1;
 }
 
-int xmlcfg_get_int(xmlcfg_ptr cfg, const char *key, int64_t *val)
+int
+xmlcfg_get_int(xmlcfg_ptr cfg, const char *key, int64_t *val)
 {
-    const char *p = NULL;
-    int ret = xmlcfg_get_str(cfg, key, &p);
+    const char *p   = NULL;
+    int         ret = xmlcfg_get_str(cfg, key, &p);
     if (ret) {
         return ret;
     }
 
-    char *q = (char *)p;
+    char *  q = (char *)p;
     int64_t v = strtol(p, &q, 10);
     if (v == INT64_MIN || v == INT64_MAX || p == q) {
         return -1;
@@ -187,20 +192,21 @@ int xmlcfg_get_int(xmlcfg_ptr cfg, const char *key, int64_t *val)
     }
 }
 
-int xmlcfg_get_int32(xmlcfg_ptr cfg, const char *key, int32_t *val)
+int
+xmlcfg_get_int32(xmlcfg_ptr cfg, const char *key, int32_t *val)
 {
-    const char *p = NULL;
-    int ret = xmlcfg_get_str(cfg, key, &p);
+    const char *p   = NULL;
+    int         ret = xmlcfg_get_str(cfg, key, &p);
     if (ret) {
         return ret;
     }
 #ifndef LONG_MAX
-#define	LONG_MAX	2147483647
+#define LONG_MAX 2147483647
 #endif
 #ifndef LONG_MIN
-#define LONG_MIN	(-LONG_MAX - 1)
+#define LONG_MIN (-LONG_MAX - 1)
 #endif
-    char *q = (char *)p;
+    char *  q = (char *)p;
     int32_t v = strtol(p, &q, 10);
     if (v == LONG_MAX || v == LONG_MIN || p == q) {
         return -1;
@@ -210,21 +216,21 @@ int xmlcfg_get_int32(xmlcfg_ptr cfg, const char *key, int32_t *val)
     }
 }
 
-
-int xmlcfg_get_size(xmlcfg_ptr cfg, const char *key, size_t* val)
+int
+xmlcfg_get_size(xmlcfg_ptr cfg, const char *key, size_t *val)
 {
-    const char *p = NULL;
-    int ret = xmlcfg_get_str(cfg, key, &p);
+    const char *p   = NULL;
+    int         ret = xmlcfg_get_str(cfg, key, &p);
     if (ret) {
         return ret;
     }
 
-    char *q = (char *)p;
+    char *  q = (char *)p;
     int64_t v = strtol(p, &q, 10);
     if (v == INT64_MIN || v == INT64_MAX || p == q) {
         return -1;
     }
-    switch(*q) {
+    switch (*q) {
     case 'k':
     case 'K':
         v <<= 10;
@@ -250,7 +256,8 @@ int xmlcfg_get_size(xmlcfg_ptr cfg, const char *key, size_t* val)
     return 0;
 }
 
-xmlcfg_ptr xmlcfg_iter_init(xmlcfg_ptr cfg, const char *parent, const char *name)
+xmlcfg_ptr
+xmlcfg_iter_init(xmlcfg_ptr cfg, const char *parent, const char *name)
 {
     xmlcfg_ptr iter = (xmlcfg_ptr)malloc(sizeof(xmlcfg_t));
     if (!iter) {
@@ -287,7 +294,8 @@ err:
     return NULL;
 }
 
-int xmlcfg_iter_hasnext(xmlcfg_ptr iter)
+int
+xmlcfg_iter_hasnext(xmlcfg_ptr iter)
 {
     if (iter) {
         return iter->root != NULL;
@@ -296,7 +304,8 @@ int xmlcfg_iter_hasnext(xmlcfg_ptr iter)
     }
 }
 
-xmlcfg_ptr xmlcfg_iter_next(xmlcfg_ptr iter)
+xmlcfg_ptr
+xmlcfg_iter_next(xmlcfg_ptr iter)
 {
     xmlNodePtr n = iter->root->next;
     for (; n; n = n->next) {

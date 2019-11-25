@@ -7,10 +7,11 @@
  * Copyright (C) 2019 StreamOcean, Inc.
  * All rights reserved.
  */
-#include <stdio.h>
 #include "log2.h"
+#include <stdio.h>
 
-int test1()
+int
+test1()
 {
     unsigned int u = 1024;
     printf("%d\n", ilog2(u));
@@ -18,7 +19,8 @@ int test1()
     return 0;
 }
 
-int main(void)
+int
+main(void)
 {
     test1();
     return 0;

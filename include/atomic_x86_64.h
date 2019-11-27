@@ -32,20 +32,20 @@
 #include <unistd.h>
 
 #ifdef CONFIG_SMP
-#define LOCK_PREFIX                \
-    ".section .smp_locks,\"a\"\n"  \
-    "  .align 8\n"                 \
-    "  .quad 661f\n" /* address */ \
-    ".previous\n"                  \
-    "661:\n\tlock; "
+#    define LOCK_PREFIX                                                        \
+        ".section .smp_locks,\"a\"\n"                                          \
+        "  .align 8\n"                                                         \
+        "  .quad 661f\n" /* address */                                         \
+        ".previous\n"                                                          \
+        "661:\n\tlock; "
 #else
-#define LOCK_PREFIX
+#    define LOCK_PREFIX
 #endif  // CONFIG_SMP
 
 #ifdef CONFIG_SMP
-#define LOCK "lock ; "
+#    define LOCK "lock ; "
 #else
-#define LOCK ""
+#    define LOCK ""
 #endif
 
 typedef struct {
@@ -55,9 +55,9 @@ typedef struct {
     atomic_t ref;
 } spin_lock_t;
 
-#define ATOMIC_INIT(i) \
-    {                  \
-        (i)            \
+#define ATOMIC_INIT(i)                                                         \
+    {                                                                          \
+        (i)                                                                    \
     }
 /**
  * atiomic_read - read atomic variable
@@ -89,7 +89,9 @@ typedef struct {
 static __inline__ void
 atomic_add(int i, atomic_t *v)
 {
-    __asm__ __volatile__(LOCK_PREFIX "addl %1,%0" : "=m"(v->counter) : "ir"(i), "m"(v->counter));
+    __asm__ __volatile__(LOCK_PREFIX "addl %1,%0"
+                         : "=m"(v->counter)
+                         : "ir"(i), "m"(v->counter));
 }
 
 /**
@@ -103,7 +105,9 @@ atomic_add(int i, atomic_t *v)
 static __inline__ void
 atomic_sub(int i, atomic_t *v)
 {
-    __asm__ __volatile__(LOCK_PREFIX "subl %1,%0" : "=m"(v->counter) : "ir"(i), "m"(v->counter));
+    __asm__ __volatile__(LOCK_PREFIX "subl %1,%0"
+                         : "=m"(v->counter)
+                         : "ir"(i), "m"(v->counter));
 }
 
 /**
@@ -137,7 +141,9 @@ atomic_sub_and_test(int i, atomic_t *v)
 static __inline__ void
 atomic_inc(atomic_t *v)
 {
-    __asm__ __volatile__(LOCK_PREFIX "incl %0" : "=m"(v->counter) : "m"(v->counter));
+    __asm__ __volatile__(LOCK_PREFIX "incl %0"
+                         : "=m"(v->counter)
+                         : "m"(v->counter));
 }
 
 /**
@@ -150,7 +156,9 @@ atomic_inc(atomic_t *v)
 static __inline__ void
 atomic_dec(atomic_t *v)
 {
-    __asm__ __volatile__(LOCK_PREFIX "decl %0" : "=m"(v->counter) : "m"(v->counter));
+    __asm__ __volatile__(LOCK_PREFIX "decl %0"
+                         : "=m"(v->counter)
+                         : "m"(v->counter));
 }
 
 /**
@@ -230,7 +238,9 @@ static __inline__ int
 atomic_add_return(int i, atomic_t *v)
 {
     int __i = i;
-    __asm__ __volatile__(LOCK_PREFIX "xaddl %0, %1;" : "=r"(i) : "m"(v->counter), "0"(i));
+    __asm__ __volatile__(LOCK_PREFIX "xaddl %0, %1;"
+                         : "=r"(i)
+                         : "m"(v->counter), "0"(i));
     return i + __i;
 }
 
@@ -247,9 +257,9 @@ typedef struct {
     volatile long counter;
 } atomic64_t;
 
-#define ATOMIC64_INIT(i) \
-    {                    \
-        (i)              \
+#define ATOMIC64_INIT(i)                                                       \
+    {                                                                          \
+        (i)                                                                    \
     }
 
 /**
@@ -280,7 +290,9 @@ typedef struct {
 static __inline__ void
 atomic64_add(long i, atomic64_t *v)
 {
-    __asm__ __volatile__(LOCK_PREFIX "addq %1,%0" : "=m"(v->counter) : "ir"(i), "m"(v->counter));
+    __asm__ __volatile__(LOCK_PREFIX "addq %1,%0"
+                         : "=m"(v->counter)
+                         : "ir"(i), "m"(v->counter));
 }
 
 /**
@@ -293,7 +305,9 @@ atomic64_add(long i, atomic64_t *v)
 static __inline__ void
 atomic64_sub(long i, atomic64_t *v)
 {
-    __asm__ __volatile__(LOCK_PREFIX "subq %1,%0" : "=m"(v->counter) : "ir"(i), "m"(v->counter));
+    __asm__ __volatile__(LOCK_PREFIX "subq %1,%0"
+                         : "=m"(v->counter)
+                         : "ir"(i), "m"(v->counter));
 }
 
 /**
@@ -326,7 +340,9 @@ atomic64_sub_and_test(long i, atomic64_t *v)
 static __inline__ void
 atomic64_inc(atomic64_t *v)
 {
-    __asm__ __volatile__(LOCK_PREFIX "incq %0" : "=m"(v->counter) : "m"(v->counter));
+    __asm__ __volatile__(LOCK_PREFIX "incq %0"
+                         : "=m"(v->counter)
+                         : "m"(v->counter));
 }
 
 /**
@@ -338,7 +354,9 @@ atomic64_inc(atomic64_t *v)
 static __inline__ void
 atomic64_dec(atomic64_t *v)
 {
-    __asm__ __volatile__(LOCK_PREFIX "decq %0" : "=m"(v->counter) : "m"(v->counter));
+    __asm__ __volatile__(LOCK_PREFIX "decq %0"
+                         : "=m"(v->counter)
+                         : "m"(v->counter));
 }
 
 /**
@@ -413,7 +431,9 @@ static __inline__ long
 atomic64_add_return(long i, atomic64_t *v)
 {
     long __i = i;
-    __asm__ __volatile__(LOCK_PREFIX "xaddq %0, %1;" : "=r"(i) : "m"(v->counter), "0"(i));
+    __asm__ __volatile__(LOCK_PREFIX "xaddq %0, %1;"
+                         : "=r"(i)
+                         : "m"(v->counter), "0"(i));
     return i + __i;
 }
 
@@ -469,8 +489,9 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
     return old;
 }
 
-#define cmpxchg(ptr, o, n) \
-    ((__typeof__(*(ptr)))__cmpxchg((ptr), (unsigned long)(o), (unsigned long)(n), sizeof(*(ptr))))
+#define cmpxchg(ptr, o, n)                                                     \
+    ((__typeof__(*(ptr)))__cmpxchg((ptr), (unsigned long)(o),                  \
+                                   (unsigned long)(n), sizeof(*(ptr))))
 
 #define atomic_cmpxchg(v, old, new) ((int)cmpxchg(&((v)->counter), old, new))
 #define atomic_xchg(v, new) (xchg(&((v)->counter), new))
@@ -484,28 +505,34 @@ __cmpxchg(volatile void *ptr, unsigned long old, unsigned long new, int size)
  * Atomically adds @a to @v, so long as it was not @u.
  * Returns non-zero if @v was not @u, and zero otherwise.
  */
-#define atomic_add_unless(v, a, u)                 \
-    ({                                             \
-        int c, old;                                \
-        c = atomic_read(v);                        \
-        for (;;) {                                 \
-            if (unlikely(c == (u)))                \
-                break;                             \
-            old = atomic_cmpxchg((v), c, c + (a)); \
-            if (likely(old == c))                  \
-                break;                             \
-            c = old;                               \
-        }                                          \
-        c != (u);                                  \
+#define atomic_add_unless(v, a, u)                                             \
+    ({                                                                         \
+        int c, old;                                                            \
+        c = atomic_read(v);                                                    \
+        for (;;) {                                                             \
+            if (unlikely(c == (u)))                                            \
+                break;                                                         \
+            old = atomic_cmpxchg((v), c, c + (a));                             \
+            if (likely(old == c))                                              \
+                break;                                                         \
+            c = old;                                                           \
+        }                                                                      \
+        c != (u);                                                              \
     })
 #define atomic_inc_not_zero(v) atomic_add_unless((v), 1, 0)
 
 /* These are x86-specific, used by some header files */
-#define atomic_clear_mask(mask, addr) \
-    __asm__ __volatile__(LOCK_PREFIX "andl %0,%1" : : "r"(~(mask)), "m"(*addr) : "memory")
+#define atomic_clear_mask(mask, addr)                                          \
+    __asm__ __volatile__(LOCK_PREFIX "andl %0,%1"                              \
+                         :                                                     \
+                         : "r"(~(mask)), "m"(*addr)                            \
+                         : "memory")
 
-#define atomic_set_mask(mask, addr) \
-    __asm__ __volatile__(LOCK_PREFIX "orl %0,%1" : : "r"((unsigned)mask), "m"(*(addr)) : "memory")
+#define atomic_set_mask(mask, addr)                                            \
+    __asm__ __volatile__(LOCK_PREFIX "orl %0,%1"                               \
+                         :                                                     \
+                         : "r"((unsigned)mask), "m"(*(addr))                   \
+                         : "memory")
 
 /* Atomic operations are already serializing on x86 */
 #define smp_mb__before_atomic_dec() barrier()

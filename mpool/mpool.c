@@ -34,9 +34,11 @@
 mpool_ctx_t *
 mpool_init(size_t msize, size_t total_size, void *pool)
 {
-    mpool_ctx_t *ctx  = NULL;
-    size_t       size = (sizeof(mpool_item_t) + msize + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
-    if (msize == 0 || total_size < sizeof(mpool_ctx_t) + sizeof(void *) + size) {
+    mpool_ctx_t *ctx = NULL;
+    size_t size = (sizeof(mpool_item_t) + msize + ALIGN_SIZE - 1) / ALIGN_SIZE
+                  * ALIGN_SIZE;
+    if (msize == 0
+        || total_size < sizeof(mpool_ctx_t) + sizeof(void *) + size) {
         return NULL;
     }
 
@@ -68,7 +70,8 @@ mpool_init(size_t msize, size_t total_size, void *pool)
 
     ctx->size  = size;
     ctx->msize = msize;
-    ctx->max   = (total_size - sizeof(mpool_ctx_t)) / (sizeof(void *) + ctx->size);
+    ctx->max =
+        (total_size - sizeof(mpool_ctx_t)) / (sizeof(void *) + ctx->size);
     ctx->head  = 0;
     ctx->tail  = ctx->max;
     ctx->queue = (mpool_item_t **)((uint8_t *)ctx + sizeof(mpool_ctx_t));
@@ -90,8 +93,10 @@ mpool_callc(size_t nmem, size_t msize)
         return NULL;
     }
 
-    size_t size       = (sizeof(mpool_item_t) + msize + ALIGN_SIZE - 1) / ALIGN_SIZE * ALIGN_SIZE;
-    size_t total_size = sizeof(mpool_ctx_t) + sizeof(void *) * nmem + size * nmem;
+    size_t size = (sizeof(mpool_item_t) + msize + ALIGN_SIZE - 1) / ALIGN_SIZE
+                  * ALIGN_SIZE;
+    size_t total_size =
+        sizeof(mpool_ctx_t) + sizeof(void *) * nmem + size * nmem;
 
     return mpool_init(msize, total_size, NULL);
 }
@@ -134,7 +139,7 @@ mpool_dequeue(mpool_ctx_t *ctx)
             return NULL;
         }
 
-        uint32_t      idx = ctx->head;
+        uint32_t idx      = ctx->head;
         mpool_item_t *ptr = NULL;
         if (cmpxchg(&ctx->head, idx, idx + 1) == idx) {
             ptr = ctx->queue[idx % ctx->max];
@@ -147,7 +152,7 @@ void *
 __mpool_get(mpool_ctx_t *ctx, const char *file, int line)
 {
     mpool_item_t *ptr = NULL;
-    void *        ret = NULL;
+    void *ret         = NULL;
 
     if (!ctx) {
         return NULL;
@@ -200,7 +205,7 @@ mpool_get_idx(mpool_ctx_t *ctx, void *p)
     }
 
     mpool_item_t *ptr = container_of(p, mpool_item_t, data);
-    int64_t       l   = (int64_t)((uint8_t *)ptr - ctx->pool);
+    int64_t l         = (int64_t)((uint8_t *)ptr - ctx->pool);
     if (l < 0 || l % ctx->size != 0) {
         return -EINVAL;
     }

@@ -17,13 +17,14 @@
 #include "xmlcfg.h"
 
 #ifndef ERR
-#define ERR(fmt, args...) fprintf(stderr, "%s:L%d" fmt "\n", __FILE__, __LINE__, ##args)
+#    define ERR(fmt, args...)                                                  \
+        fprintf(stderr, "%s:L%d" fmt "\n", __FILE__, __LINE__, ##args)
 #endif
 
 xmlcfg_ptr
 xmlcfg_init_bypath(const char *filepath)
 {
-    xmlDocPtr  doc = NULL;
+    xmlDocPtr doc  = NULL;
     xmlcfg_ptr cfg = NULL;
 
     if (!filepath) {
@@ -60,7 +61,7 @@ err:
 xmlcfg_ptr
 xmlcfg_init_bymem(const char *buffer, int size)
 {
-    xmlDocPtr  doc = NULL;
+    xmlDocPtr doc  = NULL;
     xmlcfg_ptr cfg = NULL;
 
     if (!buffer) {
@@ -113,8 +114,8 @@ search_node(xmlNodePtr root, const char *key)
 {
     const char *p = strstr(key, KEY_TOKEN);
     const char *q = key;
-    char        buffer[MAX_KEY_LEN];
-    xmlNodePtr  node = NULL;
+    char buffer[MAX_KEY_LEN];
+    xmlNodePtr node = NULL;
 
     if (*key == '\0') {
         return root;
@@ -162,7 +163,8 @@ xmlcfg_get_str(xmlcfg_ptr cfg, const char *key, const char **val)
     if (node) {
         xmlNodePtr text = node->children;
         for (; text; text = text->next) {
-            if (text->type != XML_TEXT_NODE && text->type != XML_CDATA_SECTION_NODE) {
+            if (text->type != XML_TEXT_NODE
+                && text->type != XML_CDATA_SECTION_NODE) {
                 continue;
             } else {
                 *val = (const char *)text->content;
@@ -176,13 +178,13 @@ xmlcfg_get_str(xmlcfg_ptr cfg, const char *key, const char **val)
 int
 xmlcfg_get_int(xmlcfg_ptr cfg, const char *key, int64_t *val)
 {
-    const char *p   = NULL;
-    int         ret = xmlcfg_get_str(cfg, key, &p);
+    const char *p = NULL;
+    int ret       = xmlcfg_get_str(cfg, key, &p);
     if (ret) {
         return ret;
     }
 
-    char *  q = (char *)p;
+    char *q   = (char *)p;
     int64_t v = strtol(p, &q, 10);
     if (v == INT64_MIN || v == INT64_MAX || p == q) {
         return -1;
@@ -195,18 +197,18 @@ xmlcfg_get_int(xmlcfg_ptr cfg, const char *key, int64_t *val)
 int
 xmlcfg_get_int32(xmlcfg_ptr cfg, const char *key, int32_t *val)
 {
-    const char *p   = NULL;
-    int         ret = xmlcfg_get_str(cfg, key, &p);
+    const char *p = NULL;
+    int ret       = xmlcfg_get_str(cfg, key, &p);
     if (ret) {
         return ret;
     }
 #ifndef LONG_MAX
-#define LONG_MAX 2147483647
+#    define LONG_MAX 2147483647
 #endif
 #ifndef LONG_MIN
-#define LONG_MIN (-LONG_MAX - 1)
+#    define LONG_MIN (-LONG_MAX - 1)
 #endif
-    char *  q = (char *)p;
+    char *q   = (char *)p;
     int32_t v = strtol(p, &q, 10);
     if (v == LONG_MAX || v == LONG_MIN || p == q) {
         return -1;
@@ -219,13 +221,13 @@ xmlcfg_get_int32(xmlcfg_ptr cfg, const char *key, int32_t *val)
 int
 xmlcfg_get_size(xmlcfg_ptr cfg, const char *key, size_t *val)
 {
-    const char *p   = NULL;
-    int         ret = xmlcfg_get_str(cfg, key, &p);
+    const char *p = NULL;
+    int ret       = xmlcfg_get_str(cfg, key, &p);
     if (ret) {
         return ret;
     }
 
-    char *  q = (char *)p;
+    char *q   = (char *)p;
     int64_t v = strtol(p, &q, 10);
     if (v == INT64_MIN || v == INT64_MAX || p == q) {
         return -1;

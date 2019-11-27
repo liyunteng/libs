@@ -30,8 +30,8 @@
 int
 main(void)
 {
-    struct bst_node *root  = NULL;
-    datatype         arr[] = {2, 1, 7, 4, 3, 6, 5, 8};
+    struct bst_node *root = NULL;
+    datatype arr[]        = {2, 1, 7, 4, 3, 6, 5, 8};
 
     /*
      * datatype arr[4096];

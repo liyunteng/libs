@@ -30,12 +30,13 @@
 int
 main(int argc, char *argv[])
 {
-    mpool_ctx_t *  ctx;
+    mpool_ctx_t *ctx;
     unsigned char *p;
     unsigned char *queue[4096];
-    int            i;
+    int i;
     ctx = mpool_init(123, 1048576, NULL);
-    printf("%d / %d head:%d tail:%d\n", mpool_count(ctx), mpool_size(ctx), ctx->head, ctx->tail);
+    printf("%d / %d head:%d tail:%d\n", mpool_count(ctx), mpool_size(ctx),
+           ctx->head, ctx->tail);
 
     memset(queue, 0, sizeof(queue));
     int j;
@@ -45,8 +46,8 @@ main(int argc, char *argv[])
         for (i = 0; i < ARRAY_SIZE(queue); i++) {
             p = (unsigned char *)mpool_get(ctx);
             if (!p) {
-                printf("get failed %d / %d head:%d tail:%d\n", mpool_count(ctx), mpool_size(ctx),
-                       ctx->head, ctx->tail);
+                printf("get failed %d / %d head:%d tail:%d\n", mpool_count(ctx),
+                       mpool_size(ctx), ctx->head, ctx->tail);
                 break;
             }
             queue[i] = p;
@@ -56,8 +57,8 @@ main(int argc, char *argv[])
         for (i = 0; i < ARRAY_SIZE(queue); i++) {
             p = queue[i];
             if (!p) {
-                printf("put failed %d / %d head:%d tail:%d\n", mpool_count(ctx), mpool_size(ctx),
-                       ctx->head, ctx->tail);
+                printf("put failed %d / %d head:%d tail:%d\n", mpool_count(ctx),
+                       mpool_size(ctx), ctx->head, ctx->tail);
                 break;
             }
             mpool_put(p);

@@ -8,10 +8,10 @@
  */
 
 #ifdef __cplusplus
-#error "please use gcc to compile"
-#ifndef __STDC_FORMAT_MARCOS
-#define __STDC_FORMAT_MARCOS
-#endif
+#    error "please use gcc to compile"
+#    ifndef __STDC_FORMAT_MARCOS
+#        define __STDC_FORMAT_MARCOS
+#    endif
 #endif
 
 #include <inttypes.h>
@@ -38,19 +38,19 @@
 #include "list.h"
 #include "log.h"
 #ifndef bool
-#define bool int8_t
+#    define bool int8_t
 #endif
 #ifndef TRUE
-#define TRUE 1
+#    define TRUE 1
 #endif
 #ifndef FALSE
-#define FALSE 0
+#    define FALSE 0
 #endif
 #ifndef true
-#define true TRUE
+#    define true TRUE
 #endif
 #ifndef false
-#define false FALSE
+#    define false FALSE
 #endif
 
 #define ESC_START "\033["
@@ -72,52 +72,52 @@
 /* #define OPENLOGDEBUG */
 
 struct _logformat {
-    char             format[128];
-    char             time_format[32];
-    char             print_fmt[128];
-    bool             color;
+    char format[128];
+    char time_format[32];
+    char print_fmt[128];
+    bool color;
     struct list_head l;
 };
 
 struct _logoutput {
-    pthread_mutex_t  mutex;
-    enum LOGOUTTYPE  type;
+    pthread_mutex_t mutex;
+    enum LOGOUTTYPE type;
     struct list_head l;
     union {
         struct {
-            char     filename[256];
-            mode_t   filemode;
-            int      bakup;
+            char filename[256];
+            mode_t filemode;
+            int bakup;
             uint64_t filesize;
-            FILE *   fp;
+            FILE *fp;
         } file;
         struct {
-            char     addr[256];
+            char addr[256];
             unsigned port;
-            int      sockfd;
+            int sockfd;
         } sock;
 
     } u;
 };
 
 typedef struct _logrule {
-    LOGLEVEL         level_begin;
-    LOGLEVEL         level_end;
-    logoutput *      poutput;
-    logformat *      pformat;
+    LOGLEVEL level_begin;
+    LOGLEVEL level_end;
+    logoutput *poutput;
+    logformat *pformat;
     struct list_head l;
 } logrule;
 
 typedef struct _prule {
-    logrule *        prule;
+    logrule *prule;
     struct list_head l;
 } prule;
 
 struct _loghandler {
     pthread_mutex_t mutex;
-    char            ident[128];
+    char ident[128];
 
-    char * bufferp;
+    char *bufferp;
     size_t buffer_max;
     size_t buffer_min;
     size_t buffer_real;
@@ -186,7 +186,7 @@ lock_set(int fd, int type, int start, int len, int whence)
 static void
 _dobak(logoutput *out)
 {
-    int  bakcnt;
+    int bakcnt;
     char old_bakfile[256];
     char new_bakfile[256];
 
@@ -204,10 +204,11 @@ _dobak(logoutput *out)
         bakcnt = out->u.file.bakup;
         while (bakcnt >= 0) {
             if (bakcnt == 0) {
-                snprintf(old_bakfile, sizeof(old_bakfile), "%s", out->u.file.filename);
+                snprintf(old_bakfile, sizeof(old_bakfile), "%s",
+                         out->u.file.filename);
             } else {
-                snprintf(old_bakfile, sizeof(old_bakfile), "%s.%d", out->u.file.filename,
-                         bakcnt - 1);
+                snprintf(old_bakfile, sizeof(old_bakfile), "%s.%d",
+                         out->u.file.filename, bakcnt - 1);
             }
             if (!access(old_bakfile, F_OK)) {
                 if (bakcnt == out->u.file.bakup) {
@@ -216,13 +217,14 @@ _dobak(logoutput *out)
                         perror("logdebug: unlink");
 #endif
                     }
-                    /* fprintf(stderr, "logdebug: unlink %s bakcnt: %d\n", old_bakfile, bakcnt); */
+                    /* fprintf(stderr, "logdebug: unlink %s bakcnt: %d\n",
+                     * old_bakfile, bakcnt); */
                     continue;
                 } else {
-                    snprintf(new_bakfile, sizeof(new_bakfile), "%s.%d", out->u.file.filename,
-                             bakcnt);
-                    /* fprintf(stderr, "logdebug: rename %s to %s bakcnt: %d\n", old_bakfile,
-                     * new_bakfile, bakcnt); */
+                    snprintf(new_bakfile, sizeof(new_bakfile), "%s.%d",
+                             out->u.file.filename, bakcnt);
+                    /* fprintf(stderr, "logdebug: rename %s to %s bakcnt: %d\n",
+                     * old_bakfile, new_bakfile, bakcnt); */
                     if (rename(old_bakfile, new_bakfile) != 0) {
 #ifdef OPENLOGDEBUG
                         perror("logdebug: rename");
@@ -259,7 +261,8 @@ checkfile(logoutput *out, size_t len)
         umask(mask_old);
         if (out->u.file.fp == NULL) {
 #ifdef OPENLOGDEBUG
-            fprintf(stderr, "logdebug: create file %s failed\n", out->u.file.filename);
+            fprintf(stderr, "logdebug: create file %s failed\n",
+                    out->u.file.filename);
 #endif
             return;
         }
@@ -426,23 +429,24 @@ __log_ctl(enum LOG_OPTS opt, va_list ap)
 }
 
 static size_t
-parse_format(logrule *r, loghandler *handler, LOGLEVEL level, const char *file, const char *func,
-             const long line, const char *fmt, va_list ap)
+parse_format(logrule *r, loghandler *handler, LOGLEVEL level, const char *file,
+             const char *func, const long line, const char *fmt, va_list ap)
 {
 
-    if (r == NULL || r->pformat == NULL || handler == NULL || handler->bufferp == NULL) {
+    if (r == NULL || r->pformat == NULL || handler == NULL
+        || handler->bufferp == NULL) {
         return 0;
     }
 
-    va_list   local_ap;
-    size_t    idx;
+    va_list local_ap;
+    size_t idx;
     struct tm now;
-    size_t    len;
-    char *    buf;
-    int       nscan;
-    int       nread;
-    time_t    t;
-    char      hostname[128];
+    size_t len;
+    char *buf;
+    int nscan;
+    int nread;
+    time_t t;
+    char hostname[128];
 
 begin:
     va_copy(local_ap, ap);
@@ -487,7 +491,7 @@ begin:
     }
 
     char *p = r->pformat->format;
-    char  format_buf[128];
+    char format_buf[128];
     while (*p) {
 
         if (idx >= len) {
@@ -496,7 +500,8 @@ begin:
                 fprintf(stderr, "logdebug: realloc buffer\n");
 #endif
                 if (handler->buffer_real * 2 <= handler->buffer_max) {
-                    handler->bufferp = (char *)realloc(handler->bufferp, handler->buffer_real * 2);
+                    handler->bufferp = (char *)realloc(
+                        handler->bufferp, handler->buffer_real * 2);
                     if (handler->bufferp) {
                         handler->buffer_real *= 2;
                         goto begin;
@@ -508,7 +513,8 @@ begin:
 #endif
                     goto err;
                 } else {
-                    handler->bufferp = (char *)realloc(handler->bufferp, handler->buffer_max);
+                    handler->bufferp =
+                        (char *)realloc(handler->bufferp, handler->buffer_max);
                     if (handler->bufferp) {
                         handler->buffer_real = handler->buffer_max;
                         goto begin;
@@ -523,7 +529,8 @@ begin:
             } else {
                 snprintf(buf + len - 13, 13, "%s", "(truncated)\n");
 #ifdef OPENLOGDEBUG
-                fprintf(stderr, "logdebug: msg too long, truncated to %u.\n", (unsigned)idx);
+                fprintf(stderr, "logdebug: msg too long, truncated to %u.\n",
+                        (unsigned)idx);
 #endif
                 goto end;
             }
@@ -552,7 +559,10 @@ begin:
                 p += nread;
                 if (*(p - 1) != ')') {
 #ifdef OPENLOGDEBUG
-                    fprintf(stderr, "logdebug: parse foramt [%s] failed, can't find \')\'.\n", p);
+                    fprintf(stderr,
+                            "logdebug: parse foramt [%s] failed, can't find "
+                            "\')\'.\n",
+                            p);
 #endif
                     goto err;
                 }
@@ -569,14 +579,17 @@ begin:
                     p += 3;
                 } else {
                     nread = 0;
-                    nscan = sscanf(p, "d(%[^)])%n", r->pformat->time_format, &nread);
+                    nscan = sscanf(p, "d(%[^)])%n", r->pformat->time_format,
+                                   &nread);
                     if (nscan != 1) {
                         nread = 0;
                     }
                     p += nread;
                     if (*(p - 1) != ')') {
 #ifdef OPENLOGDEBUG
-                        fprintf(stderr, "logdebug: parse format [%s] failed, can't find \')\''.\n",
+                        fprintf(stderr,
+                                "logdebug: parse format [%s] failed, can't "
+                                "find \')\''.\n",
                                 p);
 #endif
                         goto err;
@@ -585,7 +598,8 @@ begin:
 
                 t = time(NULL);
                 localtime_r(&t, &now);
-                idx += strftime(buf + idx, len - idx, r->pformat->time_format, &now);
+                idx += strftime(buf + idx, len - idx, r->pformat->time_format,
+                                &now);
                 continue;
             }
 
@@ -593,7 +607,8 @@ begin:
                 p += 2;
                 struct timeval tv;
                 gettimeofday(&tv, NULL);
-                idx += snprintf(buf + idx, len - idx, "%3d", (int)(tv.tv_usec / 1000));
+                idx += snprintf(buf + idx, len - idx, "%3d",
+                                (int)(tv.tv_usec / 1000));
                 continue;
             }
 
@@ -638,7 +653,8 @@ begin:
                 idx += snprintf(buf + idx, len - idx, "%s", handler->ident);
                 break;
             case 'V':
-                idx += snprintf(buf + idx, len - idx, "%5.5s", LOGLEVELSTR[level]);
+                idx +=
+                    snprintf(buf + idx, len - idx, "%5.5s", LOGLEVELSTR[level]);
                 break;
             case 'H':
                 gethostname(hostname, 128);
@@ -672,8 +688,8 @@ err:
 }
 
 static void
-vlog(loghandler *handler, LOGLEVEL level, const char *file, const char *function, long line,
-     const char *format, va_list args)
+vlog(loghandler *handler, LOGLEVEL level, const char *file,
+     const char *function, long line, const char *format, va_list args)
 {
 
     if (handler == NULL)
@@ -681,7 +697,7 @@ vlog(loghandler *handler, LOGLEVEL level, const char *file, const char *function
 
     pthread_mutex_lock(&handler->mutex);
     uint16_t i;
-    prule *  pr;
+    prule *pr;
     list_for_each_entry(pr, &(handler->rules), l)
     {
         if (level > LOGLEVEL_DEBUG)
@@ -696,7 +712,8 @@ vlog(loghandler *handler, LOGLEVEL level, const char *file, const char *function
 
         va_list ap;
         va_copy(ap, args);
-        size_t len = parse_format(r, handler, level, file, function, line, format, ap);
+        size_t len =
+            parse_format(r, handler, level, file, function, line, format, ap);
         va_end(ap);
 
         switch (r->poutput->type) {
@@ -716,7 +733,8 @@ vlog(loghandler *handler, LOGLEVEL level, const char *file, const char *function
                 checkfile(r->poutput, len);
                 if (r->poutput->u.file.fp) {
                     fseek(r->poutput->u.file.fp, 0, SEEK_END);
-                    if (fprintf(r->poutput->u.file.fp, "%s", handler->bufferp) != (int)len) {
+                    if (fprintf(r->poutput->u.file.fp, "%s", handler->bufferp)
+                        != (int)len) {
                         if (errno != 0) {
 #ifdef OPENLOGDEBUG
                             perror("logdebug: fprintf");
@@ -733,19 +751,23 @@ vlog(loghandler *handler, LOGLEVEL level, const char *file, const char *function
                 if (r->poutput->u.sock.sockfd == -1) {
                     struct hostent *host = NULL;
                     if ((host = gethostbyname(r->poutput->u.sock.addr))) {
-                        r->poutput->u.sock.sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+                        r->poutput->u.sock.sockfd =
+                            socket(AF_INET, SOCK_DGRAM, 0);
                         if (r->poutput->u.sock.sockfd != -1) {
                             struct sockaddr_in addr;
                             memset(&addr, 0, sizeof(addr));
                             addr.sin_family = AF_INET;
                             addr.sin_port   = htons(r->poutput->u.sock.port);
-                            addr.sin_addr   = *(struct in_addr *)host->h_addr_list[0];
-                            bind(r->poutput->u.sock.sockfd, (struct sockaddr *)&addr, sizeof(addr));
+                            addr.sin_addr =
+                                *(struct in_addr *)host->h_addr_list[0];
+                            bind(r->poutput->u.sock.sockfd,
+                                 (struct sockaddr *)&addr, sizeof(addr));
                         }
                     }
                 }
                 if (r->poutput->u.sock.sockfd != -1)
-                    send(r->poutput->u.sock.sockfd, handler->bufferp, len + 1, 0);
+                    send(r->poutput->u.sock.sockfd, handler->bufferp, len + 1,
+                         0);
             }
             break;
         case LOGOUTTYPE_LOGCAT:
@@ -910,9 +932,11 @@ __logoutput_create(enum LOGOUTTYPE type, va_list ap)
             output->type   = type;
             char *filename = va_arg(ap, char *);
             if (filename && strlen(filename) > 0) {
-                strncpy(output->u.file.filename, filename, strlen(filename) + 1);
+                strncpy(output->u.file.filename, filename,
+                        strlen(filename) + 1);
             } else {
-                strncpy(output->u.file.filename, DEFAULT_FILENAME, strlen(DEFAULT_FILENAME) + 1);
+                strncpy(output->u.file.filename, DEFAULT_FILENAME,
+                        strlen(DEFAULT_FILENAME) + 1);
             }
             unsigned long filesize = va_arg(ap, unsigned long);
             if (filesize > 0) {
@@ -953,7 +977,8 @@ __logoutput_create(enum LOGOUTTYPE type, va_list ap)
             if (addr && strlen(addr) > 0) {
                 strncpy(output->u.sock.addr, addr, strlen(addr) + 1);
             } else {
-                strncpy(output->u.sock.addr, DEFAULT_SOCKADDR, strlen(DEFAULT_SOCKADDR) + 1);
+                strncpy(output->u.sock.addr, DEFAULT_SOCKADDR,
+                        strlen(DEFAULT_SOCKADDR) + 1);
             }
 
             unsigned port = va_arg(ap, unsigned);
@@ -982,7 +1007,7 @@ logoutput *
 logoutput_create(enum LOGOUTTYPE type, ...)
 {
     logoutput *output = NULL;
-    va_list    ap;
+    va_list ap;
     va_start(ap, type);
     output = __logoutput_create(type, ap);
     va_end(ap);
@@ -1000,8 +1025,8 @@ logoutput_get_default()
 }
 
 int
-logbind(loghandler *handler, LOGLEVEL level_begin, LOGLEVEL level_end, logformat *format,
-        logoutput *output)
+logbind(loghandler *handler, LOGLEVEL level_begin, LOGLEVEL level_end,
+        logformat *format, logoutput *output)
 {
     if (handler == NULL || format == NULL || output == NULL)
         return -1;
@@ -1056,8 +1081,8 @@ logunbind(loghandler *handler, logoutput *output)
 }
 
 void
-mlog(loghandler *handle, LOGLEVEL level, const char *file, const char *function, long line,
-     const char *format, ...)
+mlog(loghandler *handle, LOGLEVEL level, const char *file, const char *function,
+     long line, const char *format, ...)
 {
     va_list args;
     va_start(args, format);
@@ -1067,7 +1092,8 @@ mlog(loghandler *handle, LOGLEVEL level, const char *file, const char *function,
 }
 
 void
-slog(LOGLEVEL level, const char *file, const char *function, long line, const char *format, ...)
+slog(LOGLEVEL level, const char *file, const char *function, long line,
+     const char *format, ...)
 {
     loghandler *handler = loghandler_get(DEFAULT_IDENT);
     if (handler) {
@@ -1086,24 +1112,15 @@ log_dump(void)
     int j = 0;
     printf("=====================log profile==============================\n");
     logrule *ru;
-    list_for_each_entry(ru, &rule_header, l)
-    {
-        i++;
-    }
+    list_for_each_entry(ru, &rule_header, l) { i++; }
     printf("ctx: rule total %d", i);
     i = 0;
     logformat *format;
-    list_for_each_entry(format, &format_header, l)
-    {
-        i++;
-    }
+    list_for_each_entry(format, &format_header, l) { i++; }
     printf(" format total %d", i);
     i = 0;
     logoutput *output;
-    list_for_each_entry(output, &output_header, l)
-    {
-        i++;
-    }
+    list_for_each_entry(output, &output_header, l) { i++; }
     printf(" output total %d\n", i);
     i = 0;
     loghandler *handler;
@@ -1143,13 +1160,15 @@ log_dump(void)
                     printf("filename: %s\n", r->poutput->u.file.filename);
                     printf("filemode: %u\n", r->poutput->u.file.filemode);
                     printf("bakup: %" PRIu16 "\n", r->poutput->u.file.bakup);
-                    printf("filesize: %" PRIu64 "\n", r->poutput->u.file.filesize);
+                    printf("filesize: %" PRIu64 "\n",
+                           r->poutput->u.file.filesize);
                     break;
                 case LOGOUTTYPE_SOCK:
                     printf("type: socket\n");
                     printf("format: %s\n", r->pformat->format);
                     printf("level: %s\n", LOGLEVELSTR[r->level_begin]);
-                    printf("addr: %s:%d\n", r->poutput->u.sock.addr, r->poutput->u.sock.port);
+                    printf("addr: %s:%d\n", r->poutput->u.sock.addr,
+                           r->poutput->u.sock.port);
                     break;
                 case LOGOUTTYPE_LOGCAT:
                     printf("type: logcat\n");

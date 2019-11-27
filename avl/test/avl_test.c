@@ -45,7 +45,7 @@ avl_tree_compare_code_td
 my_compare_fn(void *obj1, void *obj2)
 {
     avl_tree_compare_code_td rc = AVL_TREE_EQ;
-    int                      compare;
+    int compare;
     compare = strcmp(((my_object_t *)obj1)->key, ((my_object_t *)obj2)->key);
 
     if (compare > 0) {
@@ -74,11 +74,11 @@ my_walk_fn(void *obj, void *ctx)
 int
 main(int argc, char *argv[])
 {
-    int                        rc = 0;
-    time_t                     showtime;
-    my_object_t *              obj;
-    my_object_t *              found_obj = NULL;
-    avl_tree_walk_code_td      walk_result;
+    int rc = 0;
+    time_t showtime;
+    my_object_t *obj;
+    my_object_t *found_obj = NULL;
+    avl_tree_walk_code_td walk_result;
     avl_tree_search_options_td search_result;
 
     if (argc != 2) {
@@ -87,15 +87,16 @@ main(int argc, char *argv[])
         rc = -1;
     } else {
         sleep(atoi(argv[argc - 1]));
-        rc = avl_tree_init(my_compare_fn, AVL_TREE_OPTION_DEFAULT, &my_avl_tree);
+        rc =
+            avl_tree_init(my_compare_fn, AVL_TREE_OPTION_DEFAULT, &my_avl_tree);
         if (rc == 0) {
             showtime = time(NULL);
             printf("INIT AVL SUCCESS\n");
         }
 
         if (rc == 0) {
-            rc = avl_tree_init_fns(my_malloc_fn, my_free_fn, my_cleanup_fn, my_object_sanity_fn,
-                                   my_avl_tree);
+            rc = avl_tree_init_fns(my_malloc_fn, my_free_fn, my_cleanup_fn,
+                                   my_object_sanity_fn, my_avl_tree);
         }
 
         if (rc == 0) {
@@ -104,7 +105,8 @@ main(int argc, char *argv[])
         }
 
         if (rc == 0) {
-            rc = avl_tree_allocate_object(my_avl_tree, (void *)&obj, sizeof(my_object_t));
+            rc = avl_tree_allocate_object(my_avl_tree, (void *)&obj,
+                                          sizeof(my_object_t));
         }
         if (rc == 0) {
             obj->key = strdup("key1");
@@ -122,7 +124,8 @@ main(int argc, char *argv[])
         }
 
         if (rc == 0) {
-            rc = avl_tree_allocate_object(my_avl_tree, (void *)&obj, sizeof(my_object_t));
+            rc = avl_tree_allocate_object(my_avl_tree, (void *)&obj,
+                                          sizeof(my_object_t));
         }
 
         if (rc == 0) {
@@ -144,7 +147,8 @@ main(int argc, char *argv[])
         }
 
         if (rc == 0) {
-            rc = avl_tree_allocate_object(my_avl_tree, (void *)&obj, sizeof(my_object_t));
+            rc = avl_tree_allocate_object(my_avl_tree, (void *)&obj,
+                                          sizeof(my_object_t));
         }
         if (rc == 0) {
             obj->key = strdup("key3");
@@ -169,30 +173,31 @@ main(int argc, char *argv[])
         }
 
         if (rc == 0) {
-            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_MIN, NULL, (void *)&found_obj,
-                                 &search_result);
+            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_MIN, NULL,
+                                 (void *)&found_obj, &search_result);
             if (rc == 0) {
                 printf("MIN key = %s\n", found_obj->key);
             }
         }
 
         if (rc == 0) {
-            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_MAX, NULL, (void *)&found_obj,
-                                 &search_result);
+            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_MAX, NULL,
+                                 (void *)&found_obj, &search_result);
             if (rc == 0) {
                 printf("MAX key = %s\n", found_obj->key);
             }
         }
 
         if (rc == 0) {
-            rc = avl_tree_allocate_object(my_avl_tree, (void *)&obj, sizeof(my_object_t));
+            rc = avl_tree_allocate_object(my_avl_tree, (void *)&obj,
+                                          sizeof(my_object_t));
         }
         if (rc == 0) {
             obj->key = strdup("key2");
             printf("key = %s\n", obj->key);
 
-            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_EQ, obj, (void *)&found_obj,
-                                 &search_result);
+            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_EQ, obj,
+                                 (void *)&found_obj, &search_result);
             if (rc == 0) {
                 printf("EQ key = %s\n", found_obj->key);
             }
@@ -200,8 +205,8 @@ main(int argc, char *argv[])
 
         if (rc == 0) {
             printf("key = %s\n", obj->key);
-            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_GT, obj, (void *)&found_obj,
-                                 &search_result);
+            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_GT, obj,
+                                 (void *)&found_obj, &search_result);
             if (rc == 0) {
                 printf("GT key = %s\n", found_obj->key);
             }
@@ -210,10 +215,11 @@ main(int argc, char *argv[])
         if (rc == 0) {
             printf("key = %s\n", obj->key);
 
-            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_GE, obj, (void *)&found_obj,
-                                 &search_result);
+            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_GE, obj,
+                                 (void *)&found_obj, &search_result);
             if (rc == 0) {
-                if ((search_result & AVL_TREE_OPTION_EQ) == AVL_TREE_OPTION_EQ) {
+                if ((search_result & AVL_TREE_OPTION_EQ)
+                    == AVL_TREE_OPTION_EQ) {
                     printf("GE -equal key = %s\n", found_obj->key);
                 } else {
                     printf("GE -greater key = %s\n", found_obj->key);
@@ -225,10 +231,11 @@ main(int argc, char *argv[])
             strcpy(obj->key, "key0");
             printf("key = %s\n", obj->key);
 
-            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_GE, obj, (void *)&found_obj,
-                                 &search_result);
+            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_GE, obj,
+                                 (void *)&found_obj, &search_result);
             if (rc == 0) {
-                if ((search_result & AVL_TREE_OPTION_EQ) == AVL_TREE_OPTION_EQ) {
+                if ((search_result & AVL_TREE_OPTION_EQ)
+                    == AVL_TREE_OPTION_EQ) {
                     printf("GE -equal key = %s\n", found_obj->key);
                 } else {
                     printf("GE -granter key = %s\n", found_obj->key);
@@ -240,8 +247,8 @@ main(int argc, char *argv[])
             strcpy(obj->key, "key2");
             printf("key = %s\n", obj->key);
 
-            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_LT, obj, (void *)&found_obj,
-                                 &search_result);
+            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_LT, obj,
+                                 (void *)&found_obj, &search_result);
             if (rc == 0) {
                 printf("LT key = %s\n", found_obj->key);
             }
@@ -250,10 +257,11 @@ main(int argc, char *argv[])
         if (rc == 0) {
             printf("key = %s\n", obj->key);
 
-            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_LE, obj, (void *)&found_obj,
-                                 &search_result);
+            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_LE, obj,
+                                 (void *)&found_obj, &search_result);
             if (rc == 0) {
-                if ((search_result & AVL_TREE_OPTION_EQ) == AVL_TREE_OPTION_EQ) {
+                if ((search_result & AVL_TREE_OPTION_EQ)
+                    == AVL_TREE_OPTION_EQ) {
                     printf("LE -equal key = %s\n", found_obj->key);
                 } else {
                     printf("LE -less key = %s\n", found_obj->key);
@@ -265,10 +273,11 @@ main(int argc, char *argv[])
             strcpy(obj->key, "key4");
             printf("key = %s\n", obj->key);
 
-            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_LE, obj, (void *)&found_obj,
-                                 &search_result);
+            rc = avl_tree_search(my_avl_tree, AVL_TREE_OPTION_LE, obj,
+                                 (void *)&found_obj, &search_result);
             if (rc == 0) {
-                if ((search_result & AVL_TREE_OPTION_EQ) == AVL_TREE_OPTION_EQ) {
+                if ((search_result & AVL_TREE_OPTION_EQ)
+                    == AVL_TREE_OPTION_EQ) {
                     printf("LE -equal key = %s\n", found_obj->key);
                 } else {
                     printf("LE -less key = %s\n", found_obj->key);

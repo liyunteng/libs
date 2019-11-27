@@ -29,7 +29,7 @@
 
 typedef int datatype;
 typedef struct {
-    datatype         val;
+    datatype val;
     struct list_head list;
 } data_t;
 
@@ -38,10 +38,7 @@ static void
 print_list(struct list_head *h)
 {
     data_t *p = NULL;
-    list_for_each_entry(p, h, list)
-    {
-        printf("%d ", p->val);
-    }
+    list_for_each_entry(p, h, list) { printf("%d ", p->val); }
 
     /* struct list_head *p = NULL;
      * list_for_each(p, h) {
@@ -53,8 +50,8 @@ print_list(struct list_head *h)
 int
 test1()
 {
-    int               count = 100;
-    struct list_head *x     = &head;
+    int count           = 100;
+    struct list_head *x = &head;
     for (int i = 0; i < count; i++) {
         data_t *d = (data_t *)malloc(sizeof(data_t));
         d->val    = i;
@@ -74,7 +71,7 @@ test1()
 
     data_t *p = NULL;
     data_t *n = NULL;
-    int     c = 0;
+    int c     = 0;
     list_for_each_entry_safe(p, n, &head, list)
     {
         if (p->val % 2 == 0) {

@@ -32,7 +32,7 @@
  */
 struct assoc_array {
     struct assoc_array_ptr *root; /* The node at the root of the tree */
-    unsigned long           nr_leaves_on_tree;
+    unsigned long nr_leaves_on_tree;
 };
 
 struct assoc_array_ops {
@@ -67,23 +67,29 @@ assoc_array_init(struct assoc_array *array)
     array->nr_leaves_on_tree = 0;
 }
 
-extern int   assoc_array_iterate(const struct assoc_array *array,
-                                 int (*iterator)(const void *object, void *iterator_data),
-                                 void *iterator_data);
-extern void *assoc_array_find(const struct assoc_array *array, const struct assoc_array_ops *ops,
+extern int assoc_array_iterate(const struct assoc_array *array,
+                               int (*iterator)(const void *object,
+                                               void *iterator_data),
+                               void *iterator_data);
+extern void *assoc_array_find(const struct assoc_array *array,
+                              const struct assoc_array_ops *ops,
                               const void *index_key);
-extern void  assoc_array_destroy(struct assoc_array *array, const struct assoc_array_ops *ops);
-extern struct assoc_array_edit *assoc_array_insert(struct assoc_array *          array,
-                                                   const struct assoc_array_ops *ops,
-                                                   const void *index_key, void *object);
-extern void assoc_array_insert_set_object(struct assoc_array_edit *edit, void *object);
-extern struct assoc_array_edit *assoc_array_delete(struct assoc_array *          array,
-                                                   const struct assoc_array_ops *ops,
-                                                   const void *                  index_key);
-extern struct assoc_array_edit *assoc_array_clear(struct assoc_array *          array,
-                                                  const struct assoc_array_ops *ops);
-extern void                     assoc_array_apply_edit(struct assoc_array_edit *edit);
-extern void                     assoc_array_cancel_edit(struct assoc_array_edit *edit);
-extern int assoc_array_gc(struct assoc_array *array, const struct assoc_array_ops *  ops,
-                          bool (*iterator)(void *object, void *iterator_data), void *iterator_data);
+extern void assoc_array_destroy(struct assoc_array *array,
+                                const struct assoc_array_ops *ops);
+extern struct assoc_array_edit *
+assoc_array_insert(struct assoc_array *array, const struct assoc_array_ops *ops,
+                   const void *index_key, void *object);
+extern void assoc_array_insert_set_object(struct assoc_array_edit *edit,
+                                          void *object);
+extern struct assoc_array_edit *
+assoc_array_delete(struct assoc_array *array, const struct assoc_array_ops *ops,
+                   const void *index_key);
+extern struct assoc_array_edit *
+assoc_array_clear(struct assoc_array *array, const struct assoc_array_ops *ops);
+extern void assoc_array_apply_edit(struct assoc_array_edit *edit);
+extern void assoc_array_cancel_edit(struct assoc_array_edit *edit);
+extern int assoc_array_gc(struct assoc_array *array,
+                          const struct assoc_array_ops *ops,
+                          bool (*iterator)(void *object, void *iterator_data),
+                          void *iterator_data);
 #endif

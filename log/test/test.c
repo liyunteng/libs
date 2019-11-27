@@ -33,8 +33,9 @@ test1()
     const char *s = "this is a test.";
     loghandler *h = loghandler_create("h");
 
-    logformat *format  = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
-    logoutput *fileout = logoutput_create(LOGOUTTYPE_FILE, "ihi.log", 1024 * 1024 * 4, 0600, 4);
+    logformat *format = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
+    logoutput *fileout =
+        logoutput_create(LOGOUTTYPE_FILE, "ihi.log", 1024 * 1024 * 4, 0600, 4);
     logoutput *std_out = logoutput_create(LOGOUTTYPE_STDOUT);
     logbind(h, LOG_DEBUG, -1, format, fileout);
     logbind(h, LOG_DEBUG, -1, format, std_out);
@@ -84,11 +85,12 @@ void test2()
 void
 test3()
 {
-    loghandler *h1      = loghandler_create("h1");
-    loghandler *h2      = loghandler_create("h2");
-    loghandler *h3      = loghandler_create("h3");
-    logformat * format  = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
-    logoutput * fileout = logoutput_create(LOGOUTTYPE_FILE, "ihi.log", 1024 * 1024 * 100, 0600, 4);
+    loghandler *h1     = loghandler_create("h1");
+    loghandler *h2     = loghandler_create("h2");
+    loghandler *h3     = loghandler_create("h3");
+    logformat *format  = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
+    logoutput *fileout = logoutput_create(LOGOUTTYPE_FILE, "ihi.log",
+                                          1024 * 1024 * 100, 0600, 4);
 
     logbind(h1, LOG_DEBUG, -1, format, fileout);
     logbind(h2, LOG_DEBUG, -1, format, fileout);
@@ -137,7 +139,7 @@ test5()
 {
 
     char b[4096];
-    int  i;
+    int i;
     LOG_INIT("ihi.log", LOG_ERROR);
     for (i = 0; i < 1024 * 4 - 1; i++) {
         b[i] = 'b';

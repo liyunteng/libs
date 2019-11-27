@@ -26,8 +26,8 @@ int
 test1()
 {
     printf("ecb:\n");
-    size_t        i;
-    aes_context   ctx, dctx;
+    size_t i;
+    aes_context ctx, dctx;
     unsigned char key[256] = {0};
     for (i = 0; i < sizeof(key); i++) {
         key[i] = i;
@@ -58,14 +58,15 @@ int
 test2()
 {
     printf("cbc:\n");
-    size_t        i;
-    aes_context   ctx, dctx;
+    size_t i;
+    aes_context ctx, dctx;
     unsigned char key[256] = {0};
     for (i = 0; i < sizeof(key); i++) {
         key[i] = i;
     }
     aes_setkey_enc(&ctx, key, sizeof(key));
-    unsigned char input[1024]  = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    unsigned char input[1024] =
+        "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     unsigned char output[1024] = {0};
     unsigned char iv[16]       = "0123456789abcdef";
     aes_crypt_cbc(&ctx, AES_ENCRYPT, sizeof(input), iv, input, output);
@@ -91,18 +92,20 @@ int
 test3()
 {
     printf("cfb128:\n");
-    size_t        i;
-    aes_context   ctx, dctx;
+    size_t i;
+    aes_context ctx, dctx;
     unsigned char key[256] = {0};
     for (i = 0; i < sizeof(key); i++) {
         key[i] = i;
     }
     aes_setkey_enc(&ctx, key, sizeof(key));
-    unsigned char input[1024]  = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    unsigned char input[1024] =
+        "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
     unsigned char output[1024] = {0};
     unsigned char iv[16]       = "0123456789abcdef";
-    int           iv_off       = 0;
-    aes_crypt_cfb128(&ctx, AES_ENCRYPT, sizeof(input), &iv_off, iv, input, output);
+    int iv_off                 = 0;
+    aes_crypt_cfb128(&ctx, AES_ENCRYPT, sizeof(input), &iv_off, iv, input,
+                     output);
     for (i = 0; i < sizeof(output); i++) {
         printf("%02x", output[i]);
     }
@@ -111,8 +114,10 @@ test3()
     iv_off = 0;
     memset(input, 0, sizeof(input));
     memcpy(iv, "0123456789abcdef", sizeof(iv));
-    aes_setkey_enc(&dctx, key, sizeof(key)); /* internal only used AES_ENCRYPT */
-    aes_crypt_cfb128(&dctx, AES_DECRYPT, sizeof(output), &iv_off, iv, output, input);
+    aes_setkey_enc(&dctx, key,
+                   sizeof(key)); /* internal only used AES_ENCRYPT */
+    aes_crypt_cfb128(&dctx, AES_DECRYPT, sizeof(output), &iv_off, iv, output,
+                     input);
     for (i = 0; i < sizeof(input); i++) {
         printf("%c", input[i]);
     }

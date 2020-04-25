@@ -1,6 +1,7 @@
 include ../build/def.mk
 
-MODLIB := rbtree
 INC_PATH += -I../include
+MODLIB	:= rbtree
+DIRS	:= test
 
-include ../build/module.mk
+include ../build/moduletop.mk

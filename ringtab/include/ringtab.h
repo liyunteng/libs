@@ -30,6 +30,12 @@ typedef struct {
     char data[0];
 } ringtab_hdr_t;
 
+#define RINGTAB_STRUCT(name, n_items, item_size)        \
+    struct name {                                       \
+        ringtab_hdr_t hdr;                              \
+        char          data[(n_items) * (item_size)];    \
+    }
+
 typedef void (*ringtab_item_release_fn) (void *ctx, void *item);
 
 /******************************************

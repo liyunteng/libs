@@ -27,43 +27,44 @@
 
 #include "mpool.h"
 
-int
-main(int argc, char *argv[])
+typedef struct {
+    char str[120];
+    int id;
+} item_t;
+
+int main(int argc, char* argv[])
 {
     mpool_ctx_t *ctx;
-    unsigned char *p;
-    unsigned char *queue[4096];
+    item_t *p;
+    item_t* queue[4096];
     int i;
-    ctx = mpool_init(123, 1048576, NULL);
-    printf("%d / %d head:%d tail:%d\n", mpool_count(ctx), mpool_size(ctx),
-           ctx->head, ctx->tail);
+    ctx = mpool_calloc(128, sizeof(item_t));
 
     memset(queue, 0, sizeof(queue));
-    int j;
-    for (j = 0; j < 10; j++) {
 
-        printf("====================GET====================\n");
-        for (i = 0; i < ARRAY_SIZE(queue); i++) {
-            p = (unsigned char *)mpool_get(ctx);
-            if (!p) {
-                printf("get failed %d / %d head:%d tail:%d\n", mpool_count(ctx),
-                       mpool_size(ctx), ctx->head, ctx->tail);
-                break;
-            }
-            queue[i] = p;
-        }
-
-        printf("====================PUT====================\n");
-        for (i = 0; i < ARRAY_SIZE(queue); i++) {
-            p = queue[i];
-            if (!p) {
-                printf("put failed %d / %d head:%d tail:%d\n", mpool_count(ctx),
-                       mpool_size(ctx), ctx->head, ctx->tail);
-                break;
-            }
-            mpool_put(p);
-        }
+    printf("================================GET================================\n");
+    for(i = 0; i < 128; i++) {
+        p = (item_t *)mpool_get(ctx);
+        if(!p) break;
+        queue[i] = p;
+        printf("%d / %d [%d]\n", mpool_count(ctx), mpool_size(ctx), mpool_get_idx(ctx, p));
     }
+
+    printf("================================PUT================================\n");
+    for(i = 0; i < 128; i++) {
+        p = queue[i];
+        if(!p) break;
+        p->id = i;
+        mpool_put(p);
+        printf("%d / %d [%d] %d\n", mpool_count(ctx), mpool_size(ctx), mpool_get_idx(ctx, p), p->id);
+    }
+
+    mpool_put(p);
+    for (i = 0; i < 128; i++) {
+        p = mpool_get_by_idx(ctx, i);
+        printf("%d\n", p->id);
+    }
+
 
     mpool_cleanup(ctx);
     return 0;

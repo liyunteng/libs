@@ -31,17 +31,41 @@ main(void)
     };
     // 0x8c, 0x2e, 0x11, 0xfd
 
+    unsigned char d4[] = {
+        0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39,
+        0x61, 0x62, 0x63, 0x64, 0x65, 0x66
+    };
+
     crc_test_pair t[] = {
         {d1, sizeof(d1)/sizeof(d1[0]), 0x5E44059A},
         {d2, sizeof(d2)/sizeof(d2[0]), 0x5C45FC3D},
-        {d3, sizeof(d3)/sizeof(d3[0]), 0x8C2E11FD}
+        {d3, sizeof(d3)/sizeof(d3[0]), 0x8C2E11FD},
+        {d4, sizeof(d4)/sizeof(d4[0]), 0xDBD233B1},
+    };
+    crc_test_pair t1[] = {
+        {d1, sizeof(d1)/sizeof(d1[0]), 0x56090ABF},
+        {d2, sizeof(d2)/sizeof(d2[0]), 0x2369A5E5},
+        {d3, sizeof(d3)/sizeof(d3[0]), 0x92007194},
+        {d4, sizeof(d4)/sizeof(d4[0]), 0x68C4F033},
     };
 
+
+    printf("CRC32MPEG2:\n");
     for (size_t i = 0; i < sizeof(t)/sizeof(t[0]); i++) {
         unsigned int crc = 0;
-        crc = CRCGet(t[i].data, t[i].data_len);
+        crc = CRC32MPEG2(t[i].data, t[i].data_len);
         if (crc != t[i].out) {
             printf("failed crc: 0x%X should 0x%X\n", crc, t[i].out);
+        } else {
+            printf("success crc: 0x%X\n", crc);
+        }
+    }
+    printf("CRC32:\n");
+    for (size_t i = 0; i < sizeof(t1)/sizeof(t1[0]); i++) {
+        unsigned int crc = 0;
+        crc = CRC32(0, t1[i].data, t1[i].data_len);
+        if (crc != t1[i].out) {
+            printf("failed crc: 0x%X should 0x%X\n", crc, t1[i].out);
         } else {
             printf("success crc: 0x%X\n", crc);
         }

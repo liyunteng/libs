@@ -40,7 +40,7 @@ main (void)
     while (pdata->input) {
         MD5Init(&md5_ctx);
         MD5Update(&md5_ctx, (const unsigned char *)pdata->input, strlen(pdata->input));
-        MD5Final(sid.c, &md5_ctx);
+        MD5Final(&md5_ctx, sid.c);
 
         bp = buf;
         for (i = 0; i < sizeof(sid); i++) {

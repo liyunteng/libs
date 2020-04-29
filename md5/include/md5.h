@@ -22,5 +22,5 @@ typedef struct {
 
 void MD5Init(MD5_CTX *ctx);
 void MD5Update(MD5_CTX *ctx, const unsigned char *input, unsigned int inputLen);
-void MD5Final(unsigned char digest[16], MD5_CTX *ctx);
+void MD5Final(MD5_CTX *ctx, unsigned char digest[16]);
 #endif

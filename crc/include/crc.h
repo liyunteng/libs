@@ -6,6 +6,7 @@
 #ifndef CRC_H
 #define CRC_H
 
-unsigned int CRCGet(unsigned char *data, int length);
+unsigned int CRC32MPEG2(unsigned char *data, int length);
+unsigned int CRC32(unsigned crcinit, const unsigned char *data, int size);
 
 #endif

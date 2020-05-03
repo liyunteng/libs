@@ -1,6 +1,6 @@
 include ../../build/def.mk
 
-PROGBIN = test
+PROGBIN = bst_test
 INC_PATH += -I../
 INC_PATH += -I../../include
 INC_PATH += -I../include

@@ -1,6 +1,6 @@
 include ../../build/def.mk
 
-PROGBIN := test_xmlcfg
+PROGBIN := xmlcfg_test
 INC_PATH += -I../include
 INC_PATH += -I../../include
 LD_LIBS_PATH += -L../.libs

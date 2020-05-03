@@ -33,6 +33,9 @@ const char *xml_template = "                                        \
                     <!-- <timeshift>-1</timeshift> -->              \
                     <size>32k</size>                                \
                 </file>                                             \
+<file>                                                              \
+<name> http://www.baidu.com </name>                                 \
+</file>                                                             \
             </files>                                                \
         </content>                                                  \
     </upload>                                                       \

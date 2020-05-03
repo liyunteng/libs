@@ -1,6 +1,6 @@
 include ../../build/def.mk
 
-PROGBIN = rbtree_test
+PROGBIN = ringtab_test
 INC_PATH += -I../
 INC_PATH += -I../../include
 INC_PATH += -I../include

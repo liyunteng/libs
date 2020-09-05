@@ -189,6 +189,43 @@ test6()
     LOG(LOG_DEBUG, "this is a debug");
     log_dump();
 }
+
+void
+test7()
+{
+    int i;
+    char b[4096];
+    logformat *format = logformat_create("%d.%ms %H %E(USER) %c %F:%U%L %p:%t [%V] %m%n", 1);
+    logoutput *output1 = logoutput_create(LOGOUTTYPE_FILE, "test.log", 4 * 1024 * 1024, DEFAULT_FILEMODE, 2);
+    logoutput *output2 = logoutput_create(LOGOUTTYPE_STDOUT);
+    logoutput *output3 = logoutput_create(LOGOUTTYPE_SYSLOG);
+    logoutput *output4 = logoutput_create(LOGOUTTYPE_SOCK, "127.0.0.1", (unsigned)12345);
+    loghandler *handler = loghandler_create(DEFAULT_IDENT);
+
+    for (i = 0; i < 1024 * 4 - 1; i++) {
+        b[i] = 'b';
+    }
+    b[i] = '\0';
+    logbind(handler, LOGLEVEL_VERBOSE, -1, format, output1);
+    /* logbind(handler, LOGLEVEL_VERBOSE, -1, format, output2); */
+    /* logbind(handler, LOGLEVEL_VERBOSE, -1, format, output3); */
+    logbind(handler, LOGLEVEL_VERBOSE, -1, format, output4);
+
+    for (i = 0; i < 1024; i++) {
+        LOG(LOG_VERBOSE, "this is a verbose");
+        LOG(LOG_DEBUG, "this is a debug");
+        LOG(LOG_INFO, "this is a info");
+        LOG(LOG_NOTICE, "this is a notice");
+        LOG(LOG_WARNING, "this is a warnning");
+        LOG(LOG_ERROR, "this is a error");
+        LOG(LOG_FATAL, "this is a fatal");
+        LOG(LOG_ALERT, "this is a alert");
+        LOG(LOG_EMERG, "this is emerge");
+        /* LOG(LOG_EMERG, "this is a long msg: %s", b); */
+    }
+    log_dump();
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -196,7 +233,8 @@ main(int argc, char *argv[])
     // test2();
     // test3();
     // test4();
-    test5();
+    // test5();
     // test6();
+    test7();
     return 0;
 }

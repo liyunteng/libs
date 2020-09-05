@@ -53,17 +53,16 @@
 #    define false FALSE
 #endif
 
-#define ESC_START "\033["
-#define ESC_END "\033[0m"
-#define COLOR_EMERG ESC_START "31;40;7m"
-#define COLOR_ALERT ESC_START "31;40;6m"
-#define COLOR_FATAL ESC_START "31;40;1m"
-#define COLOR_ERROR ESC_START "33;40;1m"
-#define COLOR_WARNING ESC_START "35;40;1m"
-#define COLOR_NOTICE ESC_START "32;40;1m"
-#define COLOR_INFO ESC_START "37;40;1m"
-//#define COLOR_DEBUG    ESC_START"37;40;0m"
-#define COLOR_DEBUG ESC_START "00;00;0m"
+#define COLOR_NORMAL    "\033[0;00m"
+#define COLOR_EMERG     "\033[5;7;31m"
+#define COLOR_ALERT     "\033[5;7;35m"
+#define COLOR_FATAL     "\033[5;7;33m"
+#define COLOR_ERROR     "\033[1;31m"
+#define COLOR_WARNING   "\033[1;35m"
+#define COLOR_NOTICE    "\033[1;34m"
+#define COLOR_INFO      "\033[1;37m"
+#define COLOR_DEBUG     "\033[0;00m"
+#define COLOR_VERBOSE   "\033[0;32m"
 
 #define BAK_LOCK_FILE ".bak.lock"
 #define BUFFER_MIN 1024 * 4
@@ -127,7 +126,7 @@ struct _loghandler {
 };
 
 static const char *const LOGLEVELSTR[] = {
-    "EMERG", "ALERT", "FATAL", "ERROR", "WARN", "NOTICE", "INFO", "DEBUG",
+    "EMERG", "ALERT", "FATAL", "ERROR", "WARN", "NOTICE", "INFO", "DEBUG", "VERBOSE",
 };
 
 static struct list_head output_header = {
@@ -484,8 +483,11 @@ begin:
         case LOG_DEBUG:
             idx += snprintf(buf + idx, len - idx, "%s", COLOR_DEBUG);
             break;
+        case LOG_VERBOSE:
+            idx += snprintf(buf + idx, len - idx, "%s", COLOR_VERBOSE);
+            break;
         default:
-            idx += snprintf(buf + idx, len - idx, "%s", COLOR_DEBUG);
+            idx += snprintf(buf + idx, len - idx, "%s", COLOR_NORMAL);
             break;
         }
     }
@@ -607,7 +609,7 @@ begin:
                 p += 2;
                 struct timeval tv;
                 gettimeofday(&tv, NULL);
-                idx += snprintf(buf + idx, len - idx, "%3d",
+                idx += snprintf(buf + idx, len - idx, "%03d",
                                 (int)(tv.tv_usec / 1000));
                 continue;
             }
@@ -679,7 +681,7 @@ begin:
 
 end:
     if (r->pformat->color) {
-        idx += snprintf(buf + idx, len - idx, "%s", ESC_END);
+        idx += snprintf(buf + idx, len - idx, "%s", COLOR_NORMAL);
     }
     return idx;
 
@@ -700,8 +702,8 @@ vlog(loghandler *handler, LOGLEVEL level, const char *file,
     prule *pr;
     list_for_each_entry(pr, &(handler->rules), l)
     {
-        if (level > LOGLEVEL_DEBUG)
-            level = LOGLEVEL_DEBUG;
+        if (level > LOGLEVEL_VERBOSE)
+            level = LOGLEVEL_VERBOSE;
         if (level < LOGLEVEL_EMERG)
             level = LOGLEVEL_EMERG;
 
@@ -747,27 +749,23 @@ vlog(loghandler *handler, LOGLEVEL level, const char *file,
             break;
         case LOGOUTTYPE_SOCK:
             if (len > 0) {
-
                 if (r->poutput->u.sock.sockfd == -1) {
                     struct hostent *host = NULL;
-                    if ((host = gethostbyname(r->poutput->u.sock.addr))) {
-                        r->poutput->u.sock.sockfd =
-                            socket(AF_INET, SOCK_DGRAM, 0);
+                    if ((host = gethostbyname(r->poutput->u.sock.addr)) != NULL) {
+                        r->poutput->u.sock.sockfd = socket(AF_INET, SOCK_DGRAM, 0);
                         if (r->poutput->u.sock.sockfd != -1) {
                             struct sockaddr_in addr;
                             memset(&addr, 0, sizeof(addr));
                             addr.sin_family = AF_INET;
                             addr.sin_port   = htons(r->poutput->u.sock.port);
-                            addr.sin_addr =
-                                *(struct in_addr *)host->h_addr_list[0];
-                            bind(r->poutput->u.sock.sockfd,
-                                 (struct sockaddr *)&addr, sizeof(addr));
+                            addr.sin_addr = *(struct in_addr *)(host->h_addr_list[0]);
+                            connect(r->poutput->u.sock.sockfd, (struct sockaddr *)&addr, sizeof(addr));
                         }
                     }
                 }
-                if (r->poutput->u.sock.sockfd != -1)
-                    send(r->poutput->u.sock.sockfd, handler->bufferp, len + 1,
-                         0);
+                if (r->poutput->u.sock.sockfd != -1) {
+                    send(r->poutput->u.sock.sockfd, handler->bufferp, len + 1, 0);
+                }
             }
             break;
         case LOGOUTTYPE_LOGCAT:
@@ -775,6 +773,9 @@ vlog(loghandler *handler, LOGLEVEL level, const char *file,
 #if defined ANDROID
                 android_LogPriority l;
                 switch (level) {
+                case LOG_VERBOSE:
+                    l = ANDROID_LOG_VERBOSE;
+                    break;
                 case LOG_DEBUG:
                     l = ANDROID_LOG_DEBUG;
                     break;
@@ -987,7 +988,7 @@ __logoutput_create(enum LOGOUTTYPE type, va_list ap)
             } else {
                 output->u.sock.port = DEFAULT_SOCKPORT;
             }
-
+            output->u.sock.sockfd = -1;
             list_add_tail(&output->l, &output_header);
             return output;
         } else {
@@ -1033,11 +1034,18 @@ logbind(loghandler *handler, LOGLEVEL level_begin, LOGLEVEL level_end,
 
     logrule *r = (logrule *)calloc(1, sizeof(logrule));
     if (r) {
-        r->level_begin = level_begin;
-        if (LOGLEVEL_EMERG < level_end && LOGLEVEL_DEBUG > level_end)
+        if (LOGLEVEL_EMERG < level_begin && LOGLEVEL_VERBOSE > level_begin) {
+            r->level_begin = level_begin;    
+        } else {
+            r->level_begin = LOGLEVEL_VERBOSE;
+        }
+        
+        if (LOGLEVEL_EMERG < level_end && LOGLEVEL_VERBOSE > level_end) {
             r->level_end = level_end;
-        else
+        } else {
             r->level_end = LOGLEVEL_EMERG;
+        }
+            
         r->pformat = format;
         r->poutput = output;
         list_add_tail(&r->l, &rule_header);
@@ -1113,15 +1121,15 @@ log_dump(void)
     printf("=====================log profile==============================\n");
     logrule *ru;
     list_for_each_entry(ru, &rule_header, l) { i++; }
-    printf("ctx: rule total %d", i);
+    printf("ctx: rule: %d", i);
     i = 0;
     logformat *format;
     list_for_each_entry(format, &format_header, l) { i++; }
-    printf(" format total %d", i);
+    printf(" format: %d", i);
     i = 0;
     logoutput *output;
     list_for_each_entry(output, &output_header, l) { i++; }
-    printf(" output total %d\n", i);
+    printf(" output: %d\n", i);
     i = 0;
     loghandler *handler;
     list_for_each_entry(handler, &handler_header, l)
@@ -1146,7 +1154,7 @@ log_dump(void)
                 case LOGOUTTYPE_STDOUT:
                     printf("type: stdout\n");
                     printf("format: %s\n", r->pformat->format);
-                    printf("level: %s\n", LOGLEVELSTR[r->level_begin]);
+                    printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin], LOGLEVELSTR[r->level_end]);
                     break;
                 case LOGOUTTYPE_STDERR:
                     printf("type: stdout\n");
@@ -1156,7 +1164,7 @@ log_dump(void)
                 case LOGOUTTYPE_FILE:
                     printf("type: file\n");
                     printf("format: %s\n", r->pformat->format);
-                    printf("level: %s\n", LOGLEVELSTR[r->level_begin]);
+                    printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin], LOGLEVELSTR[r->level_end]);
                     printf("filename: %s\n", r->poutput->u.file.filename);
                     printf("filemode: %u\n", r->poutput->u.file.filemode);
                     printf("bakup: %" PRIu16 "\n", r->poutput->u.file.bakup);
@@ -1166,19 +1174,19 @@ log_dump(void)
                 case LOGOUTTYPE_SOCK:
                     printf("type: socket\n");
                     printf("format: %s\n", r->pformat->format);
-                    printf("level: %s\n", LOGLEVELSTR[r->level_begin]);
+                    printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin], LOGLEVELSTR[r->level_end]);
                     printf("addr: %s:%d\n", r->poutput->u.sock.addr,
                            r->poutput->u.sock.port);
                     break;
                 case LOGOUTTYPE_LOGCAT:
                     printf("type: logcat\n");
                     printf("format: %s\n", r->pformat->format);
-                    printf("level: %s\n", LOGLEVELSTR[r->level_begin]);
+                    printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin], LOGLEVELSTR[r->level_end]);
                     break;
                 case LOGOUTTYPE_SYSLOG:
                     printf("type: syslog\n");
                     printf("format: %s\n", r->pformat->format);
-                    printf("level: %s\n", LOGLEVELSTR[r->level_begin]);
+                    printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin], LOGLEVELSTR[r->level_end]);
                     break;
                 case LOGOUTTYPE_NONE:
                     break;

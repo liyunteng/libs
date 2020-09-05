@@ -65,6 +65,7 @@ typedef enum {
     LOGLEVEL_NOTICE,
     LOGLEVEL_INFO,
     LOGLEVEL_DEBUG,
+    LOGLEVEL_VERBOSE,
 #undef LOG_EMERG
 #undef LOG_ALERT
 #undef LOG_FATAL
@@ -74,6 +75,7 @@ typedef enum {
 #undef LOG_NOTICE
 #undef LOG_INFO
 #undef LOG_DEBUG
+#undef LOG_VERBOSE
 
 #define LOG_EMERG LOGLEVEL_EMERG
 #define LOG_ALERT LOGLEVEL_ALERT
@@ -84,6 +86,7 @@ typedef enum {
 #define LOG_NOTICE LOGLEVEL_NOTICE
 #define LOG_INFO LOGLEVEL_INFO
 #define LOG_DEBUG LOGLEVEL_DEBUG
+#define LOG_VERBOSE LOGLEVEL_VERBOSE
 } LOGLEVEL;
 
 enum LOGOUTTYPE {
@@ -117,13 +120,19 @@ loghandler *loghandler_create(const char *ident);
 loghandler *loghandler_get(const char *ident);
 logformat *logformat_create(const char *format, int color);
 
-// LOGOUTTYPE_STDERR, LOGOUTTYPE_STDOUT, LOGOUTTYPE_LOGCAT, LOGOUTTYPE_SYSLOG
-// need not arg LOGOUTTYPE_FILE char *filename unsigned long filesize mode_t
-// filemode int bakupnum LOGOUTTYPE_SOCK char *addr, int port
+// LOGOUTTYPE_STDERR, LOGOUTTYPE_STDOUT, LOGOUTTYPE_LOGCAT,
+// LOGOUTTYPE_SYSLOG need not arg
+// LOGOUTTYPE_FILE char *filename
+//                 unsigned long filesize
+//                 mode_t filemode
+//                 int bakupnum
+// LOGOUTTYPE_SOCK char *addr
+//                 int port
 logoutput *logoutput_create(enum LOGOUTTYPE type, ...);
 
-// if level_end == -1 , will output from level_beign to LOGLEVEL_EMERG
-// will print handler's log to output, use format, when loglevel between
+// if level_begin == -1, level_begin will be set to LOGLEVEL_VERBOSE
+// if level_end == -1 , level_end will be set to LOGLEVEL_EMERG
+// This will print handler's log to output, use format, when loglevel between
 // level_begin and level_end
 int logbind(loghandler *handler, LOGLEVEL level_beign, LOGLEVEL level_end,
             logformat *format, logoutput *output);
@@ -137,6 +146,11 @@ void mlog(loghandler *handle, LOGLEVEL level, const char *file,
 #    define MLOG(handle, level, format, ...)                                   \
         mlog(handle, level, __FILE__, __FUNCTION__, __LINE__, format,          \
              ##__VA_ARGS__);
+#endif
+
+#ifndef VERBOSE
+#    define VERBOSE(handle, format, ...)                                       \
+        MLOG(handle, LOGLEVEL_VERBOSE, format, ##__VA_ARGS__)
 #endif
 
 #ifndef DBG

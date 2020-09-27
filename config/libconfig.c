@@ -54,7 +54,7 @@ cfg_prop_open_from_file(char *filename, cfg_prop_obj_t **cfg_obj)
         state = PROP_STATE_SPACE;
         state_last = PROP_STATE_SPACE;
 
-        while (state != PROP_STATE_END && datap != '\0') {
+        while (state != PROP_STATE_END && datap != NULL) {
             switch (state) {
             case PROP_STATE_SPACE:
                 if (*datap != ' ' && *datap != '\t') {

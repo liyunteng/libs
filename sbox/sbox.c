@@ -17,6 +17,7 @@ int sbox_cmp(sbox_ptr a, sbox_ptr b)
 {
     uint32_t i;
     int j;
+    void *ret = NULL;
 
     if (a == b) {
         return 0;
@@ -34,9 +35,9 @@ int sbox_cmp(sbox_ptr a, sbox_ptr b)
             return strcmp(a->d.c, b->d.c);
         case so_bytes:
             i = min(a->len, b->len);
-            j = memcpy((uint8_t*)a->d.b, (uint8_t *)b->d.b, i);
-            if (j != 0) {
-                return j;
+            ret = memcpy((uint8_t*)(a->d.b), (uint8_t *)(b->d.b), i);
+            if (ret != NULL) {
+                return i;
             } else {
                 return a->len == b->len ? 0 : (a->len > b->len ? 1 : -1);
             }

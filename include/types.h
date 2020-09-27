@@ -25,17 +25,29 @@
 #define TYPES_H
 
 #ifndef NULL
-#    if defined __GNUG__                                                       \
-        && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 8))
-#        define NULL (__null)
-#    else
-#        if !defined(__cplusplus)
-#            define NULL ((void *)0)
-#        else
-#            define NULL (0)
-#        endif
-#    endif
+#ifdef __cplusplus
+#  if !defined(__MINGW32__) && !defined(_MSC_VER)
+#    define NULL __null
+#  else
+#    define NULL 0
+#  endif
+#else
+#  define NULL ((void*)0)
 #endif
+#endif
+
+/* #ifndef NULL
+ * #    if defined __GNUC__                                                       \
+ *         && (__GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 8))
+ * #        define NULL (__null)
+ * #    else
+ * #        if !defined(__cplusplus)
+ * #            define NULL ((void *)0)
+ * #        else
+ * #            define NULL (0)
+ * #        endif
+ * #    endif
+ * #endif */
 
 #ifdef __CHECKER__
 #    define __force __attribute__((force))

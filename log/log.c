@@ -68,7 +68,7 @@
 #define BUFFER_MIN 1024 * 4
 #define BUFFER_MAX 1024 * 1024 * 4
 
-/* #define OPENLOGDEBUG */
+#define OPENLOGDEBUG
 
 struct _logformat {
     char format[128];
@@ -126,7 +126,15 @@ struct _loghandler {
 };
 
 static const char *const LOGLEVELSTR[] = {
-    "EMERG", "ALERT", "FATAL", "ERROR", "WARN", "NOTICE", "INFO", "DEBUG", "VERBOSE",
+    "EMERG",
+    "ALERT",
+    "FATAL",
+    "ERROR",
+    "WARN",
+    "NOTICE",
+    "INFO",
+    "DEBUG",
+    "VERBOSE",
 };
 
 static struct list_head output_header = {
@@ -747,24 +755,39 @@ vlog(loghandler *handler, LOGLEVEL level, const char *file,
                 }
             }
             break;
-        case LOGOUTTYPE_SOCK:
+        case LOGOUTTYPE_TCP:
+        case LOGOUTTYPE_UDP:
             if (len > 0) {
                 if (r->poutput->u.sock.sockfd == -1) {
                     struct hostent *host = NULL;
                     if ((host = gethostbyname(r->poutput->u.sock.addr)) != NULL) {
-                        r->poutput->u.sock.sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+                        if (r->poutput->type == LOGOUTTYPE_TCP) {
+                            r->poutput->u.sock.sockfd = socket(AF_INET, SOCK_STREAM, 0);
+                        } else {
+                            r->poutput->u.sock.sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+                        }
+
                         if (r->poutput->u.sock.sockfd != -1) {
                             struct sockaddr_in addr;
                             memset(&addr, 0, sizeof(addr));
                             addr.sin_family = AF_INET;
-                            addr.sin_port   = htons(r->poutput->u.sock.port);
+                            addr.sin_port = htons(r->poutput->u.sock.port);
                             addr.sin_addr = *(struct in_addr *)(host->h_addr_list[0]);
-                            connect(r->poutput->u.sock.sockfd, (struct sockaddr *)&addr, sizeof(addr));
+                            if (connect(r->poutput->u.sock.sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+#ifdef OPENLOGDEBUG
+                                perror("logdebug: connect");
+#endif
+                                r->poutput->u.sock.sockfd = -1;
+                            }
                         }
                     }
                 }
                 if (r->poutput->u.sock.sockfd != -1) {
-                    send(r->poutput->u.sock.sockfd, handler->bufferp, len + 1, 0);
+                    if (send(r->poutput->u.sock.sockfd, handler->bufferp, len, 0) != len) {
+#ifdef OPENLOGDEBUG
+                        perror("logdebug: send");
+#endif
+                    }
                 }
             }
             break;
@@ -801,7 +824,7 @@ vlog(loghandler *handler, LOGLEVEL level, const char *file,
                     l = ANDROID_LOG_DEFAULT;
                     break;
                 }
-                __android_log_vprint(l, "ihi", format, args);
+                __android_log_vprint(l, r->indent, format, args);
 #endif
             }
             break;
@@ -969,7 +992,8 @@ __logoutput_create(enum LOGOUTTYPE type, va_list ap)
             return NULL;
         }
         break;
-    case LOGOUTTYPE_SOCK:
+    case LOGOUTTYPE_UDP:
+    case LOGOUTTYPE_TCP:
         output = (logoutput *)calloc(1, sizeof(logoutput));
         if (output) {
             pthread_mutex_init(&output->mutex, NULL);
@@ -991,7 +1015,7 @@ __logoutput_create(enum LOGOUTTYPE type, va_list ap)
             output->u.sock.sockfd = -1;
             list_add_tail(&output->l, &output_header);
             return output;
-        } else {
+        } else{
 #ifdef OPENLOGDEBUG
             fprintf(stderr, "logdebug: calloc failed");
 #endif
@@ -1035,17 +1059,17 @@ logbind(loghandler *handler, LOGLEVEL level_begin, LOGLEVEL level_end,
     logrule *r = (logrule *)calloc(1, sizeof(logrule));
     if (r) {
         if (LOGLEVEL_EMERG < level_begin && LOGLEVEL_VERBOSE > level_begin) {
-            r->level_begin = level_begin;    
+            r->level_begin = level_begin;
         } else {
             r->level_begin = LOGLEVEL_VERBOSE;
         }
-        
+
         if (LOGLEVEL_EMERG < level_end && LOGLEVEL_VERBOSE > level_end) {
             r->level_end = level_end;
         } else {
             r->level_end = LOGLEVEL_EMERG;
         }
-            
+
         r->pformat = format;
         r->poutput = output;
         list_add_tail(&r->l, &rule_header);
@@ -1171,8 +1195,9 @@ log_dump(void)
                     printf("filesize: %" PRIu64 "\n",
                            r->poutput->u.file.filesize);
                     break;
-                case LOGOUTTYPE_SOCK:
-                    printf("type: socket\n");
+                case LOGOUTTYPE_UDP:
+                case LOGOUTTYPE_TCP:
+                    printf("type: socket %s\n", r->poutput->type == LOGOUTTYPE_TCP ? "tcp" : "udp");
                     printf("format: %s\n", r->pformat->format);
                     printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin], LOGLEVELSTR[r->level_end]);
                     printf("addr: %s:%d\n", r->poutput->u.sock.addr,

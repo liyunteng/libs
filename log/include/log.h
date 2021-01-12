@@ -29,7 +29,6 @@ extern "C" {
 #define DEFAULT_SOCKPORT 12345
 #define DEFAULT_FILENAME "ihi.log"
 #define DEFAULT_BAKUP 4
-//#define DEFAULT_BAKUP         0
 #define DEFAULT_FILEMODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 #define DEFAULT_FILESIZE 10 * 1024 * 1024
 #define DEFAULT_LEVEL LOGLEVEL_DEBUG
@@ -93,7 +92,8 @@ enum LOGOUTTYPE {
     LOGOUTTYPE_STDOUT,
     LOGOUTTYPE_STDERR,
     LOGOUTTYPE_FILE,
-    LOGOUTTYPE_SOCK,
+    LOGOUTTYPE_UDP,
+    LOGOUTTYPE_TCP,
     LOGOUTTYPE_LOGCAT,
     LOGOUTTYPE_SYSLOG,
     LOGOUTTYPE_NONE,
@@ -120,13 +120,18 @@ loghandler *loghandler_create(const char *ident);
 loghandler *loghandler_get(const char *ident);
 logformat *logformat_create(const char *format, int color);
 
-// LOGOUTTYPE_STDERR, LOGOUTTYPE_STDOUT, LOGOUTTYPE_LOGCAT,
+// LOGOUTTYPE_STDERR
+// LOGOUTTYPE_STDOUT
+// LOGOUTTYPE_LOGCAT
 // LOGOUTTYPE_SYSLOG need not arg
+//
 // LOGOUTTYPE_FILE char *filename
 //                 unsigned long filesize
 //                 mode_t filemode
 //                 int bakupnum
-// LOGOUTTYPE_SOCK char *addr
+//
+// LOGOUTTYPE_UDP
+// LOGOUTTYPE_TCP  char *addr
 //                 int port
 logoutput *logoutput_create(enum LOGOUTTYPE type, ...);
 

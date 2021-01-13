@@ -69,7 +69,7 @@
 #define BUFFER_MIN 1024 * 4
 #define BUFFER_MAX 1024 * 1024 * 4
 
-#define OPENLOGDEBUG
+// #define OPENLOGDEBUG
 
 struct _logformat {
     char format[128];
@@ -759,36 +759,11 @@ vlog(loghandler *handler, LOGLEVEL level, const char *file,
         case LOGOUTTYPE_TCP:
         case LOGOUTTYPE_UDP:
             if (len > 0) {
-                if (r->poutput->u.sock.sockfd == -1) {
-                    struct hostent *host = NULL;
-                    if ((host = gethostbyname(r->poutput->u.sock.addr)) != NULL) {
-                        if (r->poutput->type == LOGOUTTYPE_TCP) {
-                            r->poutput->u.sock.sockfd = socket(AF_INET, SOCK_STREAM, 0);
-                        } else {
-                            r->poutput->u.sock.sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-                        }
-
-                        if (r->poutput->u.sock.sockfd != -1) {
-                            struct sockaddr_in addr;
-                            memset(&addr, 0, sizeof(addr));
-                            addr.sin_family = AF_INET;
-                            addr.sin_port = htons(r->poutput->u.sock.port);
-                            addr.sin_addr = *(struct in_addr *)(host->h_addr_list[0]);
-                            if (connect(r->poutput->u.sock.sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-#ifdef OPENLOGDEBUG
-                                perror("logdebug: connect");
-#endif
-                                close(r->poutput->u.sock.sockfd);
-                                r->poutput->u.sock.sockfd = -1;
-                            }
-                        }
-                    }
-                }
                 if (r->poutput->u.sock.sockfd != -1) {
                     int total = 0;
                     int nsend = 0;
                     while (total < len) {
-                        nsend = send(r->poutput->u.sock.sockfd, handler->bufferp + total, len-total, 0);
+                        nsend = send(r->poutput->u.sock.sockfd, handler->bufferp + total, len-total, MSG_NOSIGNAL);
                         if (nsend < 0) {
                             if (errno == EAGAIN || errno == EINTR) {
                                 continue;
@@ -1036,6 +1011,33 @@ __logoutput_create(enum LOGOUTTYPE type, va_list ap)
                 output->u.sock.port = DEFAULT_SOCKPORT;
             }
             output->u.sock.sockfd = -1;
+
+            if (output->u.sock.sockfd == -1) {
+                struct hostent *host = NULL;
+                if ((host = gethostbyname(output->u.sock.addr)) != NULL) {
+                    if (output->type == LOGOUTTYPE_TCP) {
+                        output->u.sock.sockfd = socket(AF_INET, SOCK_STREAM, 0);
+                    } else {
+                        output->u.sock.sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+                    }
+
+                    if (output->u.sock.sockfd != -1) {
+                        struct sockaddr_in addr;
+                        memset(&addr, 0, sizeof(addr));
+                        addr.sin_family = AF_INET;
+                        addr.sin_port = htons(output->u.sock.port);
+                        addr.sin_addr = *(struct in_addr *)(host->h_addr_list[0]);
+                        if (connect(output->u.sock.sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+#ifdef OPENLOGDEBUG
+                            perror("logdebug: connect");
+#endif
+                            close(output->u.sock.sockfd);
+                            output->u.sock.sockfd = -1;
+                        }
+                    }
+                }
+            }
+
             list_add_tail(&output->l, &output_header);
             return output;
         } else{

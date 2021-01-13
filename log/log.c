@@ -24,6 +24,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/stat.h>
 
 #include <syslog.h>
 
@@ -671,7 +672,7 @@ begin:
                 idx += snprintf(buf + idx, len - idx, "%s", hostname);
                 break;
             case 't':
-                idx += snprintf(buf + idx, len - idx, "%lu", pthread_self());
+                idx += snprintf(buf + idx, len - idx, "%lu", (unsigned long)pthread_self());
                 break;
             case '%':
                 idx += snprintf(buf + idx, len - idx, "%c", *p);
@@ -777,16 +778,38 @@ vlog(loghandler *handler, LOGLEVEL level, const char *file,
 #ifdef OPENLOGDEBUG
                                 perror("logdebug: connect");
 #endif
+                                close(r->poutput->u.sock.sockfd);
                                 r->poutput->u.sock.sockfd = -1;
                             }
                         }
                     }
                 }
                 if (r->poutput->u.sock.sockfd != -1) {
-                    if (send(r->poutput->u.sock.sockfd, handler->bufferp, len, 0) != len) {
+                    int total = 0;
+                    int nsend = 0;
+                    while (total < len) {
+                        nsend = send(r->poutput->u.sock.sockfd, handler->bufferp + total, len-total, 0);
+                        if (nsend < 0) {
+                            if (errno == EAGAIN || errno == EINTR) {
+                                continue;
+                            } else {
 #ifdef OPENLOGDEBUG
-                        perror("logdebug: send");
+                                perror("logdebug: send");
 #endif
+                                close(r->poutput->u.sock.sockfd);
+                                r->poutput->u.sock.sockfd = -1;
+                                break;
+                            }
+                        } else if (nsend == 0) {
+#ifdef OPENLOGDEBUG
+                                printf("logdebug: sock closed");
+#endif
+                                close(r->poutput->u.sock.sockfd);
+                                r->poutput->u.sock.sockfd = -1;
+                                break;
+                        } else {
+                            total += nsend;
+                        }
                     }
                 }
             }
@@ -1191,7 +1214,7 @@ log_dump(void)
                     printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin], LOGLEVELSTR[r->level_end]);
                     printf("filename: %s\n", r->poutput->u.file.filename);
                     printf("filemode: %u\n", r->poutput->u.file.filemode);
-                    printf("bakup: %" PRIu16 "\n", r->poutput->u.file.bakup);
+                    printf("bakup: %d\n", r->poutput->u.file.bakup);
                     printf("filesize: %" PRIu64 "\n",
                            r->poutput->u.file.filesize);
                     break;

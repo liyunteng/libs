@@ -199,7 +199,7 @@ test7()
     logoutput *output1 = logoutput_create(LOGOUTTYPE_FILE, "test.log", 4 * 1024 * 1024, DEFAULT_FILEMODE, 2);
     logoutput *output2 = logoutput_create(LOGOUTTYPE_STDOUT);
     logoutput *output3 = logoutput_create(LOGOUTTYPE_SYSLOG);
-    logoutput *output4 = logoutput_create(LOGOUTTYPE_UDP, "gentoo", (unsigned)12345);
+    logoutput *output4 = logoutput_create(LOGOUTTYPE_TCP, "192.168.31.167", (unsigned)12345);
     loghandler *handler = loghandler_create(DEFAULT_IDENT);
 
     for (i = 0; i < sizeof(b)/sizeof(b[0]) - 1; i++) {
@@ -211,7 +211,7 @@ test7()
     /* logbind(handler, LOGLEVEL_VERBOSE, -1, format, output3); */
     logbind(handler, LOGLEVEL_VERBOSE, -1, format, output4);
 
-    for (i = 0; i < 1024; i++) {
+    for (i = 0; i < 102400; i++) {
         LOG(LOG_VERBOSE, "this is a verbose");
         LOG(LOG_DEBUG, "this is a debug");
         LOG(LOG_INFO, "this is a info");

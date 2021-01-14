@@ -1,12 +1,8 @@
-/**
- *   @file log.hpp
- *   @brief log
+/*
+ * log.h - log
  *
- *   @author liyunteng <liyunteng@streamocean.com>
- *   @copyright CopyRight (C) 2015 StreamOcean
- *   @date Update time:  2016/09/04 16:13:26
+ * Date   : 2021/01/14
  */
-
 #ifndef LOG_H
 #define LOG_H
 
@@ -20,20 +16,8 @@ extern "C" {
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#ifdef ANDROID
-#    include <android/log.h>
-#endif
+#define DEFAULT_IDENT "ident"
 
-#define DEFAULT_IDENT "ihi"
-#define DEFAULT_SOCKADDR "127.0.0.1"
-#define DEFAULT_SOCKPORT 12345
-#define DEFAULT_FILENAME "ihi.log"
-#define DEFAULT_BAKUP 4
-#define DEFAULT_FILEMODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
-#define DEFAULT_FILESIZE 10 * 1024 * 1024
-#define DEFAULT_LEVEL LOGLEVEL_DEBUG
-#define DEFAULT_TIME_FORMAT "%F %T"
-#define DEFAULT_FORMAT "%d.%ms %c:%p:%t [%V] %F:%U(%L) %m%n"
 
 // format
 //%d(%F %T)  timeformat
@@ -55,48 +39,29 @@ extern "C" {
 //%% %
 
 typedef enum {
-    LOGLEVEL_EMERG,
-    LOGLEVEL_ALERT,
-    LOGLEVEL_CRIT,
-    LOGLEVEL_FATAL = LOGLEVEL_CRIT,
-    LOGLEVEL_ERROR,
-    LOGLEVEL_WARNING,
-    LOGLEVEL_NOTICE,
-    LOGLEVEL_INFO,
-    LOGLEVEL_DEBUG,
-    LOGLEVEL_VERBOSE,
-#undef LOG_EMERG
-#undef LOG_ALERT
-#undef LOG_FATAL
-#undef LOG_CRIT
-#undef LOG_ERROR
-#undef LOG_WARNING
-#undef LOG_NOTICE
-#undef LOG_INFO
-#undef LOG_DEBUG
-#undef LOG_VERBOSE
+    LOG_EMERG,              /* 0 */
+    LOG_ALERT,              /* 1 */
+    LOG_CRIT,               /* 2 */
+    LOG_FATAL = LOG_CRIT,   /* 2 */
+    LOG_ERR,                /* 3 */
+    LOG_ERROR = LOG_ERR,    /* 3 */
+    LOG_WARN,               /* 4 */
+    LOG_WARNING = LOG_WARN, /* 4 */
+    LOG_NOTICE,             /* 5 */
+    LOG_INFO,               /* 6 */
+    LOG_DEBUG,              /* 7 */
+    LOG_VERBOSE,            /* 8 */
+} LOG_LEVEL_E;
 
-#define LOG_EMERG LOGLEVEL_EMERG
-#define LOG_ALERT LOGLEVEL_ALERT
-#define LOG_FATAL LOGLEVEL_FATAL
-#define LOG_CRIT LOGLEVEL_CRIT
-#define LOG_ERROR LOGLEVEL_ERROR
-#define LOG_WARNING LOGLEVEL_WARNING
-#define LOG_NOTICE LOGLEVEL_NOTICE
-#define LOG_INFO LOGLEVEL_INFO
-#define LOG_DEBUG LOGLEVEL_DEBUG
-#define LOG_VERBOSE LOGLEVEL_VERBOSE
-} LOGLEVEL;
-
-enum LOGOUTTYPE {
-    LOGOUTTYPE_STDOUT,
-    LOGOUTTYPE_STDERR,
-    LOGOUTTYPE_FILE,
-    LOGOUTTYPE_UDP,
-    LOGOUTTYPE_TCP,
-    LOGOUTTYPE_LOGCAT,
-    LOGOUTTYPE_SYSLOG,
-    LOGOUTTYPE_NONE,
+enum LOG_OUTTYPE {
+    LOG_OUTTYPE_STDOUT,
+    LOG_OUTTYPE_STDERR,
+    LOG_OUTTYPE_FILE,
+    LOG_OUTTYPE_UDP,
+    LOG_OUTTYPE_TCP,
+    LOG_OUTTYPE_LOGCAT,
+    LOG_OUTTYPE_SYSLOG,
+    LOG_OUTTYPE_NONE,
 };
 
 enum LOG_OPTS {
@@ -120,104 +85,143 @@ loghandler *loghandler_create(const char *ident);
 loghandler *loghandler_get(const char *ident);
 logformat *logformat_create(const char *format, int color);
 
-// LOGOUTTYPE_STDERR
-// LOGOUTTYPE_STDOUT
-// LOGOUTTYPE_LOGCAT
-// LOGOUTTYPE_SYSLOG need not arg
+// LOG_OUTTYPE_STDERR
+// LOG_OUTTYPE_STDOUT
+// LOG_OUTTYPE_LOGCAT
+// LOG_OUTTYPE_SYSLOG need not arg
 //
-// LOGOUTTYPE_FILE char *filename
-//                 unsigned long filesize
-//                 mode_t filemode
-//                 int bakupnum
+// LOG_OUTTYPE_FILE char *file_path
+//                  char *log_name
+//                  unsigned long filesize
+//                  int bakupnum
 //
-// LOGOUTTYPE_UDP
-// LOGOUTTYPE_TCP  char *addr
-//                 int port
-logoutput *logoutput_create(enum LOGOUTTYPE type, ...);
+// LOG_OUTTYPE_UDP
+// LOG_OUTTYPE_TCP  char *addr
+//                  int port
+logoutput *logoutput_create(enum LOG_OUTTYPE type, ...);
 
-// if level_begin == -1, level_begin will be set to LOGLEVEL_VERBOSE
-// if level_end == -1 , level_end will be set to LOGLEVEL_EMERG
+// if level_begin == -1, level_begin will be set to LOG_VERBOSE
+// if level_end == -1 , level_end will be set to LOG_EMERG
 // This will print handler's log to output, use format, when loglevel between
 // level_begin and level_end
-int logbind(loghandler *handler, LOGLEVEL level_beign, LOGLEVEL level_end,
+int logbind(loghandler *handler, LOG_LEVEL_E level_beign, LOG_LEVEL_E level_end,
             logformat *format, logoutput *output);
 int logunbind(loghandler *handler, logoutput *output);
 
 int log_ctl(enum LOG_OPTS, ...);
-void mlog(loghandler *handle, LOGLEVEL level, const char *file,
+void mlog(loghandler *handle, LOG_LEVEL_E level, const char *file,
           const char *function, long line, const char *format, ...);
 
-#ifndef MLOG
-#    define MLOG(handle, level, format, ...)                                   \
-        mlog(handle, level, __FILE__, __FUNCTION__, __LINE__, format,          \
-             ##__VA_ARGS__);
-#endif
-
-#ifndef VERBOSE
-#    define VERBOSE(handle, format, ...)                                       \
-        MLOG(handle, LOGLEVEL_VERBOSE, format, ##__VA_ARGS__)
-#endif
-
-#ifndef DBG
-#    define DBG(handle, format, ...)                                           \
-        MLOG(handle, LOGLEVEL_DEBUG, format, ##__VA_ARGS__)
-#endif
-
-#ifndef INFO
-#    define INFO(handle, format, ...)                                          \
-        MLOG(handle, LOGLEVEL_INFO, format, ##__VA_ARGS__)
-#endif
-
-#ifndef NOTICE
-#    define NOTICE(handle, format, ...)                                        \
-        MLOG(handle, LOGLEVEL_NOTICE, format, ##__VA_ARGS__)
-#endif
-
-#ifndef WARNING
-#    define WARNING(handle, format, ...)                                       \
-        MLOG(handle, LOGLEVEL_WARNING, format, ##__VA_ARGS__)
-#endif
-
-#ifndef ERROR
-#    define ERROR(handle, format, ...)                                         \
-        MLOG(handle, LOGLEVEL_ERROR, format, ##__VA_ARGS__)
-#endif
-
-#ifndef FATAL
-#    define FATAL(handle, format, ...)                                         \
-        MLOG(handle, LOGLEVEL_FATAL, format, ##__VA_ARGS__)
-#endif
-
-#ifndef ALERT
-#    define ALERT(handle, format, ...)                                         \
-        MLOG(handle, LOGLEVEL_ALERT, format, ##__VA_ARGS__)
-#endif
-
-#ifndef EMERG
-#    define EMERG(handle, format, ...)                                         \
-        MLOG(handle, LOGLEVEL_EMERG, format, ##__VA_ARGS__)
-#endif
-
-void slog(LOGLEVEL level, const char *file, const char *function, long line,
+void slog(LOG_LEVEL_E level, const char *file, const char *function, long line,
           const char *format, ...);
 
-#define LOG(level, format, ...)                                                \
-    slog((LOGLEVEL)level, __FILE__, __FUNCTION__, __LINE__, format,            \
-         ##__VA_ARGS__)
+void log_dump();
 
-#define LOG_INIT(filename, level)                                              \
+#ifndef MLOG
+#define MLOG(handle, level, format, ...)                                       \
+    mlog(handle, level, __FILE__, __FUNCTION__, __LINE__, format, ##__VA_ARGS__)
+#endif
+
+#ifndef MLOGV
+#define MLOGV(handle, format, ...)                                             \
+    MLOG(handle, LOG_VERBOSE, format, ##__VA_ARGS__)
+#endif
+
+#ifndef MLOGD
+#define MLOGD(handle, format, ...)                                             \
+    MLOG(handle, LOG_DEBUG, format, ##__VA_ARGS__)
+#endif
+
+#ifndef MLOGI
+#define MLOGI(handle, format, ...) MLOG(handle, LOG_INFO, format, ##__VA_ARGS__)
+#endif
+
+#ifndef MLOGN
+#define MLOGN(handle, format, ...)                                             \
+    MLOG(handle, LOG_NOTICE, format, ##__VA_ARGS__)
+#endif
+
+#ifndef MLOGW
+#define MLOGW(handle, format, ...)                                             \
+    MLOG(handle, LOG_WARNING, format, ##__VA_ARGS__)
+#endif
+
+#ifndef MLOGE
+#define MLOGE(handle, format, ...)                                             \
+    MLOG(handle, LOG_ERROR, format, ##__VA_ARGS__)
+#endif
+
+#ifndef MLOGF
+#define MLOGF(handle, format, ...)                                             \
+    MLOG(handle, LOG_FATAL, format, ##__VA_ARGS__)
+#endif
+
+#ifndef MLOGA
+#define MLOGA(handle, format, ...)                                             \
+    MLOG(handle, LOG_ALERT, format, ##__VA_ARGS__)
+#endif
+
+#ifndef MLOGX
+#define MLOGX(handle, format, ...)                                             \
+    MLOG(handle, LOG_EMERG, format, ##__VA_ARGS__)
+#endif
+
+
+#ifndef LOG
+#define LOG(level, format, ...)                                                \
+    slog((LOG_LEVEL_E)level, __FILE__, __FUNCTION__, __LINE__, format,         \
+         ##__VA_ARGS__)
+#endif
+
+#ifndef LOGV
+#define LOGV(format, ...) LOG(LOG_VERBOSE, format, ##__VA_ARGS__)
+#endif
+
+#ifndef LOGD
+#define LOGD(format, ...) LOG(LOG_DEBUG, format, ##__VA_ARGS__)
+#endif
+
+#ifndef LOGI
+#define LOGI(format, ...) LOG(LOG_INFO, format, ##__VA_ARGS__)
+#endif
+
+#ifndef LOGN
+#define LOGN(format, ...) LOG(LOG_NOTICE, format, ##__VA_ARGS__)
+#endif
+
+#ifndef LOGW
+#define LOGW(format, ...) LOG(LOG_WARNING, format, ##__VA_ARGS__)
+#endif
+
+#ifndef LOGE
+#define LOGE(format, ...) LOG(LOG_ERROR, format, ##__VA_ARGS__)
+#endif
+
+#ifndef LOGF
+#define LOGF(format, ...) LOG(LOG_FATAL, format, ##__VA_ARGS__)
+#endif
+
+#ifndef LOGA
+#define LOGA(format, ...) LOG(LOG_ALERT, format, ##__VA_ARGS__)
+#endif
+
+#ifndef LOGX
+#define LOGX(format, ...) LOG(LOG_EMERG, format, ##__VA_ARGS__)
+#endif
+
+#define LOG_INIT(log_name, level)                                              \
     do {                                                                       \
-        logformat *__format = logformat_create(DEFAULT_FORMAT, 0);             \
-        logoutput *__output =                                                  \
-            logoutput_create(LOGOUTTYPE_FILE, (filename), DEFAULT_FILESIZE,    \
-                             DEFAULT_FILEMODE, DEFAULT_BAKUP);                 \
+        logformat *__format =                                                  \
+            logformat_create("%d.%ms %c:%p:%t [%V] %m%n", 0);                  \
+        logoutput *__output = logoutput_create(                                \
+            LOG_OUTTYPE_FILE, ".", (log_name), 4 * 1024 * 1024, 4);            \
         loghandler *__handler = loghandler_create(DEFAULT_IDENT);              \
         if (__format && __output && __handler) {                               \
-            logbind(__handler, DEFAULT_LEVEL, -1, __format, __output);         \
+            logbind(__handler, LOG_DEBUG, -1, __format, __output);             \
         }                                                                      \
     } while (0)
 
-void log_dump();
+
 #ifdef __cplusplus
 }
 #endif

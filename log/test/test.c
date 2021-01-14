@@ -35,21 +35,21 @@ test1()
 
     logformat *format = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
     logoutput *fileout =
-        logoutput_create(LOGOUTTYPE_FILE, "ihi.log", 1024 * 1024 * 4, 0600, 4);
-    logoutput *std_out = logoutput_create(LOGOUTTYPE_STDOUT);
+        logoutput_create(LOG_OUTTYPE_FILE, "ihi", 1024 * 1024 * 4, 4);
+    logoutput *std_out = logoutput_create(LOG_OUTTYPE_STDOUT);
     logbind(h, LOG_DEBUG, -1, format, fileout);
     logbind(h, LOG_DEBUG, -1, format, std_out);
 
-    DBG(h, "this is a debug");
+    MLOGD(h, "this is a debug");
     logunbind(h, fileout);
-    INFO(h, "%s", "this is a info");
+    MLOGI(h, "%s", "this is a info");
     logbind(h, LOG_DEBUG, -1, format, fileout);
-    NOTICE(h, "this is a notice");
-    WARNING(h, "this is a warning");
-    ERROR(h, "this is a error");
-    FATAL(h, "this is a fatal");
-    ALERT(h, "this is a alert");
-    EMERG(h, "this is a emergency");
+    MLOGN(h, "this is a notice");
+    MLOGW(h, "this is a warning");
+    MLOGE(h, "this is a error");
+    MLOGF(h, "this is a fatal");
+    MLOGA(h, "this is a alert");
+    MLOGX(h, "this is a emergency");
 
     log_dump();
 }
@@ -71,7 +71,7 @@ void test2()
 {
     pthread_t tid1, tid2, tid3;
 
-    LOG_INIT("ihi.log", LOG_DEBUG);
+    LOG_INIT("ihi", LOG_DEBUG);
     pthread_create(&tid1, NULL, run, NULL);
     pthread_create(&tid2, NULL, run, NULL);
     pthread_create(&tid3, NULL, run, NULL);
@@ -89,7 +89,7 @@ test3()
     loghandler *h2     = loghandler_create("h2");
     loghandler *h3     = loghandler_create("h3");
     logformat *format  = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
-    logoutput *fileout = logoutput_create(LOGOUTTYPE_FILE, "ihi.log",
+    logoutput *fileout = logoutput_create(LOG_OUTTYPE_FILE, ".", "ihi",
                                           1024 * 1024 * 100, 0600, 4);
 
     logbind(h1, LOG_DEBUG, -1, format, fileout);
@@ -98,30 +98,30 @@ test3()
 
     unsigned i;
     for (i = 0; i < 1024 * 1024; i++) {
-        DBG(h1, "this is a debug");
-        INFO(h1, "%s", "this is a info");
-        WARNING(h1, "this is a warning");
-        ERROR(h1, "this is a error");
-        FATAL(h1, "this is a fatal");
+        MLOGD(h1, "this is a debug");
+        MLOGI(h1, "%s", "this is a info");
+        MLOGW(h1, "this is a warning");
+        MLOGE(h1, "this is a error");
+        MLOGF(h1, "this is a fatal");
 
-        DBG(h2, "this is a debug");
-        INFO(h2, "%s", "this is a info");
-        WARNING(h2, "this is a warning");
-        ERROR(h2, "this is a error");
-        FATAL(h2, "this is a fatal");
+        MLOGD(h2, "this is a debug");
+        MLOGI(h2, "%s", "this is a info");
+        MLOGW(h2, "this is a warning");
+        MLOGE(h2, "this is a error");
+        MLOGF(h2, "this is a fatal");
 
-        DBG(h3, "this is a debug");
-        INFO(h3, "%s", "this is a info");
-        WARNING(h3, "this is a warning");
-        ERROR(h3, "this is a error");
-        FATAL(h3, "this is a fatal");
+        MLOGD(h3, "this is a debug");
+        MLOGI(h3, "%s", "this is a info");
+        MLOGW(h3, "this is a warning");
+        MLOGE(h3, "this is a error");
+        MLOGF(h3, "this is a fatal");
     }
     log_dump();
 }
 void
 test4()
 {
-    LOG_INIT("abc.log", LOG_DEBUG);
+    LOG_INIT("abc", LOG_DEBUG);
 
     unsigned i;
     for (i = 0; i < 1024 * 1024 * 1024; i++) {
@@ -140,7 +140,7 @@ test5()
 
     char b[4096];
     int i;
-    LOG_INIT("ihi.log", LOG_ERROR);
+    LOG_INIT("ihi", LOG_ERROR);
     for (i = 0; i < 1024 * 4 - 1; i++) {
         b[i] = 'b';
     }
@@ -160,7 +160,7 @@ test5()
     loghandler *h = loghandler_create("abc");
     logformat *f = logformat_create("%d %c %V %m%n", 0);
     logformat *vf = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
-    logoutput *fileout = logoutput_create(LOGOUTTYPE_FILE, "ihi.log", 1024*1024*4, 0600, 1);
+    logoutput *fileout = logoutput_create(LOGOUTTYPE_FILE, ".", "ihi", 1024*1024*4, 0600, 1);
     logoutput *out = logoutput_create(LOGOUTTYPE_STDOUT);
     //logbind(h, LOG_ERROR, -1, vf, fileout);
     logbind(h, LOG_DEBUG, -1, f, out);
@@ -185,7 +185,7 @@ test5()
 void
 test6()
 {
-    LOG_INIT("ihi.log", LOG_DEBUG);
+    LOG_INIT("ihi", LOG_DEBUG);
     LOG(LOG_DEBUG, "this is a debug");
     log_dump();
 }
@@ -196,32 +196,32 @@ test7()
     int i;
     char b[4096];
     logformat *format = logformat_create("%d.%ms %H %E(USER) %c %F:%U%L %p:%t [%V] %m%n", 1);
-    logoutput *output1 = logoutput_create(LOGOUTTYPE_FILE, "test.log", 4 * 1024 * 1024, DEFAULT_FILEMODE, 2);
-    logoutput *output2 = logoutput_create(LOGOUTTYPE_STDOUT);
-    logoutput *output3 = logoutput_create(LOGOUTTYPE_SYSLOG);
-    logoutput *output4 = logoutput_create(LOGOUTTYPE_TCP, "127.0.0.1", (unsigned)12345);
+    logoutput *output1 = logoutput_create(LOG_OUTTYPE_FILE, ".", "test", 8 * 1024 * 1024, 50);
+    logoutput *output2 = logoutput_create(LOG_OUTTYPE_STDOUT);
+    logoutput *output3 = logoutput_create(LOG_OUTTYPE_SYSLOG);
+    logoutput *output4 = logoutput_create(LOG_OUTTYPE_TCP, "127.0.0.1", (unsigned)12345);
     loghandler *handler = loghandler_create(DEFAULT_IDENT);
 
     for (i = 0; i < sizeof(b)/sizeof(b[0]) - 1; i++) {
         b[i] = 'b';
     }
     b[i] = '\0';
-    logbind(handler, LOGLEVEL_VERBOSE, -1, format, output1);
-    /* logbind(handler, LOGLEVEL_VERBOSE, -1, format, output2); */
-    /* logbind(handler, LOGLEVEL_VERBOSE, -1, format, output3); */
-    logbind(handler, LOGLEVEL_VERBOSE, -1, format, output4);
+    logbind(handler, LOG_VERBOSE, -1, format, output1);
+    /* logbind(handler, LOG_VERBOSE, -1, format, output2); */
+    /* logbind(handler, LOG_VERBOSE, -1, format, output3); */
+    logbind(handler, LOG_VERBOSE, -1, format, output4);
 
     for (i = 0; i < 102400; i++) {
-        LOG(LOG_VERBOSE, "this is a verbose");
-        LOG(LOG_DEBUG, "this is a debug");
-        LOG(LOG_INFO, "this is a info");
-        LOG(LOG_NOTICE, "this is a notice");
-        LOG(LOG_WARNING, "this is a warnning");
-        LOG(LOG_ERROR, "this is a error");
-        LOG(LOG_FATAL, "this is a fatal");
-        LOG(LOG_ALERT, "this is a alert");
-        LOG(LOG_EMERG, "this is emerge");
-        LOG(LOG_EMERG, "this is a long msg: %s", b);
+        LOGV("this is a verbose");
+        LOGD("this is a debug");
+        LOGI("this is a info");
+        LOGN("this is a notice");
+        LOGW("this is a warnning");
+        LOGE("this is a error");
+        LOGF("this is a fatal");
+        LOGA("this is a alert");
+        LOGX("this is emerge");
+        //LOGX("this is a long msg: %s", b);
     }
     log_dump();
 }

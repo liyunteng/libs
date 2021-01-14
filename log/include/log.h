@@ -55,22 +55,18 @@ enum LOG_OUTTYPE {
 };
 
 enum LOG_OPTS {
-    LOG_OPT_SET_HANDLER_BUFFERSIZEMIN,  /* loghandler *handler, size_t size */
-    LOG_OPT_SET_HANDLER_BUFFERSIZEMAX,  /* loghandler *handler, size_t size */
-    LOG_OPT_GET_HANDLER_BUFFERSIZEMIN,  /* loghandler *handler, size_t *size */
-    LOG_OPT_GET_HANDLER_BUFFERSIZEMAX,  /* loghandler *handler, size_t *size */
-    LOG_OPT_GET_HANDLER_BUFFERSIZEREAL, /* loghandler *handler, size_t *size */
-    LOG_OPT_SET_HANDLER_IDENT,          /* loghandler *handler, char *ident */
-    LOG_OPT_GET_HANDLER_IDENT,          /* loghandler *handler, char *ident */
+    LOG_OPT_SET_HANDLER_BUFFERSIZEMIN,  /* log_handler_t *handler, size_t size */
+    LOG_OPT_SET_HANDLER_BUFFERSIZEMAX,  /* log_handler_t *handler, size_t size */
+    LOG_OPT_GET_HANDLER_BUFFERSIZEMIN,  /* log_handler_t *handler, size_t *size */
+    LOG_OPT_GET_HANDLER_BUFFERSIZEMAX,  /* log_handler_t *handler, size_t *size */
+    LOG_OPT_GET_HANDLER_BUFFERSIZEREAL, /* log_handler_t *handler, size_t *size */
+    LOG_OPT_SET_HANDLER_IDENT,          /* log_handler_t *handler, char *ident */
+    LOG_OPT_GET_HANDLER_IDENT,          /* log_handler_t *handler, char *ident */
 };
 
-struct _loghandler;
-struct _logforamt;
-struct _logoutput;
-typedef struct _loghandler loghandler;
-typedef struct _logformat logformat;
-typedef struct _logoutput logoutput;
-
+typedef struct log_handler log_handler_t;
+typedef struct log_format log_format_t;
+typedef struct log_output log_output_t;
 
 #define MLOG(handle, level, fmt...)                                            \
     do {                                                                       \
@@ -103,12 +99,12 @@ typedef struct _logoutput logoutput;
 
 #define LOG_INIT(log_name, level)                                              \
     do {                                                                       \
-        logformat *__format = logformat_create("%d.%ms %c:%p [%V] %m%n", 0);   \
-        logoutput *__output = logoutput_create(                                \
+        log_format_t *__format = log_format_create("%d.%ms %c:%p [%V] %m%n", 0);   \
+        log_output_t*__output = log_output_create(                                \
             LOG_OUTTYPE_FILE, ".", (log_name), 4 * 1024 * 1024, 4);            \
-        loghandler *__handler = loghandler_create(DEFAULT_IDENT);              \
+        log_handler_t *__handler = log_handler_create(DEFAULT_IDENT);              \
         if (__format && __output && __handler) {                               \
-            logbind(__handler, level, -1, __format, __output);                 \
+            log_bind(__handler, level, -1, __format, __output);                 \
         }                                                                      \
     } while (0)
 
@@ -117,9 +113,9 @@ typedef struct _logoutput logoutput;
 extern "C" {
 #endif
 
-loghandler *loghandler_create(const char *ident);
-loghandler *loghandler_get(const char *ident);
-logformat *logformat_create(const char *format, int color);
+log_handler_t *log_handler_create(const char *ident);
+log_handler_t *log_handler_get(const char *ident);
+log_format_t *log_format_create(const char *format, int color);
 
 // LOG_OUTTYPE_STDERR
 // LOG_OUTTYPE_STDOUT
@@ -134,18 +130,18 @@ logformat *logformat_create(const char *format, int color);
 // LOG_OUTTYPE_UDP
 // LOG_OUTTYPE_TCP  char *addr
 //                  int port
-logoutput *logoutput_create(enum LOG_OUTTYPE type, ...);
+log_output_t*log_output_create(enum LOG_OUTTYPE type, ...);
 
 // level_begin  -1 == LOG_VERBOSE
 // level_en     -1 == LOG_EMERG
 // This will print handler's log to output, use format, when loglevel between
 // level_begin and level_end
-int logbind(loghandler *handler, LOG_LEVEL_E level_beign, LOG_LEVEL_E level_end,
-            logformat *format, logoutput *output);
-int logunbind(loghandler *handler, logoutput *output);
+int log_bind(log_handler_t *handler, LOG_LEVEL_E level_beign, LOG_LEVEL_E level_end,
+            log_format_t *format, log_output_t*output);
+int log_unbind(log_handler_t *handler, log_output_t*output);
 
 int log_ctl(enum LOG_OPTS, ...);
-void mlog(loghandler *handle, LOG_LEVEL_E level, const char *file,
+void mlog(log_handler_t *handle, LOG_LEVEL_E level, const char *file,
           const char *function, long line, const char *format, ...);
 
 void slog(LOG_LEVEL_E level, const char *file, const char *function, long line,

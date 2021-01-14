@@ -29,23 +29,23 @@ void
 test1()
 {
     const char *s = "this is a test.";
-    loghandler *h = loghandler_create("h");
+    log_handler_t *h = log_handler_create("h");
 
-    logformat *format = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
-    logoutput *fileout =
-        logoutput_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
-    logoutput *std_out = logoutput_create(LOG_OUTTYPE_STDOUT);
-    logbind(h, LOG_VERBOSE, -1, format, fileout);
-    logbind(h, LOG_VERBOSE, -1, format, std_out);
+    log_format_t *format = log_format_create("%d %p %c %V %F:%U:%L %m%n", 1);
+    log_output_t*fileout =
+        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
+    log_output_t*std_out = log_output_create(LOG_OUTTYPE_STDOUT);
+    log_bind(h, LOG_VERBOSE, -1, format, fileout);
+    log_bind(h, LOG_VERBOSE, -1, format, std_out);
 
     MLOGV(h, "this is a verbose");
     MLOGD(h, "this is a debug");
-    logunbind(h, fileout);
+    log_unbind(h, fileout);
     MLOGI(h, "%s", "this is a info");
     MLOGN(h, "this is a notice");
     MLOGW(h, "this is a warning");
     MLOGE(h, "this is a error");
-    logbind(h, LOG_VERBOSE, -1, format, fileout);
+    log_bind(h, LOG_VERBOSE, -1, format, fileout);
     MLOGF(h, "this is a fatal");
     MLOGA(h, "this is a alert");
     MLOGX(h, "this is a emergency");
@@ -84,16 +84,16 @@ void test2()
 void
 test3()
 {
-    loghandler *h1     = loghandler_create("h1");
-    loghandler *h2     = loghandler_create("h2");
-    loghandler *h3     = loghandler_create("h3");
-    logformat *format  = logformat_create("%d %p %c %V %F:%U:%L %m%n", 1);
-    logoutput *fileout = logoutput_create(LOG_OUTTYPE_FILE, ".", "ihi",
+    log_handler_t *h1     = log_handler_create("h1");
+    log_handler_t *h2     = log_handler_create("h2");
+    log_handler_t *h3     = log_handler_create("h3");
+    log_format_t *format  = log_format_create("%d %p %c %V %F:%U:%L %m%n", 1);
+    log_output_t*fileout = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi",
                                           1024 * 1024 * 100, 0600, 4);
 
-    logbind(h1, LOG_VERBOSE, -1, format, fileout);
-    logbind(h2, LOG_VERBOSE, -1, format, fileout);
-    logbind(h3, LOG_VERBOSE, -1, format, fileout);
+    log_bind(h1, LOG_VERBOSE, -1, format, fileout);
+    log_bind(h2, LOG_VERBOSE, -1, format, fileout);
+    log_bind(h3, LOG_VERBOSE, -1, format, fileout);
 
     unsigned i;
     for (i = 0; i < 1024 * 1024; i++) {
@@ -121,10 +121,10 @@ test3()
 void
 test4()
 {
-    logformat *format = logformat_create("%d.%ms %c:%p [%V] %m%n", 0);
-    logoutput *output = logoutput_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
-    loghandler *handler = loghandler_create(DEFAULT_IDENT);
-    logbind(handler, -1, -1, format, output);
+    log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n", 0);
+    log_output_t*output = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
+    log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
+    log_bind(handler, -1, -1, format, output);
 
     unsigned i;
     for (i = 0; i < 1024 * 1024; i++) {
@@ -144,10 +144,10 @@ test4()
 void
 test5()
 {
-    logformat *format = logformat_create("%d.%ms %c:%p [%V] %m%n", 0);
-    logoutput *output = logoutput_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
-    loghandler *handler = loghandler_create(DEFAULT_IDENT);
-    logbind(handler, -1, -1, format, output);
+    log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n", 0);
+    log_output_t*output = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
+    log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
+    log_bind(handler, -1, -1, format, output);
 
     char b[1024 * 8] = {0};
     int i;
@@ -166,22 +166,22 @@ void test6()
 {
     int i;
     char b[4096];
-    logformat *format = logformat_create("%d.%ms %H %E(USER) %c %F:%U%L %p:%t [%V] %m%n", 1);
-    logformat *format1 = logformat_create("%m", 0);
-    logoutput *output1 = logoutput_create(LOG_OUTTYPE_FILE, ".", "ihi", 8 * 1024 * 1024, 50);
-    logoutput *output2 = logoutput_create(LOG_OUTTYPE_STDOUT);
-    logoutput *output3 = logoutput_create(LOG_OUTTYPE_SYSLOG);
-    logoutput *output4 = logoutput_create(LOG_OUTTYPE_TCP, "127.0.0.1", (unsigned)12345);
-    loghandler *handler = loghandler_create(DEFAULT_IDENT);
+    log_format_t *format = log_format_create("%d.%ms %H %E(USER) %c %F:%U%L %p:%t [%V] %m%n", 1);
+    log_format_t *format1 = log_format_create("%m", 0);
+    log_output_t*output1 = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 8 * 1024 * 1024, 50);
+    log_output_t*output2 = log_output_create(LOG_OUTTYPE_STDOUT);
+    log_output_t*output3 = log_output_create(LOG_OUTTYPE_SYSLOG);
+    log_output_t*output4 = log_output_create(LOG_OUTTYPE_TCP, "127.0.0.1", (unsigned)12345);
+    log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
 
     for (i = 0; i < sizeof(b)/sizeof(b[0]) - 1; i++) {
         b[i] = 'b';
     }
     b[i] = '\0';
-    logbind(handler, LOG_VERBOSE, -1, format, output1);
-    /* logbind(handler, LOG_VERBOSE, -1, format, output2); */
-    logbind(handler, LOG_DEBUG, LOG_INFO, format1, output3);
-    logbind(handler, LOG_VERBOSE, -1, format, output4);
+    log_bind(handler, LOG_VERBOSE, -1, format, output1);
+    /* log_bind(handler, LOG_VERBOSE, -1, format, output2); */
+    log_bind(handler, LOG_DEBUG, LOG_INFO, format1, output3);
+    log_bind(handler, LOG_VERBOSE, -1, format, output4);
 
     for (i = 0; i < 102400; i++) {
         LOGV("this is a %s", "verbose");

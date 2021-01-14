@@ -1,10 +1,7 @@
-/**
- *   @file log.cpp
- *   @brief log
+/*
+ * log.c - log
  *
- *   @author liyunteng <liyunteng@streamocean.com>
- *   @copyright CopyRight (C) 2015 StreamOcean
- *   @date Update time:  2016/09/04 16:21:40
+ * Date   : 2021/01/14
  */
 
 #ifdef __cplusplus
@@ -16,27 +13,25 @@
 #include "log.h"
 #include "list.h"
 
-#include <inttypes.h>
+#include <errno.h>
+#include <pthread.h>
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdio.h>
-
-#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
-
-#include <syslog.h>
+/* #include <fcntl.h> */
 
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
-#include <pthread.h>
 #include <sys/socket.h>
 
-#include <fcntl.h>
+#include <syslog.h>
 
 #ifdef ANDROID
 #include <android/log.h>
@@ -70,7 +65,7 @@
 #define DEFAULT_BAKUP 0
 #define DEFAULT_FILESIZE 4 * 1024 * 1024
 #define DEFAULT_TIME_FORMAT "%F %T"
-#define DEFAULT_FORMAT "%d.%ms %c:%p:%t [%V] %F:%U(%L) %m%n"
+#define DEFAULT_FORMAT "%d.%ms %c:%p [%V] %F:%U(%L) %m%n"
 
 #define BUFFER_MIN 1024 * 4
 #define BUFFER_MAX 1024 * 1024 * 4
@@ -94,9 +89,37 @@ typedef struct {
     uint64_t bytes_total;
 } log_stastic;
 
+/* struct _output_ctx {
+ *     enum LOG_OUTTYPE type;
+ *     pthread_mutex_t mutex;
+ *     struct list_head l;
+ *     struct {
+ *         statstic stats[LOG_VERBOSE + 1];
+ *         uint64_t count_total;
+ *         uint64_t bytes_total;
+ *     } stat;
+ *     void *config;
+ * };
+ *
+ * typedef struct {
+ *     char *file_path;
+ *     char *log_name;
+ *     uint16_t num_files;
+ *     uint32_t file_size;
+ *     uint16_t file_idx;
+ *     uint32_t data_offset;
+ *     int fd;
+ * } file_output_config;
+ *
+ * typedef struct {
+ *     char addr[256];
+ *     unsigned short port;
+ *     int sockfd;
+ * } sock_output_config; */
+
 struct _logoutput {
-    pthread_mutex_t mutex;
     enum LOG_OUTTYPE type;
+    pthread_mutex_t mutex;
     struct list_head l;
     union {
         struct {
@@ -143,6 +166,9 @@ struct _loghandler {
     struct list_head l;
 };
 
+/* pointer to environment */
+extern char **environ;
+
 static const char *const LOGLEVELSTR[] = {
     "EMERG",  "ALERT", "FATAL", "ERROR",   "WARN",
     "NOTICE", "INFO",  "DEBUG", "VERBOSE",
@@ -180,6 +206,32 @@ log_file_name(char *file_name, uint16_t len, logoutput *output)
     return 0;
 }
 
+/* dump the environment */
+static void
+dump_environment(void)
+{
+    static char buf[BUFSIZ];
+    int cnt = 0;
+    while (1) {
+        char *e = environ[cnt++];
+
+        if (!e || !*e) {
+            break;
+        }
+
+        snprintf(buf, sizeof(buf), "%s", e);
+        e = strchr(buf, '=');
+        if (!e) {
+            printf("Can't parse environment variable %s\n", buf);
+            continue;
+        }
+
+        *e = 0;
+        ++e;
+        printf("Environment: [%s] = [%s]\n", buf, e);
+    }
+}
+
 static int
 log_open_logfile(logoutput *output)
 {
@@ -191,6 +243,10 @@ log_open_logfile(logoutput *output)
     }
     if (output->type != LOG_OUTTYPE_FILE) {
         return -1;
+    }
+    if (output->u.file.fp != NULL) {
+        fclose(output->u.file.fp);
+        output->u.file.fp = NULL;
     }
 
     len = strlen(output->u.file.file_path);
@@ -206,7 +262,7 @@ log_open_logfile(logoutput *output)
 
     log_file_name(file_name, len, output);
 
-    if ((output->u.file.fp = fopen(file_name, "a+")) == NULL) {
+    if ((output->u.file.fp = fopen(file_name, "w")) == NULL) {
         free(file_name);
         return -1;
     }
@@ -232,39 +288,37 @@ log_rename_logfile(logoutput *output)
         return -1;
     }
 
-    for (num = 0, num_files = output->u.file.num_files; num_files;
-         num_files /= 10) {
-        ++num;
-    }
+    if (output->u.file.num_files > 0) {
+        for (num = 0, num_files = output->u.file.num_files; num_files;
+             num_files /= 10) {
+            ++num;
+        }
 
-    len = strlen(output->u.file.file_path);
-    len += 1; /* "/" */
+        len = strlen(output->u.file.file_path);
+        len += 1; /* "/" */
 
-    len += strlen(output->u.file.log_name);
-    len += 4;         /* ".log" */
-    len += (num + 1); /* ".<digit>" */
-    len += 1;         /* NULL char */
+        len += strlen(output->u.file.log_name);
+        len += 4;         /* ".log" */
+        len += (num + 1); /* ".<digit>" */
+        len += 1;         /* NULL char */
 
-    old_file_name = malloc(len * sizeof(char));
-    new_file_name = malloc(len * sizeof(char));
-    if (!old_file_name || !new_file_name) {
+        old_file_name = malloc(len * sizeof(char));
+        new_file_name = malloc(len * sizeof(char));
+        if (!old_file_name || !new_file_name) {
+            free(old_file_name);
+            free(new_file_name);
+            return -1;
+        }
+
+        log_file_name(old_file_name, len, output);
+        snprintf(new_file_name, len, "%s.%u", old_file_name,
+                 (output->u.file.file_idx % output->u.file.num_files));
+        rename(old_file_name, new_file_name);
+
+        ++output->u.file.file_idx;
         free(old_file_name);
         free(new_file_name);
-        return -1;
     }
-
-    log_file_name(old_file_name, len, output);
-    snprintf(new_file_name, len, "%s.%u", old_file_name,
-             output->u.file.file_idx);
-    rename(old_file_name, new_file_name);
-
-    ++output->u.file.file_idx;
-    if (output->u.file.file_idx >= output->u.file.num_files) {
-        output->u.file.file_idx = 0;
-    }
-
-    free(old_file_name);
-    free(new_file_name);
     return 0;
 }
 
@@ -501,8 +555,7 @@ begin:
             } else {
                 snprintf(buf + len - 13, 13, "%s", "(truncated)\n");
 #ifdef DEBUG_LOG
-                fprintf(stderr,
-                        "logdebug: msg too long, truncated to %u.\n",
+                fprintf(stderr, "logdebug: msg too long, truncated to %u.\n",
                         (unsigned)idx);
 #endif
                 goto end;
@@ -752,13 +805,15 @@ vlog(loghandler *handler, const LOG_LEVEL_E lvl, const char *file,
                     free(str);
 
                     log_rename_logfile(r->poutput);
+
                     ret = log_open_logfile(r->poutput);
-                    if (ret < 0) {
+                    if (ret != 0) {
 #ifdef DEBUG_LOG
-                        fprintf(stderr, "logdebug: open logfaile failed\n");
+                        fprintf(stderr, "logdebug: open logfile failed\n");
 #endif
                         continue;
                     }
+
                     if (fprintf(r->poutput->u.file.fp, "%s",
                                 handler->bufferp + nwrite)
                         != len - nwrite) {
@@ -1065,8 +1120,7 @@ __logoutput_create(enum LOG_OUTTYPE type, va_list ap)
                         addr.sin_addr =
                             *(struct in_addr *)(host->h_addr_list[0]);
                         if (connect(output->u.sock.sockfd,
-                                    (struct sockaddr *)&addr,
-                                    sizeof(addr))
+                                    (struct sockaddr *)&addr, sizeof(addr))
                             < 0) {
 #ifdef DEBUG_LOG
                             perror("logdebug: connect");
@@ -1123,13 +1177,13 @@ logbind(loghandler *handler, LOG_LEVEL_E level_begin, LOG_LEVEL_E level_end,
 
     logrule *r = (logrule *)calloc(1, sizeof(logrule));
     if (r) {
-        if (LOG_EMERG < level_begin && LOG_VERBOSE > level_begin) {
+        if (level_begin >= LOG_EMERG && level_begin <= LOG_VERBOSE) {
             r->level_begin = level_begin;
         } else {
             r->level_begin = LOG_VERBOSE;
         }
 
-        if (LOG_EMERG < level_end && LOG_VERBOSE > level_end) {
+        if (level_end >= LOG_EMERG && level_end <= LOG_VERBOSE) {
             r->level_end = level_end;
         } else {
             r->level_end = LOG_EMERG;
@@ -1208,14 +1262,12 @@ dump_stat(logoutput *output)
 {
     int i;
     for (i = LOG_VERBOSE; i >= LOG_EMERG; i--) {
-        printf("%-8s  count: %-8d  bytes: %-10llu\n", LOGLEVELSTR[i],
+        printf("%-8s  count: %-8d  bytes: %-10lu\n", LOGLEVELSTR[i],
                output->statstic.stats[i].count,
                output->statstic.stats[i].bytes);
     }
-    printf("%-8s  count: %-8llu  bytes: %-10llu\n",
-           "TOTAL",
-           output->statstic.count_total,
-           output->statstic.bytes_total);
+    printf("%-8s  count: %-8lu  bytes: %-10lu\n", "TOTAL",
+           output->statstic.count_total, output->statstic.bytes_total);
 }
 
 void
@@ -1259,8 +1311,7 @@ log_dump(void)
                 case LOG_OUTTYPE_STDOUT:
                     printf("type: stdout\n");
                     printf("format: %s\n", r->pformat->format);
-                    printf("level: %s -- %s\n",
-                           LOGLEVELSTR[r->level_begin],
+                    printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
                            LOGLEVELSTR[r->level_end]);
                     break;
                 case LOG_OUTTYPE_STDERR:
@@ -1271,8 +1322,7 @@ log_dump(void)
                 case LOG_OUTTYPE_FILE:
                     printf("type: file\n");
                     printf("format: %s\n", r->pformat->format);
-                    printf("level: %s -- %s\n",
-                           LOGLEVELSTR[r->level_begin],
+                    printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
                            LOGLEVELSTR[r->level_end]);
                     printf("filepath: %s\n", r->poutput->u.file.file_path);
                     printf("filename: %s\n", r->poutput->u.file.log_name);
@@ -1286,8 +1336,7 @@ log_dump(void)
                     printf("type: socket %s\n",
                            r->poutput->type == LOG_OUTTYPE_TCP ? "tcp" : "udp");
                     printf("format: %s\n", r->pformat->format);
-                    printf("level: %s -- %s\n",
-                           LOGLEVELSTR[r->level_begin],
+                    printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
                            LOGLEVELSTR[r->level_end]);
                     printf("addr: %s:%d\n", r->poutput->u.sock.addr,
                            r->poutput->u.sock.port);
@@ -1295,15 +1344,13 @@ log_dump(void)
                 case LOG_OUTTYPE_LOGCAT:
                     printf("type: logcat\n");
                     printf("format: %s\n", r->pformat->format);
-                    printf("level: %s -- %s\n",
-                           LOGLEVELSTR[r->level_begin],
+                    printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
                            LOGLEVELSTR[r->level_end]);
                     break;
                 case LOG_OUTTYPE_SYSLOG:
                     printf("type: syslog\n");
                     printf("format: %s\n", r->pformat->format);
-                    printf("level: %s -- %s\n",
-                           LOGLEVELSTR[r->level_begin],
+                    printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
                            LOGLEVELSTR[r->level_end]);
                     break;
                 case LOG_OUTTYPE_NONE:

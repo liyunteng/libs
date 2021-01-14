@@ -6,18 +6,8 @@
 #ifndef LOG_H
 #define LOG_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#include <stdarg.h>
 #include <stdint.h>
-#include <stdio.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-
-#define DEFAULT_IDENT "ident"
-
+#define DEFAULT_IDENT "default"
 
 // format
 //%d(%F %T)  timeformat
@@ -32,7 +22,7 @@ extern "C" {
 //%F file
 //%U func
 //%L line
-//%m content
+//%m message
 //%n \n
 //%p pid
 //%t tid
@@ -81,6 +71,52 @@ typedef struct _loghandler loghandler;
 typedef struct _logformat logformat;
 typedef struct _logoutput logoutput;
 
+
+#define MLOG(handle, level, fmt...)                                            \
+    do {                                                                       \
+        mlog(handle, level, __FILE__, __FUNCTION__, __LINE__, fmt);            \
+    } while (0)
+#define MLOGV(handle, fmt...) MLOG(handle, LOG_VERBOSE, fmt)
+#define MLOGD(handle, fmt...) MLOG(handle, LOG_DEBUG, fmt)
+#define MLOGI(handle, fmt...) MLOG(handle, LOG_INFO, fmt)
+#define MLOGN(handle, fmt...) MLOG(handle, LOG_NOTICE, fmt)
+#define MLOGW(handle, fmt...) MLOG(handle, LOG_WARNING, fmt)
+#define MLOGE(handle, fmt...) MLOG(handle, LOG_ERROR, fmt)
+#define MLOGF(handle, fmt...) MLOG(handle, LOG_FATAL, fmt)
+#define MLOGA(handle, fmt...) MLOG(handle, LOG_ALERT, fmt)
+#define MLOGX(handle, fmt...) MLOG(handle, LOG_EMERG, fmt)
+
+
+#define LOG(level, fmt...)                                                     \
+    do {                                                                       \
+        slog(level, __FILE__, __FUNCTION__, __LINE__, fmt);                    \
+    } while (0)
+#define LOGV(fmt...) LOG(LOG_VERBOSE, fmt)
+#define LOGD(fmt...) LOG(LOG_DEBUG, fmt)
+#define LOGI(fmt...) LOG(LOG_INFO, fmt)
+#define LOGN(fmt...) LOG(LOG_NOTICE, fmt)
+#define LOGW(fmt...) LOG(LOG_WARNING, fmt)
+#define LOGE(fmt...) LOG(LOG_ERROR, fmt)
+#define LOGF(fmt...) LOG(LOG_FATAL, fmt)
+#define LOGA(fmt...) LOG(LOG_ALERT, fmt)
+#define LOGX(fmt...) LOG(LOG_EMERG, fmt)
+
+#define LOG_INIT(log_name, level)                                              \
+    do {                                                                       \
+        logformat *__format = logformat_create("%d.%ms %c:%p [%V] %m%n", 0);   \
+        logoutput *__output = logoutput_create(                                \
+            LOG_OUTTYPE_FILE, ".", (log_name), 1000 * 1024 * 1024, 4);         \
+        loghandler *__handler = loghandler_create(DEFAULT_IDENT);              \
+        if (__format && __output && __handler) {                               \
+            logbind(__handler, level, -1, __format, __output);                 \
+        }                                                                      \
+    } while (0)
+
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 loghandler *loghandler_create(const char *ident);
 loghandler *loghandler_get(const char *ident);
 logformat *logformat_create(const char *format, int color);
@@ -100,8 +136,8 @@ logformat *logformat_create(const char *format, int color);
 //                  int port
 logoutput *logoutput_create(enum LOG_OUTTYPE type, ...);
 
-// if level_begin == -1, level_begin will be set to LOG_VERBOSE
-// if level_end == -1 , level_end will be set to LOG_EMERG
+// level_begin  -1 == LOG_VERBOSE
+// level_en     -1 == LOG_EMERG
 // This will print handler's log to output, use format, when loglevel between
 // level_begin and level_end
 int logbind(loghandler *handler, LOG_LEVEL_E level_beign, LOG_LEVEL_E level_end,
@@ -116,111 +152,6 @@ void slog(LOG_LEVEL_E level, const char *file, const char *function, long line,
           const char *format, ...);
 
 void log_dump();
-
-#ifndef MLOG
-#define MLOG(handle, level, format, ...)                                       \
-    mlog(handle, level, __FILE__, __FUNCTION__, __LINE__, format, ##__VA_ARGS__)
-#endif
-
-#ifndef MLOGV
-#define MLOGV(handle, format, ...)                                             \
-    MLOG(handle, LOG_VERBOSE, format, ##__VA_ARGS__)
-#endif
-
-#ifndef MLOGD
-#define MLOGD(handle, format, ...)                                             \
-    MLOG(handle, LOG_DEBUG, format, ##__VA_ARGS__)
-#endif
-
-#ifndef MLOGI
-#define MLOGI(handle, format, ...) MLOG(handle, LOG_INFO, format, ##__VA_ARGS__)
-#endif
-
-#ifndef MLOGN
-#define MLOGN(handle, format, ...)                                             \
-    MLOG(handle, LOG_NOTICE, format, ##__VA_ARGS__)
-#endif
-
-#ifndef MLOGW
-#define MLOGW(handle, format, ...)                                             \
-    MLOG(handle, LOG_WARNING, format, ##__VA_ARGS__)
-#endif
-
-#ifndef MLOGE
-#define MLOGE(handle, format, ...)                                             \
-    MLOG(handle, LOG_ERROR, format, ##__VA_ARGS__)
-#endif
-
-#ifndef MLOGF
-#define MLOGF(handle, format, ...)                                             \
-    MLOG(handle, LOG_FATAL, format, ##__VA_ARGS__)
-#endif
-
-#ifndef MLOGA
-#define MLOGA(handle, format, ...)                                             \
-    MLOG(handle, LOG_ALERT, format, ##__VA_ARGS__)
-#endif
-
-#ifndef MLOGX
-#define MLOGX(handle, format, ...)                                             \
-    MLOG(handle, LOG_EMERG, format, ##__VA_ARGS__)
-#endif
-
-
-#ifndef LOG
-#define LOG(level, format, ...)                                                \
-    slog((LOG_LEVEL_E)level, __FILE__, __FUNCTION__, __LINE__, format,         \
-         ##__VA_ARGS__)
-#endif
-
-#ifndef LOGV
-#define LOGV(format, ...) LOG(LOG_VERBOSE, format, ##__VA_ARGS__)
-#endif
-
-#ifndef LOGD
-#define LOGD(format, ...) LOG(LOG_DEBUG, format, ##__VA_ARGS__)
-#endif
-
-#ifndef LOGI
-#define LOGI(format, ...) LOG(LOG_INFO, format, ##__VA_ARGS__)
-#endif
-
-#ifndef LOGN
-#define LOGN(format, ...) LOG(LOG_NOTICE, format, ##__VA_ARGS__)
-#endif
-
-#ifndef LOGW
-#define LOGW(format, ...) LOG(LOG_WARNING, format, ##__VA_ARGS__)
-#endif
-
-#ifndef LOGE
-#define LOGE(format, ...) LOG(LOG_ERROR, format, ##__VA_ARGS__)
-#endif
-
-#ifndef LOGF
-#define LOGF(format, ...) LOG(LOG_FATAL, format, ##__VA_ARGS__)
-#endif
-
-#ifndef LOGA
-#define LOGA(format, ...) LOG(LOG_ALERT, format, ##__VA_ARGS__)
-#endif
-
-#ifndef LOGX
-#define LOGX(format, ...) LOG(LOG_EMERG, format, ##__VA_ARGS__)
-#endif
-
-#define LOG_INIT(log_name, level)                                              \
-    do {                                                                       \
-        logformat *__format =                                                  \
-            logformat_create("%d.%ms %c:%p:%t [%V] %m%n", 0);                  \
-        logoutput *__output = logoutput_create(                                \
-            LOG_OUTTYPE_FILE, ".", (log_name), 4 * 1024 * 1024, 4);            \
-        loghandler *__handler = loghandler_create(DEFAULT_IDENT);              \
-        if (__format && __output && __handler) {                               \
-            logbind(__handler, LOG_DEBUG, -1, __format, __output);             \
-        }                                                                      \
-    } while (0)
-
 
 #ifdef __cplusplus
 }

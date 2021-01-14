@@ -22,10 +22,8 @@
  */
 
 #include "log.h"
+#include <stdio.h>
 #include <pthread.h>
-#include <stdint.h>
-#include <string.h>
-#include <unistd.h>
 
 void
 test1()
@@ -123,7 +121,10 @@ test3()
 void
 test4()
 {
-    LOG_INIT("ihi", LOG_VERBOSE);
+    logformat *format = logformat_create("%d.%ms %c:%p [%V] %m%n", 0);
+    logoutput *output = logoutput_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
+    loghandler *handler = loghandler_create(DEFAULT_IDENT);
+    logbind(handler, -1, -1, format, output);
 
     unsigned i;
     for (i = 0; i < 1024 * 1024; i++) {
@@ -143,7 +144,10 @@ test4()
 void
 test5()
 {
-    LOG_INIT("ihi", LOG_VERBOSE);
+    logformat *format = logformat_create("%d.%ms %c:%p [%V] %m%n", 0);
+    logoutput *output = logoutput_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
+    loghandler *handler = loghandler_create(DEFAULT_IDENT);
+    logbind(handler, -1, -1, format, output);
 
     char b[1024 * 8] = {0};
     int i;
@@ -194,6 +198,24 @@ void test6()
     log_dump();
 }
 
+void test7()
+{
+    LOG_INIT("ihi", LOG_VERBOSE);
+
+    for (int i = 0; i < 10; i++) {
+        LOGV("this is a %s", "verbose");
+        LOGD("this is a %s", "debug");
+        LOGI("this is a info");
+        LOGN("this is a notice");
+        LOGW("this is a warnning");
+        LOGE("this is a error");
+        LOGF("this is a fatal");
+        LOGA("this is a alert");
+        LOGX("this is emerge");
+    }
+    log_dump();
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -202,6 +224,7 @@ main(int argc, char *argv[])
     /* test3(); */
     /* test4(); */
     /* test5(); */
-    test6();
+    /* test6(); */
+    test7();
     return 0;
 }

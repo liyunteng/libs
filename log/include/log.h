@@ -105,7 +105,7 @@ typedef struct _logoutput logoutput;
     do {                                                                       \
         logformat *__format = logformat_create("%d.%ms %c:%p [%V] %m%n", 0);   \
         logoutput *__output = logoutput_create(                                \
-            LOG_OUTTYPE_FILE, ".", (log_name), 1000 * 1024 * 1024, 4);         \
+            LOG_OUTTYPE_FILE, ".", (log_name), 4 * 1024 * 1024, 4);            \
         loghandler *__handler = loghandler_create(DEFAULT_IDENT);              \
         if (__format && __output && __handler) {                               \
             logbind(__handler, level, -1, __format, __output);                 \

@@ -7,7 +7,7 @@
 
 void test1()
 {
-    char buf[1024] = {0};
+    char buf[1024*8] = {0};
     log_ctx_p ctx = log_init("abc", "./", 4, 4096);
     for (int i = 0; i < sizeof(buf)-1; i++) {
         buf[i] = 'a';

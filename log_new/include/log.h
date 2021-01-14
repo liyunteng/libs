@@ -21,13 +21,13 @@ typedef struct {
     size_t file_idx;
 
     struct {
-        int         fd;
-        void        *addr;
-        off_t       offset;
-        size_t      len;
-        off_t       data_offset;
-        struct timespec msync_time;
-        off_t msync_offset;
+        int             fd;
+        void            *addr;
+        int32_t         offset;
+        int32_t         data_offset;
+        uint32_t        len;
+        struct timeval  msync_time;
+        int32_t         msync_offset;
     } mmap_window;
 
     uint8_t level;

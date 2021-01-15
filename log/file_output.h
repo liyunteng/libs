@@ -20,10 +20,5 @@ typedef struct {
     FILE *fp;
 } file_output_ctx;
 
-
-
-int file_ctx_init(log_output_t *output, va_list ap);
-void file_ctx_uninit(log_output_t *output);
-void file_ctx_dump(log_output_t *output);
-int file_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len);
+log_output_t *file_output_create(void);
 #endif

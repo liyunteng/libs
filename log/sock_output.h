@@ -16,8 +16,6 @@ typedef struct {
     int sockfd;
 } sock_output_ctx;
 
-int sock_ctx_init(log_output_t *output, va_list ap);
-void sock_ctx_uninit(log_output_t *output);
-void sock_ctx_dump(log_output_t *output);
-int sock_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len);
+log_output_t *tcp_output_create(void);
+log_output_t *udp_output_create(void);
 #endif

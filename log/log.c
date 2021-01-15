@@ -89,15 +89,6 @@ dump_environment(log_handler_t *handler)
     }
 }
 
-static void
-dump_output(log_output_t *output)
-{
-    if (output) {
-        printf("type: %s\n", output->type_name);
-
-        dump_statstic(output);
-    }
-}
 
 // ################################################################################
 
@@ -251,7 +242,7 @@ begin:
                 p += 2;
                 struct timeval tv;
                 gettimeofday(&tv, NULL);
-                idx += snprintf(buf + idx, len - idx, "%6d", (int)(tv.tv_usec));
+                idx += snprintf(buf + idx, len - idx, "%06d", (int)(tv.tv_usec));
                 continue;
             }
 
@@ -333,49 +324,6 @@ log_update_stat(log_output_t *output, const LOG_LEVEL_E level, size_t len)
         output->stat.count_total++;
         output->stat.bytes_total += len;
     }
-}
-
-static void
-mlogv(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
-      const char *function, const long line, const char *fmt, va_list ap)
-{
-    uint16_t i;
-    int ret;
-    LOG_LEVEL_E level;
-    if (handler == NULL) {
-        ERROR_LOG("handler is NULL\n");
-        return;
-    }
-
-    level = lvl;
-    if (level > LOG_VERBOSE)
-        level = LOG_VERBOSE;
-    if (lvl < LOG_EMERG)
-        level = LOG_EMERG;
-
-    log_rule_t *r = NULL;
-    pthread_mutex_lock(&handler->mutex);
-    list_for_each_entry(r, &(handler->rules), rule)
-    {
-        if (r->level_begin < level || r->level_end > level) {
-            continue;
-        }
-
-        va_list ap2;
-        va_copy(ap2, ap);
-        size_t len =
-            log_format(handler, r, level, file, function, line, fmt, ap2);
-        va_end(ap2);
-        if (len <= 0) {
-            continue;
-        }
-
-        ret = r->output->emit(r->output, level, handler->bufferp, len);
-        if (ret >= 0) {
-            log_update_stat(r->output, level, ret);
-        }
-    }
-    pthread_mutex_unlock(&handler->mutex);
 }
 
 static int
@@ -587,54 +535,35 @@ static log_output_t *
 log_output_create_v(enum LOG_OUTTYPE type, va_list ap)
 {
     log_output_t *output = NULL;
-    output               = (log_output_t *)calloc(1, sizeof(log_output_t));
-    if (!output) {
-        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
-        return NULL;
-    }
-
-    output->type = type;
-    output->dump = dump_output;
 
     switch (type) {
     case LOG_OUTTYPE_STDOUT:
-        output->type_name = "stdout";
-        output->emit      = stdout_emit;
+        output = stdout_output_create();
         break;
     case LOG_OUTTYPE_STDERR:
-        output->type_name = "stderr";
-        output->emit      = stderr_emit;
+        output = stderr_output_create();
         break;
     case LOG_OUTTYPE_LOGCAT:
-        output->type_name = "logcat";
-        output->emit      = logcat_emit;
+        output = logcat_output_create();
         break;
     case LOG_OUTTYPE_SYSLOG:
-        output->type_name = "syslog";
-        output->emit      = syslog_emit;
+        output = syslog_output_create();
         break;
     case LOG_OUTTYPE_FILE:
-        output->type_name  = "file";
-        output->emit       = file_emit;
-        output->ctx_init   = file_ctx_init;
-        output->ctx_uninit = file_ctx_uninit;
-        output->dump       = file_ctx_dump;
+        output = file_output_create();
         break;
     case LOG_OUTTYPE_TCP:
+        output = tcp_output_create();
+        break;
     case LOG_OUTTYPE_UDP:
-        if (type == LOG_OUTTYPE_TCP) {
-            output->type_name = "tcp";
-        } else {
-            output->type_name = "udp";
-        }
-        output->emit       = sock_emit;
-        output->ctx_init   = sock_ctx_init;
-        output->ctx_uninit = sock_ctx_uninit;
-        output->dump       = sock_ctx_dump;
+        output = udp_output_create();
         break;
     default:
-        output->type_name = "unknown";
         ERROR_LOG("invalid type: %d\n", type);
+        break;
+    }
+
+    if (!output) {
         goto failed;
     }
 
@@ -651,8 +580,6 @@ log_output_create_v(enum LOG_OUTTYPE type, va_list ap)
 failed:
     free(output);
     return NULL;
-    /* list_add_tail(&output->output_entry, &output_header); */
-    /* return output; */
 }
 
 log_output_t *
@@ -742,6 +669,49 @@ log_unbind(log_handler_t *handler, log_output_t *output)
     return -1;
 }
 
+static void
+mlogv(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
+      const char *function, const long line, const char *fmt, va_list ap)
+{
+    uint16_t i;
+    int ret;
+    LOG_LEVEL_E level;
+    if (handler == NULL) {
+        ERROR_LOG("handler is NULL\n");
+        return;
+    }
+
+    level = lvl;
+    if (level > LOG_VERBOSE)
+        level = LOG_VERBOSE;
+    if (lvl < LOG_EMERG)
+        level = LOG_EMERG;
+
+    log_rule_t *r = NULL;
+    pthread_mutex_lock(&handler->mutex);
+    list_for_each_entry(r, &(handler->rules), rule)
+    {
+        if (r->level_begin < level || r->level_end > level) {
+            continue;
+        }
+
+        va_list ap2;
+        va_copy(ap2, ap);
+        size_t len =
+            log_format(handler, r, level, file, function, line, fmt, ap2);
+        va_end(ap2);
+        if (len <= 0) {
+            continue;
+        }
+
+        ret = r->output->emit(r->output, level, handler->bufferp, len);
+        if (ret >= 0) {
+            log_update_stat(r->output, level, ret);
+        }
+    }
+    pthread_mutex_unlock(&handler->mutex);
+}
+
 void
 mlog(log_handler_t *handle, LOG_LEVEL_E level, const char *file,
      const char *function, long line, const char *format, ...)
@@ -764,11 +734,10 @@ slog(LOG_LEVEL_E level, const char *file, const char *function, long line,
         mlogv(handler, level, file, function, line, fmt, ap);
         va_end(ap);
     } else {
-        DEBUG_LOG("can't find handler: %s\n", DEFAULT_IDENT);
+        ERROR_LOG("can't find handler: %s\n", DEFAULT_IDENT);
     }
     return;
 }
-
 
 void
 dump_statstic(log_output_t *output)
@@ -789,22 +758,29 @@ dump_statstic(log_output_t *output)
 void
 log_dump(void)
 {
-    int i = 0;
-    int j = 0;
+    int i          = 0;
+    int j          = 0;
+    int rule_count = 0, format_count = 0, output_count = 0, handler_count = 0;
     printf("=====================log profile==============================\n");
     log_rule_t *ru;
-    list_for_each_entry(ru, &rule_header, rule_entry) { i++; }
-    printf("ctx: rule: %d", i);
-    i = 0;
+    list_for_each_entry(ru, &rule_header, rule_entry) { rule_count++; }
     log_format_t *format;
-    list_for_each_entry(format, &format_header, format_entry) { i++; }
-    printf(" format: %d", i);
-    i = 0;
+    list_for_each_entry(format, &format_header, format_entry)
+    {
+        format_count++;
+    }
     log_output_t *output;
-    list_for_each_entry(output, &output_header, output_entry) { i++; }
-    printf(" output: %d\n", i);
-    i = 0;
+    list_for_each_entry(output, &output_header, output_entry)
+    {
+        output_count++;
+    }
     log_handler_t *handler;
+    list_for_each_entry(handler, &handler_header, handler_entry)
+    {
+        handler_count++;
+    }
+    printf("handler: %d output: %d format: %d ru: %d\n",
+           handler_count, output_count, format_count, rule_count);
     list_for_each_entry(handler, &handler_header, handler_entry)
     {
         i++;

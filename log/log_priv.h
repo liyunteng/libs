@@ -6,13 +6,13 @@
 #ifndef LOG_PRIV_H
 #define LOG_PRIV_H
 
-#include "log.h"
 #include "list.h"
-#include <stdio.h>
-#include <stdint.h>
-#include <stdarg.h>
-#include <stdlib.h>
+#include "log.h"
 #include <pthread.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #ifndef BOOL
 #define BOOL int8_t
@@ -48,13 +48,13 @@
 #define BUFFER_MAX 1024 * 1024 * 4
 
 #define DEBUG_LOG(fmt, ...)
-/* #define DEBUG_LOG(fmt, ...)                                                    \
- *     fprintf(stdout, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__) */
+/* #define DEBUG_LOG(fmt, ...) \ fprintf(stdout, "%s:%d " fmt, __FILE__,
+ * __LINE__, ##__VA_ARGS__) */
 #define ERROR_LOG(fmt, ...)                                                    \
     fprintf(stderr, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 
-typedef int(*formater)(char *buf, size_t len, char *fmt, ...);
-typedef struct  {
+typedef int (*formater)(char *buf, size_t len, char *fmt, ...);
+typedef struct {
     struct list_head formater_entry;
     formater formater;
     char *mode;

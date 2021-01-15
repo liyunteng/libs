@@ -3,20 +3,20 @@
  *
  * Date   : 2021/01/15
  */
-#include "log_priv.h"
 #include "sock_output.h"
+#include "log_priv.h"
 
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-#include <string.h>
 #include <errno.h>
+#include <string.h>
 #include <unistd.h>
 
 
-int
+static int
 sock_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
 {
     sock_output_ctx *ctx = NULL;
@@ -60,7 +60,7 @@ sock_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
     return total;
 }
 
-void
+static void
 sock_ctx_dump(log_output_t *output)
 {
     if (output) {
@@ -73,7 +73,7 @@ sock_ctx_dump(log_output_t *output)
     }
 }
 
-int
+static int
 sock_ctx_init(log_output_t *output, va_list ap)
 {
     sock_output_ctx *ctx = NULL;
@@ -151,7 +151,7 @@ failed:
     return -1;
 }
 
-void
+static void
 sock_ctx_uninit(log_output_t *output)
 {
     sock_output_ctx *ctx = NULL;
@@ -171,4 +171,46 @@ sock_ctx_uninit(log_output_t *output)
     free(ctx);
     ctx         = NULL;
     output->ctx = NULL;
+}
+
+log_output_t *
+tcp_output_create(void)
+{
+    log_output_t *output = NULL;
+
+    output = (log_output_t *)calloc(1, sizeof(log_output_t));
+    if (!output) {
+        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        return NULL;
+    }
+
+    output->type = LOG_OUTTYPE_TCP;
+    output->type_name = "tcp";
+    output->emit = sock_emit;
+    output->ctx_init = sock_ctx_init;
+    output->ctx_uninit = sock_ctx_uninit;
+    output->dump = sock_ctx_dump;
+
+    return output;
+}
+
+log_output_t *
+udp_output_create(void)
+{
+    log_output_t *output = NULL;
+
+    output = (log_output_t *)calloc(1, sizeof(log_output_t));
+    if (!output) {
+        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        return NULL;
+    }
+
+    output->type = LOG_OUTTYPE_UDP;
+    output->type_name = "udp";
+    output->emit = sock_emit;
+    output->ctx_init = sock_ctx_init;
+    output->ctx_uninit = sock_ctx_uninit;
+    output->dump = sock_ctx_dump;
+
+    return output;
 }

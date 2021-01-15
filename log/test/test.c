@@ -26,7 +26,7 @@
 #include <pthread.h>
 
 void
-test1()
+test_mlog()
 {
     const char *s = "this is a test.";
     log_handler_t *h = log_handler_create("h");
@@ -67,7 +67,7 @@ void *run(void *arg)
     return (void *)0;
 }
 
-void test2()
+void test_log_thread()
 {
     pthread_t tid1, tid2, tid3;
 
@@ -82,12 +82,12 @@ void test2()
 }
 
 void
-test3()
+test_mlog_benchmark()
 {
     log_handler_t *h1     = log_handler_create("h1");
     log_handler_t *h2     = log_handler_create("h2");
     log_handler_t *h3     = log_handler_create("h3");
-    log_format_t *format  = log_format_create("%d %p %c %V %F:%U:%L %m%n", 1);
+    log_format_t *format  = log_format_create("%d %p %c %V %F:%U:%L %m%n", 0);
     log_output_t*fileout = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi",
                                           1024 * 1024 * 100, 0600, 4);
 
@@ -119,7 +119,7 @@ test3()
 }
 
 void
-test4()
+test_log_benchmark()
 {
     log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n", 0);
     log_output_t*output = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
@@ -142,7 +142,7 @@ test4()
 }
 
 void
-test5()
+test_log_big_benchmark()
 {
     log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n", 0);
     log_output_t*output = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
@@ -162,7 +162,7 @@ test5()
     log_dump();
 }
 
-void test6()
+void test_multi_output()
 {
     int i;
     char b[4096];
@@ -198,12 +198,12 @@ void test6()
     log_dump();
 }
 
-void test7()
+void test_simple()
 {
     /* LOG_INIT("ihi", LOG_VERBOSE); */
 
     int ret;
-    log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n", 1);
+    log_format_t *format = log_format_create("%d.%us %c %E(USER) [%V] %m%n", 0);
     log_output_t*output = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
     log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
     if (!format) {
@@ -235,7 +235,7 @@ void test7()
         LOGE("this is a error");
         LOGF("this is a fatal");
         LOGA("this is a alert");
-        LOGX("this is emerge");
+        LOGX("this is a emerge");
     }
     log_dump();
 }
@@ -243,12 +243,12 @@ void test7()
 int
 main(int argc, char *argv[])
 {
-    /* test1(); */
-    /* test2(); */
-    /* test3(); */
-    /* test4(); */
-    /* test5(); */
-    /* test6(); */
-    test7();
+    /* test_mlog(); */
+    /* test_log_thread(); */
+    /* test_mlog_benchmark(); */
+    /* test_log_benchmark(); */
+    /* test_log_big_benchmark(); */
+    /* test_multi_output(); */
+    test_simple();
     return 0;
 }

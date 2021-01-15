@@ -4,10 +4,10 @@
  * Date   : 2021/01/15
  */
 
-#include "log_priv.h"
 #include "file_output.h"
-#include <string.h>
+#include "log_priv.h"
 #include <errno.h>
+#include <string.h>
 
 static int
 file_getname(log_output_t *output, char *file_name, uint16_t len)
@@ -140,8 +140,7 @@ file_rename_logfile(log_output_t *output)
     return 0;
 }
 
-
-int
+static int
 file_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
 {
     int ret;
@@ -200,7 +199,7 @@ file_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
     }
 }
 
-void
+static void
 file_ctx_dump(log_output_t *output)
 {
     if (output) {
@@ -218,8 +217,7 @@ file_ctx_dump(log_output_t *output)
     }
 }
 
-
-int
+static int
 file_ctx_init(log_output_t *output, va_list ap)
 {
     file_output_ctx *ctx = NULL;
@@ -275,7 +273,7 @@ file_ctx_init(log_output_t *output, va_list ap)
     return 0;
 }
 
-void
+static void
 file_ctx_uninit(log_output_t *output)
 {
     file_output_ctx *ctx = NULL;
@@ -303,4 +301,24 @@ file_ctx_uninit(log_output_t *output)
     free(ctx);
     ctx         = NULL;
     output->ctx = NULL;
+}
+
+log_output_t *
+file_output_create(void)
+{
+    log_output_t *output = NULL;
+    output               = (log_output_t *)calloc(1, sizeof(log_output_t));
+    if (!output) {
+        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        return NULL;
+    }
+
+    output->type       = LOG_OUTTYPE_FILE;
+    output->type_name  = "file";
+    output->emit       = file_emit;
+    output->ctx_init   = file_ctx_init;
+    output->ctx_uninit = file_ctx_uninit;
+    output->dump       = file_ctx_dump;
+
+    return output;
 }

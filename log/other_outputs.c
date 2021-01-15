@@ -3,17 +3,27 @@
  *
  * Date   : 2021/01/15
  */
-#include "log_priv.h"
 #include "other_outputs.h"
-#include <string.h>
+#include "log_priv.h"
 #include <errno.h>
+#include <string.h>
 
 #include <syslog.h>
 #ifdef ANDROID
 #include <android/log.h>
 #endif
 
-int
+static void
+dump_output(log_output_t *output)
+{
+    if (output) {
+        printf("type: %s\n", output->type_name);
+
+        dump_statstic(output);
+    }
+}
+
+static int
 stdout_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
 {
     if (fwrite(buf, len, 1, stdout) != 1) {
@@ -23,7 +33,7 @@ stdout_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
     return len;
 }
 
-int
+static int
 stderr_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
 {
     if (fwrite(buf, len, 1, stderr) != 1) {
@@ -33,7 +43,7 @@ stderr_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
     return len;
 }
 
-int
+static int
 logcat_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
 {
 #ifdef ANDROID
@@ -73,9 +83,85 @@ logcat_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
 #endif
 }
 
-int
+static int
 syslog_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
 {
     syslog(level, "%s", buf);
     return len;
+}
+
+log_output_t *
+stderr_output_create(void)
+{
+    log_output_t *output = NULL;
+
+    output = (log_output_t *)calloc(1, sizeof(log_output_t));
+    if (!output) {
+        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        return NULL;
+    }
+
+    output->type = LOG_OUTTYPE_STDERR;
+    output->type_name = "stderr";
+    output->dump = dump_output;
+    output->emit = stderr_emit;
+
+    return output;
+}
+
+log_output_t *
+stdout_output_create(void)
+{
+    log_output_t *output = NULL;
+
+    output = (log_output_t *)calloc(1, sizeof(log_output_t));
+    if (!output) {
+        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        return NULL;
+    }
+
+    output->type = LOG_OUTTYPE_STDOUT;
+    output->type_name = "stdout";
+    output->dump = dump_output;
+    output->emit = stdout_emit;
+
+    return output;
+}
+
+log_output_t *
+logcat_output_create(void)
+{
+    log_output_t *output = NULL;
+
+    output = (log_output_t *)calloc(1, sizeof(log_output_t));
+    if (!output) {
+        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        return NULL;
+    }
+
+    output->type = LOG_OUTTYPE_LOGCAT;
+    output->type_name = "logcat";
+    output->dump = dump_output;
+    output->emit = logcat_emit;
+
+    return output;
+}
+
+log_output_t *
+syslog_output_create(void)
+{
+    log_output_t *output = NULL;
+
+    output = (log_output_t *)calloc(1, sizeof(log_output_t));
+    if (!output) {
+        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        return NULL;
+    }
+
+    output->type = LOG_OUTTYPE_SYSLOG;
+    output->type_name = "syslog";
+    output->dump = dump_output;
+    output->emit = syslog_emit;
+
+    return output;
 }

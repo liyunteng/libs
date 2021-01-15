@@ -8,9 +8,9 @@
 #include "log.h"
 #include <unistd.h>
 
-int stdout_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len);
-int stderr_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len);
-int logcat_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len);
-int syslog_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len);
+log_output_t *stderr_output_create(void);
+log_output_t *stdout_output_create(void);
+log_output_t *logcat_output_create(void);
+log_output_t *syslog_output_create(void);
 
 #endif

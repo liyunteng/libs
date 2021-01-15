@@ -8,20 +8,26 @@
 #include "log_priv.h"
 #include <stdint.h>
 
+typedef struct {
+    const char *file;
+    const char *func;
+    const char *fmt;
+    va_list ap;
+    LOG_LEVEL_E level;
+    log_handler_t *handler;
+    long line;
+} log_argument_t;
+
 typedef struct log_formater log_formater_t;
-typedef int (*formater)(const log_formater_t *f, char *buf, size_t len,
-                        const log_handler_t *handler,
-                        const LOG_LEVEL_E level,
-                        const char *file,
-                        const char *func,
-                        const long line,
-                        const char *fmt,
-                        va_list ap);
+typedef int (*formater)(log_formater_t *f, log_argument_t*s, char *buf, size_t len);
+
+
 struct log_formater {
     struct list_head formater_entry;
     formater formater;
     char *mode;
     char *key;
+
     union {
         uint32_t u32;
         uint64_t u64;

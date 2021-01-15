@@ -14,65 +14,44 @@
 extern char *LOGLEVELSTR[];
 
 inline static int
-formater_write_u32(const log_formater_t *f, char *buf, size_t len,
-                   const log_handler_t *handler, const LOG_LEVEL_E level,
-                   const char *file, const char *func, const long line,
-                   const char *fmt, va_list ap)
+formater_write_u32(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
     return snprintf(buf, len, "%u", f->u.u32);
 }
 
 inline static int
-formater_write_u64(const log_formater_t *f, char *buf, size_t len,
-                   const log_handler_t *handler, const LOG_LEVEL_E level,
-                   const char *file, const char *func, const long line,
-                   const char *fmt, va_list ap)
+formater_write_u64(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
     return snprintf(buf, len, "%lu", f->u.u64);
 }
 
 inline static int
-formater_write_char(const log_formater_t *f, char *buf, size_t len,
-                    const log_handler_t *handler, const LOG_LEVEL_E level,
-                    const char *file, const char *func, const long line,
-                    const char *fmt, va_list ap)
+formater_write_char(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
     return snprintf(buf, len, "%c", f->u.c);
 }
 
 
 inline static int
-formater_write_str(const log_formater_t *f, char *buf, size_t len,
-                   const log_handler_t *handler, const LOG_LEVEL_E level,
-                   const char *file, const char *func, const long line,
-                   const char *fmt, va_list ap)
+formater_write_str(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
     return snprintf(buf, len, "%s", f->u.str);
 }
 
 inline static int
-formater_write_hex(const log_formater_t *f, char *buf, size_t len,
-                   const log_handler_t *handler, const LOG_LEVEL_E level,
-                   const char *file, const char *func, const long line,
-                   const char *fmt, va_list ap)
+formater_write_hex(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
     return snprintf(buf, len, "0x%x", f->u.hex);
 }
 
 inline static int
-formater_write_env(const log_formater_t *f, char *buf, size_t len,
-                   const log_handler_t *handler, const LOG_LEVEL_E level,
-                   const char *file, const char *func, const long line,
-                   const char *fmt, va_list ap)
+formater_write_env(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
     return snprintf(buf, len, "%s", getenv(f->key));
 }
 
 inline static int
-formater_write_datetime(const log_formater_t *f, char *buf, size_t len,
-                        const log_handler_t *handler, const LOG_LEVEL_E level,
-                        const char *file, const char *func, const long line,
-                        const char *fmt, va_list ap)
+formater_write_datetime(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
     time_t t;
     struct tm now;
@@ -82,10 +61,7 @@ formater_write_datetime(const log_formater_t *f, char *buf, size_t len,
 }
 
 inline static int
-formater_write_ms(const log_formater_t *f, char *buf, size_t len,
-                  const log_handler_t *handler, const LOG_LEVEL_E level,
-                  const char *file, const char *func, const long line,
-                  const char *fmt, va_list ap)
+formater_write_ms(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -94,10 +70,7 @@ formater_write_ms(const log_formater_t *f, char *buf, size_t len,
 }
 
 inline static int
-formater_write_us(const log_formater_t *f, char *buf, size_t len,
-                  const log_handler_t *handler, const LOG_LEVEL_E level,
-                  const char *file, const char *func, const long line,
-                  const char *fmt, va_list ap)
+formater_write_us(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
@@ -107,75 +80,51 @@ formater_write_us(const log_formater_t *f, char *buf, size_t len,
 
 
 inline static int
-formater_write_hostname(const log_formater_t *f, char *buf, size_t len,
-                        const log_handler_t *handler, const LOG_LEVEL_E level,
-                        const char *file, const char *func, const long line,
-                        const char *fmt, va_list ap)
+formater_write_hostname(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
     return snprintf(buf, len, "%s", f->key);
 }
 
 inline static int
-formater_write_file(const log_formater_t *f, char *buf, size_t len,
-                    const log_handler_t *handler, const LOG_LEVEL_E level,
-                    const char *file, const char *func, const long line,
-                    const char *fmt, va_list ap)
+formater_write_file(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
-    return snprintf(buf, len, "%s", file);
+    return snprintf(buf, len, "%s", s->file);
 }
 
 inline static int
-formater_write_func(const log_formater_t *f, char *buf, size_t len,
-                    const log_handler_t *handler, const LOG_LEVEL_E level,
-                    const char *file, const char *func, const long line,
-                    const char *fmt, va_list ap)
+formater_write_func(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
-    return snprintf(buf, len, "%s", func);
+    return snprintf(buf, len, "%s", s->func);
 }
 
 inline static int
-formater_write_line(const log_formater_t *f, char *buf, size_t len,
-                    const log_handler_t *handler, const LOG_LEVEL_E level,
-                    const char *file, const char *func, const long line,
-                    const char *fmt, va_list ap)
+formater_write_line(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
-    return snprintf(buf, len, "%ld", line);
+    return snprintf(buf, len, "%ld", s->line);
 }
 
 inline static int
-formater_write_level(const log_formater_t *f, char *buf, size_t len,
-                     const log_handler_t *handler, const LOG_LEVEL_E level,
-                     const char *file, const char *func, const long line,
-                     const char *fmt, va_list ap)
+formater_write_level(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
-    return snprintf(buf, len, "%5.5s", LOGLEVELSTR[level]);
+    return snprintf(buf, len, "%5.5s", LOGLEVELSTR[s->level]);
 }
 
 inline static int
-formater_write_ident(const log_formater_t *f, char *buf, size_t len,
-                     const log_handler_t *handler, const LOG_LEVEL_E level,
-                     const char *file, const char *func, const long line,
-                     const char *fmt, va_list ap)
+formater_write_ident(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
-    return snprintf(buf, len, "%s", handler->ident);
+    return snprintf(buf, len, "%s", s->handler->ident);
 }
 
 inline static int
-formater_write_tid(const log_formater_t *f, char *buf, size_t len,
-                   const log_handler_t *handler, const LOG_LEVEL_E level,
-                   const char *file, const char *func, const long line,
-                   const char *fmt, va_list ap)
+formater_write_tid(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
     return snprintf(buf, len, "%lu", (unsigned long)pthread_self());
 }
 
 inline static int
-formater_write_message(const log_formater_t *f, char *buf, size_t len,
-                       const log_handler_t *handler, const LOG_LEVEL_E level,
-                       const char *file, const char *func, const long line,
-                       const char *fmt, va_list ap)
+formater_write_message(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
 {
-    return vsnprintf(buf, len, fmt, ap);
+    return vsnprintf(buf, len, s->fmt, s->ap);
 }
 
 static log_formater_t *

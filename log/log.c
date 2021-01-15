@@ -111,10 +111,12 @@ log_format(log_handler_t *handler, log_rule_t *r, const LOG_LEVEL_E level,
            const char *file, const char *func, const long line, const char *fmt,
            va_list ap)
 {
-    va_list local_ap;
     size_t idx;
     size_t len;
     char *buf;
+    log_argument_t arg;
+    log_formater_t *f;
+    int n = 0;
 
     if (r == NULL || r->format == NULL || handler == NULL
         || handler->bufferp == NULL) {
@@ -122,11 +124,15 @@ log_format(log_handler_t *handler, log_rule_t *r, const LOG_LEVEL_E level,
         return 0;
     }
 
-    va_copy(local_ap, ap);
-    idx = 0;
+    arg.file = file;
+    arg.func = func;
+    arg.fmt = fmt;
+    va_copy(arg.ap, ap);
+    arg.level = level;
+    arg.handler=handler;
+    arg.line = line;
 
 begin:
-    va_copy(local_ap, ap);
     buf = handler->bufferp;
     len = handler->buffer_real;
     memset(buf, 0, handler->buffer_real);
@@ -137,17 +143,13 @@ begin:
         idx += snprintf(buf + idx, len - idx, "%s", COLORSTR[level]);
     }
 
-    log_formater_t *f;
-    int n;
-    int count = 0;
     list_for_each_entry_reverse(f, &r->format->callbacks, formater_entry) {
         if (f == NULL) {
             break;
         }
-        count ++;
-        n = f->formater(f, buf+idx, len-idx, handler, level,
-                        file, func, line, fmt, ap);
-        if (n < 0) {
+
+        n = f->formater(f, &arg, buf+idx, len-idx);
+        if (n <= 0) {
             goto err;
         }
         idx += n;
@@ -189,7 +191,6 @@ begin:
         }
     }
 
-    /* ERROR_LOG("%d\n", count); */
 end:
     if (r->format->color) {
         idx += snprintf(buf + idx, len - idx, "%s", COLOR_NORMAL);

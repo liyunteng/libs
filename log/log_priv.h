@@ -30,14 +30,6 @@
 #define ERROR_LOG(fmt, ...)                                                    \
     fprintf(stderr, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 
-typedef int (*formater)(char *buf, size_t len, char *fmt, ...);
-typedef struct {
-    struct list_head formater_entry;
-    formater formater;
-    char *mode;
-    char *key;
-} log_formater_t;
-
 struct log_format {
     char format[128];
     BOOL color;

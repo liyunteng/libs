@@ -203,7 +203,7 @@ void test_simple()
     /* LOG_INIT("ihi", LOG_VERBOSE); */
 
     int ret;
-    log_format_t *format = log_format_create("%d.%us %c %E(USER) [%V] %m%n", 0);
+    log_format_t *format = log_format_create("%d.%us %c %E(USER) [%V] %m%n", 1);
     log_output_t*output = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
     log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
     if (!format) {
@@ -246,9 +246,9 @@ main(int argc, char *argv[])
     /* test_mlog(); */
     /* test_log_thread(); */
     /* test_mlog_benchmark(); */
-    /* test_log_benchmark(); */
+    test_log_benchmark();
     /* test_log_big_benchmark(); */
     /* test_multi_output(); */
-    test_simple();
+    /* test_simple(); */
     return 0;
 }

@@ -11,6 +11,7 @@
 #endif
 
 #include "file_output.h"
+#include "foramt.h"
 #include "log_priv.h"
 #include "other_outputs.h"
 #include "sock_output.h"
@@ -39,7 +40,6 @@
 #define COLOR_DEBUG "\033[0;0;32m"
 #define COLOR_VERBOSE "\033[0;0;00m"
 
-#define DEFAULT_TIME_FORMAT "%F %T"
 #define DEFAULT_FORMAT "%d.%ms %c:%p [%V] %F:%U(%L) %m%n"
 
 #define BUFFER_MIN 1024 * 4
@@ -48,7 +48,7 @@
 /* pointer to environment */
 extern char **environ;
 
-static const char *const LOGLEVELSTR[] = {
+const char *const LOGLEVELSTR[] = {
     "EMERG",  "ALERT", "FATAL", "ERROR",   "WARN",
     "NOTICE", "INFO",  "DEBUG", "VERBOSE",
 };
@@ -105,8 +105,102 @@ dump_environment(log_handler_t *handler)
     }
 }
 
-
 
+static size_t
+log_format(log_handler_t *handler, log_rule_t *r, const LOG_LEVEL_E level,
+           const char *file, const char *func, const long line, const char *fmt,
+           va_list ap)
+{
+    va_list local_ap;
+    size_t idx;
+    size_t len;
+    char *buf;
+
+    if (r == NULL || r->format == NULL || handler == NULL
+        || handler->bufferp == NULL) {
+        ERROR_LOG("invalid argument\n");
+        return 0;
+    }
+
+    va_copy(local_ap, ap);
+    idx = 0;
+
+begin:
+    va_copy(local_ap, ap);
+    buf = handler->bufferp;
+    len = handler->buffer_real;
+    memset(buf, 0, handler->buffer_real);
+
+    idx = 0;
+
+    if (r->format->color) {
+        idx += snprintf(buf + idx, len - idx, "%s", COLORSTR[level]);
+    }
+
+    log_formater_t *f;
+    int n;
+    int count = 0;
+    list_for_each_entry_reverse(f, &r->format->callbacks, formater_entry) {
+        if (f == NULL) {
+            break;
+        }
+        count ++;
+        n = f->formater(f, buf+idx, len-idx, handler, level,
+                        file, func, line, fmt, ap);
+        if (n < 0) {
+            goto err;
+        }
+        idx += n;
+
+        if (idx >= len) {
+            if (handler->buffer_real < handler->buffer_max) {
+                if (handler->buffer_real * 2 <= handler->buffer_max) {
+                    handler->bufferp = (char *)realloc(
+                        handler->bufferp, handler->buffer_real * 2);
+                    if (handler->bufferp) {
+                        handler->buffer_real *= 2;
+                        DEBUG_LOG("realloc buffer to: %lu\n",
+                                  handler->buffer_real);
+                        goto begin;
+                    }
+
+                    handler->buffer_real = 0;
+                    ERROR_LOG("realloc failed(%s)\n", strerror(errno));
+                    goto err;
+                } else {
+                    handler->bufferp =
+                        (char *)realloc(handler->bufferp, handler->buffer_max);
+                    if (handler->bufferp) {
+                        handler->buffer_real = handler->buffer_max;
+                        DEBUG_LOG("realloc buffer to: %lu\n",
+                                  handler->buffer_real);
+                        goto begin;
+                    }
+
+                    handler->buffer_real = 0;
+                    ERROR_LOG("realloc failed(%s)\n", strerror(errno));
+                    goto err;
+                }
+            } else {
+                snprintf(buf + len - 13, 13, "%s", "(truncated)\n");
+                DEBUG_LOG("msg too long, truncated to %u.\n", (unsigned)idx);
+                goto end;
+            }
+        }
+    }
+
+    /* ERROR_LOG("%d\n", count); */
+end:
+    if (r->format->color) {
+        idx += snprintf(buf + idx, len - idx, "%s", COLOR_NORMAL);
+    }
+    return idx;
+
+err:
+    return 0;
+}
+
+#if 0
 static size_t
 log_format(log_handler_t *handler, log_rule_t *r, const LOG_LEVEL_E level,
            const char *file, const char *func, const long line, const char *fmt,
@@ -328,6 +422,7 @@ end:
 err:
     return 0;
 }
+#endif
 
 static int
 log_ctl_v(enum LOG_OPTS opt, va_list ap)
@@ -510,6 +605,11 @@ log_format_create(const char *fmt, int color)
                 fp->color = TRUE;
             } else {
                 fp->color = FALSE;
+            }
+            INIT_LIST_HEAD(&fp->callbacks);
+            if (format_parse(fp) < 0) {
+                free(fp);
+                return NULL;
             }
             list_add_tail(&fp->format_entry, &format_header);
             return fp;

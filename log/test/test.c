@@ -127,7 +127,7 @@ test4()
     log_bind(handler, -1, -1, format, output);
 
     unsigned i;
-    for (i = 0; i < 1024 * 1024; i++) {
+    for (i = 0; i < 1024 * 1024 * 16; i++) {
         LOGV("this is a verbose");
         LOGD("this is a debug");
         LOGI("this is a info");
@@ -203,7 +203,7 @@ void test7()
     /* LOG_INIT("ihi", LOG_VERBOSE); */
 
     int ret;
-    log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n", 0);
+    log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n", 1);
     log_output_t*output = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
     log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
     if (!format) {
@@ -248,7 +248,7 @@ main(int argc, char *argv[])
     /* test3(); */
     /* test4(); */
     /* test5(); */
-    test6();
-    /* test7(); */
+    /* test6(); */
+    test7();
     return 0;
 }

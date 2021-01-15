@@ -28,6 +28,22 @@
 #include <unistd.h>
 /* #include <fcntl.h> */
 
+#define COLOR_NORMAL "\033[0;0;00m"
+#define COLOR_EMERG "\033[5;7;31m"
+#define COLOR_ALERT "\033[5;7;35m"
+#define COLOR_FATAL "\033[5;7;33m"
+#define COLOR_ERROR "\033[1;0;31m"
+#define COLOR_WARNING "\033[1;0;35m"
+#define COLOR_NOTICE "\033[1;0;34m"
+#define COLOR_INFO "\033[1;0;37m"
+#define COLOR_DEBUG "\033[0;0;32m"
+#define COLOR_VERBOSE "\033[0;0;00m"
+
+#define DEFAULT_TIME_FORMAT "%F %T"
+#define DEFAULT_FORMAT "%d.%ms %c:%p [%V] %F:%U(%L) %m%n"
+
+#define BUFFER_MIN 1024 * 4
+#define BUFFER_MAX 1024 * 1024 * 4
 
 /* pointer to environment */
 extern char **environ;
@@ -89,9 +105,7 @@ dump_environment(log_handler_t *handler)
     }
 }
 
-
-// ################################################################################
-
+
 
 static size_t
 log_format(log_handler_t *handler, log_rule_t *r, const LOG_LEVEL_E level,
@@ -242,7 +256,8 @@ begin:
                 p += 2;
                 struct timeval tv;
                 gettimeofday(&tv, NULL);
-                idx += snprintf(buf + idx, len - idx, "%06d", (int)(tv.tv_usec));
+                idx +=
+                    snprintf(buf + idx, len - idx, "%06d", (int)(tv.tv_usec));
                 continue;
             }
 
@@ -312,18 +327,6 @@ end:
 
 err:
     return 0;
-}
-
-static void
-log_update_stat(log_output_t *output, const LOG_LEVEL_E level, size_t len)
-{
-    if (output) {
-        output->stat.stats[level].count++;
-        output->stat.stats[level].bytes += len;
-
-        output->stat.count_total++;
-        output->stat.bytes_total += len;
-    }
 }
 
 static int
@@ -706,7 +709,10 @@ mlogv(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
 
         ret = r->output->emit(r->output, level, handler->bufferp, len);
         if (ret >= 0) {
-            log_update_stat(r->output, level, ret);
+            r->output->stat.stats[level].count++;
+            r->output->stat.stats[level].bytes += len;
+            r->output->stat.count_total++;
+            r->output->stat.bytes_total += len;
         }
     }
     pthread_mutex_unlock(&handler->mutex);
@@ -779,8 +785,8 @@ log_dump(void)
     {
         handler_count++;
     }
-    printf("handler: %d output: %d format: %d ru: %d\n",
-           handler_count, output_count, format_count, rule_count);
+    printf("handler: %d output: %d format: %d ru: %d\n", handler_count,
+           output_count, format_count, rule_count);
     list_for_each_entry(handler, &handler_header, handler_entry)
     {
         i++;

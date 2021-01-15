@@ -10,7 +10,10 @@
 #endif
 #endif
 
+#include "file_output.h"
 #include "log_priv.h"
+#include "other_outputs.h"
+#include "sock_output.h"
 
 #include <errno.h>
 #include <pthread.h>
@@ -25,16 +28,6 @@
 #include <unistd.h>
 /* #include <fcntl.h> */
 
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <netinet/in.h>
-#include <sys/socket.h>
-
-#include <syslog.h>
-
-#ifdef ANDROID
-#include <android/log.h>
-#endif
 
 /* pointer to environment */
 extern char **environ;
@@ -96,22 +89,6 @@ dump_environment(log_handler_t *handler)
     }
 }
 
-inline static void
-dump_statstic(log_output_t *output)
-{
-    int i;
-    if (output) {
-        for (i = LOG_VERBOSE; i >= LOG_EMERG; i--) {
-            printf("%-8s  count: %-8d  bytes: %-10llu\n", LOGLEVELSTR[i],
-                   output->stat.stats[i].count,
-                   (unsigned long long)output->stat.stats[i].bytes);
-        }
-        printf("%-8s  count: %-8llu  bytes: %-10llu\n", "TOTAL",
-               (unsigned long long)output->stat.count_total,
-               (unsigned long long)output->stat.bytes_total);
-    }
-}
-
 static void
 dump_output(log_output_t *output)
 {
@@ -122,525 +99,8 @@ dump_output(log_output_t *output)
     }
 }
 
-static int
-file_getname(log_output_t *output, char *file_name, uint16_t len)
-{
-    if (!output) {
-        ERROR_LOG("output is NULL\n");
-        return -1;
-    }
-    if (output->type != LOG_OUTTYPE_FILE) {
-        ERROR_LOG("type invalid\n");
-        return -1;
-    }
-    file_output_ctx *ctx = (file_output_ctx *)output->ctx;
-    if (!ctx) {
-        ERROR_LOG("ctx is NULL\n");
-        return -1;
-    }
-
-    snprintf(file_name, len, "%s/%s.log", ctx->file_path, ctx->log_name);
-    return 0;
-}
-
-static int
-file_open_logfile(log_output_t *output)
-{
-    char *file_name;
-    uint32_t len;
-
-    if (!output) {
-        ERROR_LOG("output is NULL\n");
-        return -1;
-    }
-    if (output->type != LOG_OUTTYPE_FILE) {
-        ERROR_LOG("type invalid\n");
-        return -1;
-    }
-
-    file_output_ctx *ctx = (file_output_ctx *)output->ctx;
-    if (!ctx) {
-        ERROR_LOG("ctx is NULL\n");
-        return -1;
-    }
-
-    if (ctx->fp != NULL) {
-        fclose(ctx->fp);
-        ctx->fp = NULL;
-    }
-
-    len = strlen(ctx->file_path);
-    len += 1; /* "/" */
-    len += strlen(ctx->log_name);
-    len += 4; /* ".log" */
-    len += 1; /* NULL char */
-
-    file_name = malloc(len * sizeof(char));
-    if (!file_name) {
-        ERROR_LOG("malloc failed(%s)\n", strerror(errno));
-        return -1;
-    }
-
-    file_getname(output, file_name, len);
-
-    if ((ctx->fp = fopen(file_name, "w")) == NULL) {
-        ERROR_LOG("fopen %s failed:(%s)\n", file_name, strerror(errno));
-        free(file_name);
-        return -1;
-    }
-
-    ctx->data_offset = 0;
-    // ftruncate(fileno(output->u.file.fp), output->u.file.file_size);
-
-    free(file_name);
-    return 0;
-}
-
-static int
-file_rename_logfile(log_output_t *output)
-{
-    uint32_t num, num_files, len;
-    char *old_file_name, *new_file_name;
-
-    if (!output) {
-        ERROR_LOG("output is NULL\n");
-        return -1;
-    }
-
-    if (output->type != LOG_OUTTYPE_FILE) {
-        ERROR_LOG("type invalid\n");
-        return -1;
-    }
-
-    file_output_ctx *ctx = (file_output_ctx *)output->ctx;
-    if (!ctx) {
-        ERROR_LOG("ctx is NULL\n");
-        return -1;
-    }
-
-    if (ctx->num_files > 0) {
-        for (num = 0, num_files = ctx->num_files; num_files; num_files /= 10) {
-            ++num;
-        }
-
-        len = strlen(ctx->file_path);
-        len += 1; /* "/" */
-
-        len += strlen(ctx->log_name);
-        len += 4;         /* ".log" */
-        len += (num + 1); /* ".<digit>" */
-        len += 1;         /* NULL char */
-
-        old_file_name = malloc(len * sizeof(char));
-        new_file_name = malloc(len * sizeof(char));
-        if (!old_file_name || !new_file_name) {
-            ERROR_LOG("malloc failed(%s)\n", strerror(errno));
-            free(old_file_name);
-            free(new_file_name);
-            return -1;
-        }
-
-        file_getname(output, old_file_name, len);
-        snprintf(new_file_name, len, "%s.%u", old_file_name,
-                 (ctx->file_idx % ctx->num_files));
-        rename(old_file_name, new_file_name);
-
-        ++ctx->file_idx;
-        DEBUG_LOG("rename %s ==> %s\n", old_file_name, new_file_name);
-        free(old_file_name);
-        free(new_file_name);
-    }
-    return 0;
-}
-
-static int
-stdout_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
-{
-    if (fwrite(buf, len, 1, stdout) != 1) {
-        ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
-        return -1;
-    }
-    return len;
-}
-
-static int
-stderr_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
-{
-    if (fwrite(buf, len, 1, stderr) != 1) {
-        ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
-        return -1;
-    }
-    return len;
-}
-
-static int
-logcat_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
-{
-#ifdef ANDROID
-    android_LogPriority pri;
-    switch (level) {
-    case LOG_VERBOSE:
-        pri = ANDROID_LOG_VERBOSE;
-        break;
-    case LOG_DEBUG:
-        pri = ANDROID_LOG_DEBUG;
-        break;
-    case LOG_INFO:
-        pri = ANDROID_LOG_INFO;
-        break;
-    case LOG_WARNING:
-        pri = ANDROID_LOG_WARN;
-        break;
-    case LOG_ERROR:
-        pri = ANDROID_LOG_ERROR;
-        break;
-    case LOG_FATAL:
-        pri = ANDROID_LOG_FATAL;
-        break;
-    case LOG_ALERT:
-        pri = ANDROID_LOG_FATAL;
-        break;
-    case LOG_EMERG:
-        pri = ANDROID_LOG_SILENT;
-        break;
-    default:
-        pri = ANDROID_LOG_DEFAULT;
-        break;
-    }
-    return __android_log_vprint(l, r->indent, format, args);
-#else
-    return -1;
-#endif
-}
-
-static int
-syslog_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
-{
-    syslog(level, "%s", buf);
-    return len;
-}
-
-static int
-file_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
-{
-    int ret;
-    file_output_ctx *ctx = NULL;
-    if (!output) {
-        ERROR_LOG("output is NULL\n");
-        return -1;
-    }
-
-    ctx = (file_output_ctx *)output->ctx;
-    if (!ctx) {
-        ERROR_LOG("ctx is NULL\n");
-        return -1;
-    }
-
-    if (ctx->fp == NULL) {
-        ret = file_open_logfile(output);
-        if (ret < 0) {
-            ERROR_LOG("open logfile failed\n");
-            return -1;
-        }
-    }
-
-    int left = ctx->file_size - ctx->data_offset;
-    if (left <= len) {
-        if (fwrite(buf, left, 1, ctx->fp) != 1) {
-            ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
-            return -1;
-        }
-        ctx->data_offset += left;
-
-        file_rename_logfile(output);
-        ret = file_open_logfile(output);
-        if (ret != 0) {
-            ERROR_LOG("open logfile failed\n");
-            return left;
-        }
-
-        if (len - left > 0) {
-            if (fwrite(buf + left, len - left, 1, ctx->fp) != 1) {
-                ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
-                return left;
-            }
-
-            ctx->data_offset += (len - left);
-        }
-        return len;
-    } else {
-
-        if (fwrite(buf, len, 1, ctx->fp) != 1) {
-            ERROR_LOG("fwrite failed(%s) len:%lu\n", strerror(errno), len);
-            return -1;
-        }
-        ctx->data_offset += len;
-        return len;
-    }
-}
-
-static int
-sock_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
-{
-    sock_output_ctx *ctx = NULL;
-
-    if (!output) {
-        ERROR_LOG("output is NULL\n");
-        return -1;
-    }
-    ctx = (sock_output_ctx *)output->ctx;
-    if (!ctx) {
-        ERROR_LOG("ctx is NULL\n");
-        return -1;
-    }
-
-    if (ctx->sockfd == -1) {
-        return -1;
-    }
-
-    int total = 0;
-    int nsend = 0;
-    while (total < len) {
-        nsend = send(ctx->sockfd, buf + total, len - total, MSG_NOSIGNAL);
-        if (nsend < 0) {
-            if (errno == EAGAIN || errno == EINTR) {
-                continue;
-            } else {
-                ERROR_LOG("send failed(%s)\n", strerror(errno));
-                close(ctx->sockfd);
-                ctx->sockfd = -1;
-                break;
-            }
-        } else if (nsend == 0) {
-            ERROR_LOG("sock closed\n");
-            close(ctx->sockfd);
-            ctx->sockfd = -1;
-            break;
-        } else {
-            total += nsend;
-        }
-    }
-    return total;
-}
-
-static void
-file_ctx_dump(log_output_t *output)
-{
-    if (output) {
-        printf("type: %s\n", output->type_name);
-        file_output_ctx *ctx = (file_output_ctx *)output->ctx;
-        if (ctx) {
-            printf("filepath: %s\n", ctx->file_path);
-            printf("logname:  %s\n", ctx->log_name);
-            printf("filesize: %d\n", ctx->file_size);
-            printf("bakup:    %d\n", ctx->num_files);
-            printf("idx:      %d\n", ctx->file_idx);
-            printf("offset:   %u\n", ctx->data_offset);
-        }
-        dump_statstic(output);
-    }
-}
-
-static int
-file_ctx_init(log_output_t *output, va_list ap)
-{
-    file_output_ctx *ctx = NULL;
-    if (!output) {
-        ERROR_LOG("output is NULL\n");
-        return -1;
-    }
-
-    if (output->ctx == NULL) {
-        output->ctx = (file_output_ctx *)calloc(1, sizeof(file_output_ctx));
-        if (output->ctx == NULL) {
-            ERROR_LOG("calloc failed(%s)\n", strerror(errno));
-            return -1;
-        }
-    }
-    ctx = (file_output_ctx *)output->ctx;
-
-    char *file_path = va_arg(ap, char *);
-    if (file_path && strlen(file_path) > 0) {
-        ctx->file_path = strdup(file_path);
-    } else {
-        ctx->file_path = strdup(DEFAULT_FILEPATH);
-    }
-
-    char *file_name = va_arg(ap, char *);
-    if (file_name && strlen(file_name) > 0) {
-        ctx->log_name = strdup(file_name);
-    } else {
-        ctx->log_name = strdup(DEFAULT_FILENAME);
-    }
-
-    unsigned long file_size = va_arg(ap, unsigned long);
-    if (file_size > 0) {
-        ctx->file_size = file_size;
-    } else {
-        ctx->file_size = DEFAULT_FILESIZE;
-    }
-
-    int num_files = va_arg(ap, int);
-    if (num_files >= 0) {
-        ctx->num_files = num_files;
-    } else {
-        ctx->num_files = DEFAULT_BAKUP;
-    }
-
-    ctx->fp       = NULL;
-    ctx->file_idx = 0;
-
-    if (file_open_logfile(output) != 0) {
-        ERROR_LOG("open file failed\n");
-        return -1;
-    }
-    return 0;
-}
-
-static void
-file_ctx_uninit(log_output_t *output)
-{
-    file_output_ctx *ctx = NULL;
-    if (!output) {
-        ERROR_LOG("output is NULL\n");
-        return;
-    }
-    ctx = (file_output_ctx *)output->ctx;
-    if (ctx == NULL) {
-        return;
-    }
-
-    if (ctx->file_path) {
-        free(ctx->file_path);
-        ctx->file_path = NULL;
-    }
-    if (ctx->log_name) {
-        free(ctx->log_name);
-        ctx->log_name = NULL;
-    }
-    if (ctx->fp) {
-        fclose(ctx->fp);
-        ctx->fp = NULL;
-    }
-    free(ctx);
-    ctx         = NULL;
-    output->ctx = NULL;
-}
-
-static void
-sock_ctx_dump(log_output_t *output)
-{
-    if (output) {
-        printf("type: %s\n", output->type_name);
-        sock_output_ctx *ctx = (sock_output_ctx *)output->ctx;
-        if (ctx) {
-            printf("addr: %s:%d\n", ctx->addr, ctx->port);
-        }
-        dump_statstic(output);
-    }
-}
-
-static int
-sock_ctx_init(log_output_t *output, va_list ap)
-{
-    sock_output_ctx *ctx = NULL;
-    if (!output) {
-        ERROR_LOG("output is NULL\n");
-        return -1;
-    }
-
-    if (output->ctx == NULL) {
-        output->ctx = (sock_output_ctx *)calloc(1, sizeof(sock_output_ctx));
-        if (!output->ctx) {
-            ERROR_LOG("calloc failed(%s)\n", strerror(errno));
-            goto failed;
-        }
-        ((sock_output_ctx *)(output->ctx))->sockfd = -1;
-    }
-    ctx = (sock_output_ctx *)output->ctx;
-
-    char *addr_str = va_arg(ap, char *);
-    if (addr_str && strlen(addr_str) > 0) {
-        strncpy(ctx->addr, addr_str, strlen(addr_str) + 1);
-    } else {
-        strncpy(ctx->addr, DEFAULT_SOCKADDR, strlen(DEFAULT_SOCKADDR) + 1);
-    }
-
-    unsigned port = va_arg(ap, unsigned);
-    if (port > 0 && port < 65535) {
-        ctx->port = port;
-    } else {
-        ctx->port = DEFAULT_SOCKPORT;
-    }
-
-    if (ctx->sockfd != -1) {
-        close(ctx->sockfd);
-        ctx->sockfd = -1;
-    }
-
-    struct hostent *host = gethostbyname(ctx->addr);
-    if (host == NULL) {
-        ERROR_LOG("gethostbyname failed(%s)\n", strerror(errno));
-        goto failed;
-    }
-
-    if (output->type == LOG_OUTTYPE_TCP) {
-        ctx->sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    } else {
-        ctx->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    }
-    if (ctx->sockfd < 0) {
-        ERROR_LOG("socket failed(%s)\n", strerror(errno));
-        goto failed;
-    }
-
-    struct sockaddr_in addr;
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family = AF_INET;
-    addr.sin_port   = htons(ctx->port);
-    addr.sin_addr   = *(struct in_addr *)(host->h_addr_list[0]);
-    if (connect(ctx->sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        ERROR_LOG("connect(%s)\n", strerror(errno));
-        goto failed;
-    }
-
-    return 0;
-
-failed:
-    if (ctx != NULL) {
-        if (ctx->sockfd != -1) {
-            close(ctx->sockfd);
-            ctx->sockfd = -1;
-        }
-        free(ctx);
-        ctx = NULL;
-    }
-    return -1;
-}
-
-static void
-sock_ctx_uninit(log_output_t *output)
-{
-    sock_output_ctx *ctx = NULL;
-    if (!output) {
-        ERROR_LOG("output is NULL\n");
-        return;
-    }
-    ctx = (sock_output_ctx *)output->ctx;
-    if (ctx == NULL) {
-        return;
-    }
-
-    if (ctx->sockfd != -1) {
-        close(ctx->sockfd);
-        ctx->sockfd = -1;
-    }
-    free(ctx);
-    ctx         = NULL;
-    output->ctx = NULL;
-}
-
 // ################################################################################
+
 
 static size_t
 log_format(log_handler_t *handler, log_rule_t *r, const LOG_LEVEL_E level,
@@ -1088,13 +548,13 @@ log_handler_get(const char *ident)
 }
 
 log_format_t *
-log_format_create(const char *format, int color)
+log_format_create(const char *fmt, int color)
 {
     log_format_t *fp = NULL;
-    if (format) {
+    if (fmt) {
         fp = (log_format_t *)calloc(1, sizeof(log_format_t));
         if (fp) {
-            strncpy(fp->format, format, strlen(format) + 1);
+            strncpy(fp->format, fmt, strlen(fmt) + 1);
             if (color) {
                 fp->color = TRUE;
             } else {
@@ -1109,6 +569,7 @@ log_format_create(const char *format, int color)
     }
     return NULL;
 }
+
 void
 log_format_destory(log_format_t *format)
 {
@@ -1215,12 +676,10 @@ log_output_destroy(log_output_t *output)
     /* TODO: delete from rule's list */
     list_del(&output->output_entry);
 
-    if (output->type == LOG_OUTTYPE_FILE) {
-        file_ctx_uninit(output);
-    } else if (output->type == LOG_OUTTYPE_TCP
-               || output->type == LOG_OUTTYPE_UDP) {
-        sock_ctx_uninit(output);
+    if (output->ctx_uninit) {
+        output->ctx_uninit(output);
     }
+
     free(output);
     output = NULL;
 }
@@ -1308,6 +767,23 @@ slog(LOG_LEVEL_E level, const char *file, const char *function, long line,
         DEBUG_LOG("can't find handler: %s\n", DEFAULT_IDENT);
     }
     return;
+}
+
+
+void
+dump_statstic(log_output_t *output)
+{
+    int i;
+    if (output) {
+        for (i = LOG_VERBOSE; i >= LOG_EMERG; i--) {
+            printf("%-8s  count: %-8d  bytes: %-10llu\n", LOGLEVELSTR[i],
+                   output->stat.stats[i].count,
+                   (unsigned long long)output->stat.stats[i].bytes);
+        }
+        printf("%-8s  count: %-8llu  bytes: %-10llu\n", "TOTAL",
+               (unsigned long long)output->stat.count_total,
+               (unsigned long long)output->stat.bytes_total);
+    }
 }
 
 void

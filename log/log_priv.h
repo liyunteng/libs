@@ -53,10 +53,19 @@
 #define ERROR_LOG(fmt, ...)                                                    \
     fprintf(stderr, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 
+typedef int(*formater)(char *buf, size_t len, char *fmt, ...);
+typedef struct  {
+    struct list_head formater_entry;
+    formater formater;
+    char *mode;
+    char *key;
+} log_formater_t;
+
 struct log_format {
     char format[128];
     BOOL color;
     struct list_head format_entry;
+    struct list_head callbacks;
 };
 
 typedef int (*log_output_ctx_init_fn)(log_output_t *output, va_list ap);
@@ -84,22 +93,6 @@ struct log_output {
 };
 
 typedef struct {
-    char *file_path;
-    char *log_name;
-    uint16_t num_files;
-    uint32_t file_size;
-    uint16_t file_idx;
-    uint32_t data_offset;
-    FILE *fp;
-} file_output_ctx;
-
-typedef struct {
-    char addr[256];
-    uint16_t port;
-    int sockfd;
-} sock_output_ctx;
-
-typedef struct {
     LOG_LEVEL_E level_begin;
     LOG_LEVEL_E level_end;
     log_output_t *output;
@@ -121,4 +114,6 @@ struct log_handler {
     struct list_head handler_entry;
 };
 
+
+void dump_statstic(log_output_t *output);
 #endif

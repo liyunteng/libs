@@ -200,7 +200,31 @@ void test6()
 
 void test7()
 {
-    LOG_INIT("ihi", LOG_VERBOSE);
+    /* LOG_INIT("ihi", LOG_VERBOSE); */
+
+    int ret;
+    log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n", 0);
+    log_output_t*output = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
+    log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
+    if (!format) {
+        printf("format create failed\n");
+        return;
+    }
+
+    if (!output) {
+        printf("output create failed\n");
+        return;
+    }
+    if (!handler) {
+        printf("handler create failed\n");
+        return;
+    }
+    ret = log_bind(handler, -1, -1, format, output);
+    if (ret < 0) {
+        printf("bind failed\n");
+        return;
+    }
+
 
     for (int i = 0; i < 10; i++) {
         LOGV("this is a %s", "verbose");
@@ -225,6 +249,6 @@ main(int argc, char *argv[])
     /* test4(); */
     /* test5(); */
     /* test6(); */
-    test7();
+    /* test7(); */
     return 0;
 }

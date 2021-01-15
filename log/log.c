@@ -70,35 +70,29 @@
 #define BUFFER_MIN 1024 * 4
 #define BUFFER_MAX 1024 * 1024 * 4
 
-#define DEBUG_LOG
+#define DEBUG_LOG(fmt,...) fprintf(stdout, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#define ERROR_LOG(fmt,...) fprintf(stderr, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 
 struct log_format {
     char format[128];
     BOOL color;
-    struct list_head l;
+    struct list_head format_entry;
 };
 
-typedef struct {
-    uint32_t count;
-    uint64_t bytes;
-} log_statstic_t;
-
-typedef int (*log_output_init_fn)();
-typedef int (*log_output_uninit_fn)();
-typedef int (*log_output_emit_fn)();
+typedef int (*log_output_emit_fn)(log_output_t *output, LOG_LEVEL_E level,
+                                  char *buf, size_t len);
 struct log_output {
     enum LOG_OUTTYPE type;
-    char *type_name;
-    pthread_mutex_t mutex;
-    struct list_head l;
+    struct list_head output_entry;
     struct {
-        log_statstic_t stats[LOG_VERBOSE + 1];
+        struct {
+            uint32_t count;
+            uint64_t bytes;
+        } stats[LOG_VERBOSE + 1];
         uint64_t count_total;
         uint64_t bytes_total;
     } stat;
-    void *config;
-    log_output_init_fn init;
-    log_output_uninit_fn uninit;
+    void *conf;
     log_output_emit_fn emit;
 };
 
@@ -110,12 +104,11 @@ typedef struct {
     uint16_t file_idx;
     uint32_t data_offset;
     FILE *fp;
-    int fd;
 } file_output_config;
 
 typedef struct {
     char addr[256];
-    unsigned short port;
+    uint16_t port;
     int sockfd;
 } sock_output_config;
 
@@ -124,13 +117,9 @@ typedef struct {
     LOG_LEVEL_E level_end;
     log_output_t *output;
     log_format_t *format;
-    struct list_head l;
+    struct list_head rule_entry;
+    struct list_head rule;
 } log_rule_t;
-
-typedef struct {
-    log_rule_t *rule;
-    struct list_head l;
-} log_rules;
 
 struct log_handler {
     pthread_mutex_t mutex;
@@ -141,8 +130,8 @@ struct log_handler {
     size_t buffer_min;
     size_t buffer_real;
 
-    struct list_head rules;  // prule
-    struct list_head l;
+    struct list_head rules;  // rules
+    struct list_head handler_entry;
 };
 
 /* pointer to environment */
@@ -170,24 +159,6 @@ static struct list_head handler_header = {
     &handler_header,
 };
 
-static int
-log_file_name(char *file_name, uint16_t len, log_output_t *output)
-{
-    if (!output) {
-        return -1;
-    }
-    if (output->type != LOG_OUTTYPE_FILE) {
-        return -1;
-    }
-    file_output_config *config = (file_output_config *)output->config;
-    if (!config) {
-        return -1;
-    }
-
-    snprintf(file_name, len, "%s/%s.log", config->file_path, config->log_name);
-    return 0;
-}
-
 /* dump the environment */
 static void
 log_dump_environment(void)
@@ -204,7 +175,7 @@ log_dump_environment(void)
         snprintf(buf, sizeof(buf), "%s", e);
         e = strchr(buf, '=');
         if (!e) {
-            printf("Can't parse environment variable %s\n", buf);
+            ERROR_LOG("Can't parse environment variable %s\n", buf);
             continue;
         }
 
@@ -214,47 +185,75 @@ log_dump_environment(void)
     }
 }
 
+
 static int
-log_open_logfile(log_output_t *output)
+file_getname(log_output_t *output, char *file_name, uint16_t len)
+{
+    if (!output) {
+        ERROR_LOG("output is NULL\n");
+        return -1;
+    }
+    if (output->type != LOG_OUTTYPE_FILE) {
+        ERROR_LOG("type invalid\n");
+        return -1;
+    }
+    file_output_config *conf = (file_output_config *)output->conf;
+    if (!conf) {
+        ERROR_LOG("conf is NULL\n");
+        return -1;
+    }
+
+    snprintf(file_name, len, "%s/%s.log", conf->file_path, conf->log_name);
+    return 0;
+}
+
+static int
+file_open_logfile(log_output_t *output)
 {
     char *file_name;
     uint32_t len;
 
     if (!output) {
+        ERROR_LOG("output is NULL\n");
         return -1;
     }
     if (output->type != LOG_OUTTYPE_FILE) {
-        return -1;
-    }
-    file_output_config *config = (file_output_config *)output->config;
-    if (!config) {
+        ERROR_LOG("type invalid\n");
         return -1;
     }
 
-    if (config->fp != NULL) {
-        fclose(config->fp);
-        config->fp = NULL;
+    file_output_config *conf = (file_output_config *)output->conf;
+    if (!conf) {
+        ERROR_LOG("conf is NULL\n");
+        return -1;
     }
 
-    len = strlen(config->file_path);
+    if (conf->fp != NULL) {
+        fclose(conf->fp);
+        conf->fp = NULL;
+    }
+
+    len = strlen(conf->file_path);
     len += 1; /* "/" */
-    len += strlen(config->log_name);
+    len += strlen(conf->log_name);
     len += 4; /* ".log" */
     len += 1; /* NULL char */
 
     file_name = malloc(len * sizeof(char));
     if (!file_name) {
+        ERROR_LOG("malloc failed(%s)\n", strerror(errno));
         return -1;
     }
 
-    log_file_name(file_name, len, output);
+    file_getname(output, file_name, len);
 
-    if ((config->fp = fopen(file_name, "w")) == NULL) {
+    if ((conf->fp = fopen(file_name, "w")) == NULL) {
+        ERROR_LOG("fopen %s failed:(%s)\n", file_name, strerror(errno));
         free(file_name);
         return -1;
     }
 
-    config->data_offset = 0;
+    conf->data_offset = 0;
     // ftruncate(fileno(output->u.file.fp), output->u.file.file_size);
 
     free(file_name);
@@ -262,34 +261,36 @@ log_open_logfile(log_output_t *output)
 }
 
 static int
-log_rename_logfile(log_output_t *output)
+file_rename_logfile(log_output_t *output)
 {
     uint32_t num, num_files, len;
     char *old_file_name, *new_file_name;
 
     if (!output) {
+        ERROR_LOG("output is NULL\n");
         return -1;
     }
 
     if (output->type != LOG_OUTTYPE_FILE) {
+        ERROR_LOG("type invalid\n");
         return -1;
     }
 
-    file_output_config *config = (file_output_config *)output->config;
-    if (!config) {
+    file_output_config *conf = (file_output_config *)output->conf;
+    if (!conf) {
+        ERROR_LOG("conf is NULL\n");
         return -1;
     }
 
-    if (config->num_files > 0) {
-        for (num = 0, num_files = config->num_files; num_files;
-             num_files /= 10) {
+    if (conf->num_files > 0) {
+        for (num = 0, num_files = conf->num_files; num_files; num_files /= 10) {
             ++num;
         }
 
-        len = strlen(config->file_path);
+        len = strlen(conf->file_path);
         len += 1; /* "/" */
 
-        len += strlen(config->log_name);
+        len += strlen(conf->log_name);
         len += 4;         /* ".log" */
         len += (num + 1); /* ".<digit>" */
         len += 1;         /* NULL char */
@@ -297,17 +298,18 @@ log_rename_logfile(log_output_t *output)
         old_file_name = malloc(len * sizeof(char));
         new_file_name = malloc(len * sizeof(char));
         if (!old_file_name || !new_file_name) {
+            ERROR_LOG("malloc failed(%s)\n", strerror(errno));
             free(old_file_name);
             free(new_file_name);
             return -1;
         }
 
-        log_file_name(old_file_name, len, output);
+        file_getname(output, old_file_name, len);
         snprintf(new_file_name, len, "%s.%u", old_file_name,
-                 (config->file_idx % config->num_files));
+                 (conf->file_idx % conf->num_files));
         rename(old_file_name, new_file_name);
 
-        ++config->file_idx;
+        ++conf->file_idx;
         free(old_file_name);
         free(new_file_name);
     }
@@ -315,141 +317,375 @@ log_rename_logfile(log_output_t *output)
 }
 
 static int
-log_ctl_(enum LOG_OPTS opt, va_list ap)
+stdout_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
 {
-    switch (opt) {
-    case LOG_OPT_SET_HANDLER_BUFFERSIZEMIN: {
-        log_handler_t *lp = va_arg(ap, log_handler_t *);
-        if (lp == NULL) {
-#ifdef DEBUG_LOG
-            fprintf(stderr, "logdebug: invalid ident\n");
-#endif
-            return -1;
-        }
-        size_t buffer_min = va_arg(ap, size_t);
-        lp->buffer_min    = buffer_min;
-        if (lp->buffer_real < buffer_min)
-            lp->bufferp = (char *)realloc(lp->bufferp, buffer_min);
-        if (lp->bufferp == NULL) {
-            lp->buffer_real = 0;
-#ifdef DEBUG_LOG
-            perror("logdebug: realloc failed");
-#endif
-            return -1;
-        }
-        if (lp->buffer_real < buffer_min)
-            lp->buffer_real = buffer_min;
-
-        break;
+    if (fwrite(buf, len, 1, stdout) != 1) {
+        ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
+        return 0;
     }
+    return len;
+}
 
-    case LOG_OPT_SET_HANDLER_BUFFERSIZEMAX: {
-        log_handler_t *lp = va_arg(ap, log_handler_t *);
-        if (lp == NULL) {
-#ifdef DEBUG_LOG
-            fprintf(stderr, "logdebug: invalid ident\n");
-#endif
-            return -1;
-        }
+static int
+stderr_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
+{
+    if (fwrite(buf, len, 1, stderr) != 1) {
+        ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
+        return 0;
+    }
+    return len;
+}
 
-        size_t buffer_max = va_arg(ap, size_t);
-        lp->buffer_max    = buffer_max;
-        if (lp->buffer_real > buffer_max)
-            lp->bufferp = (char *)realloc(lp->bufferp, buffer_max);
-        if (lp->bufferp == NULL) {
-            lp->buffer_real = 0;
-#ifdef DEBUG_LOG
-            perror("logdebug: realloc failed");
-#endif
-            return -1;
-        }
-        if (lp->buffer_real > buffer_max)
-            lp->buffer_real = buffer_max;
-
+static int
+logcat_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
+{
+#ifdef ANDROID
+    android_LogPriority pri;
+    switch (level) {
+    case LOG_VERBOSE:
+        pri = ANDROID_LOG_VERBOSE;
         break;
-    }
-    case LOG_OPT_GET_HANDLER_BUFFERSIZEMIN: {
-        log_handler_t *lp = va_arg(ap, log_handler_t *);
-        if (lp == NULL) {
-#ifdef DEBUG_LOG
-            fprintf(stderr, "logdebug: invalid ident\n");
-#endif
-            return -1;
-        }
-
-        size_t *buffer_min = va_arg(ap, size_t *);
-        *buffer_min        = lp->buffer_min;
+    case LOG_DEBUG:
+        pri = ANDROID_LOG_DEBUG;
         break;
-    }
-    case LOG_OPT_GET_HANDLER_BUFFERSIZEMAX: {
-        log_handler_t *lp = va_arg(ap, log_handler_t *);
-        if (lp == NULL) {
-#ifdef DEBUG_LOG
-            fprintf(stderr, "logdebug: invalid ident\n");
-#endif
-            return -1;
-        }
-
-        size_t *buffer_max = va_arg(ap, size_t *);
-        *buffer_max        = lp->buffer_max;
+    case LOG_INFO:
+        pri = ANDROID_LOG_INFO;
         break;
-    }
-    case LOG_OPT_GET_HANDLER_BUFFERSIZEREAL: {
-        log_handler_t *lp = va_arg(ap, log_handler_t *);
-        if (lp == NULL) {
-#ifdef DEBUG_LOG
-            fprintf(stderr, "logdebug: invalid ident\n");
-#endif
-            return -1;
-        }
-        size_t *buffer_real = va_arg(ap, size_t *);
-        *buffer_real        = lp->buffer_real;
+    case LOG_WARNING:
+        pri = ANDROID_LOG_WARN;
         break;
-    }
-    case LOG_OPT_SET_HANDLER_IDENT: {
-        log_handler_t *lp = va_arg(ap, log_handler_t *);
-        if (lp == NULL) {
-#ifdef DEBUG_LOG
-            fprintf(stderr, "logdebug: invalid ident\n");
-#endif
-            return -1;
-        }
-
-        char *ident = va_arg(ap, char *);
-        strncpy(lp->ident, ident, strlen(ident) + 1);
+    case LOG_ERROR:
+        pri = ANDROID_LOG_ERROR;
         break;
-    }
-    case LOG_OPT_GET_HANDLER_IDENT: {
-        log_handler_t *lp = va_arg(ap, log_handler_t *);
-        if (lp == NULL) {
-#ifdef DEBUG_LOG
-            fprintf(stderr, "logdebug: invalid ident\n");
-#endif
-            return -1;
-        }
-        char *ident = va_arg(ap, char *);
-        if (ident) {
-            strncpy(ident, lp->ident, strlen(lp->ident) + 1);
-        } else {
-            return -1;
-        }
+    case LOG_FATAL:
+        pri = ANDROID_LOG_FATAL;
         break;
-    }
+    case LOG_ALERT:
+        pri = ANDROID_LOG_FATAL;
+        break;
+    case LOG_EMERG:
+        pri = ANDROID_LOG_SILENT;
+        break;
     default:
+        pri = ANDROID_LOG_DEFAULT;
+        break;
+    }
+    return __android_log_vprint(l, r->indent, format, args);
+#else
+    return 0;
+#endif
+}
+
+static int
+syslog_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
+{
+    syslog(level, "%s", buf);
+    return len;
+}
+
+static int
+file_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
+{
+    int ret;
+    file_output_config *conf = NULL;
+    if (!output) {
+        ERROR_LOG("output is NULL\n");
+        return 0;
+    }
+
+    conf = (file_output_config *)output->conf;
+    if (!conf) {
+        ERROR_LOG("conf is NULL\n");
+        return 0;
+    }
+
+    if (conf->fp == NULL) {
+        ret = file_open_logfile(output);
+        if (ret < 0) {
+            ERROR_LOG("open logfile failed\n");
+            return 0;
+        }
+    }
+
+    int nwrite = conf->file_size - conf->data_offset;
+    if (nwrite <= len) {
+        char *str = strndup(buf, nwrite);
+        if (!str) {
+            ERROR_LOG("strndup failed(%s)\n", strerror(errno));
+            return 0;
+        }
+
+        if (fwrite(buf, len, 1, conf->fp) != 1) {
+            ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
+            return 0;
+        }
+        conf->data_offset += nwrite;
+        free(str);
+
+        file_rename_logfile(output);
+
+        ret = file_open_logfile(output);
+        if (ret != 0) {
+            ERROR_LOG("open logfile failed\n");
+            return nwrite;
+        }
+
+        if (fwrite(buf + nwrite, len - nwrite, 1, conf->fp) != 1) {
+            ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
+            return nwrite;
+        }
+
+
+        conf->data_offset += (len - nwrite);
+        return len;
+    } else {
+        if (fwrite(buf, len, 1, conf->fp) != 1) {
+            ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
+            return 0;
+        }
+        conf->data_offset += len;
+        return len;
+    }
+}
+
+static int
+sock_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
+{
+    sock_output_config *conf = NULL;
+
+    if (!output) {
+        ERROR_LOG("output is NULL\n");
+        return 0;
+    }
+    conf = (sock_output_config *)output->conf;
+    if (!conf) {
+        ERROR_LOG("conf is NULL\n");
+        return 0;
+    }
+
+    if (conf->sockfd == -1) {
+        ERROR_LOG("sockfd is -1\n");
+        return 0;
+    }
+
+    int total = 0;
+    int nsend = 0;
+    while (total < len) {
+        nsend = send(conf->sockfd, buf + total, len - total, MSG_NOSIGNAL);
+        if (nsend < 0) {
+            if (errno == EAGAIN || errno == EINTR) {
+                continue;
+            } else {
+                ERROR_LOG("send failed(%s)\n", strerror(errno));
+                close(conf->sockfd);
+                conf->sockfd = -1;
+                break;
+            }
+        } else if (nsend == 0) {
+            ERROR_LOG("sock closed\n");
+            close(conf->sockfd);
+            conf->sockfd = -1;
+            break;
+        } else {
+            total += nsend;
+        }
+    }
+    return total;
+}
+
+static int
+file_config_init(log_output_t *output, va_list ap)
+{
+    file_output_config *conf = NULL;
+    if (!output) {
+        ERROR_LOG("output is NULL\n");
         return -1;
     }
+
+    if (output->conf == NULL) {
+        output->conf =
+            (file_output_config *)calloc(1, sizeof(file_output_config));
+        if (output->conf == NULL) {
+            ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+            return -1;
+        }
+    }
+    conf = (file_output_config *)output->conf;
+
+    char *file_path = va_arg(ap, char *);
+    if (file_path && strlen(file_path) > 0) {
+        conf->file_path = strdup(file_path);
+    } else {
+        conf->file_path = strdup(DEFAULT_FILEPATH);
+    }
+
+    char *file_name = va_arg(ap, char *);
+    if (file_name && strlen(file_name) > 0) {
+        conf->log_name = strdup(file_name);
+    } else {
+        conf->log_name = strdup(DEFAULT_FILENAME);
+    }
+
+    unsigned long file_size = va_arg(ap, unsigned long);
+    if (file_size > 0) {
+        conf->file_size = file_size;
+    } else {
+        conf->file_size = DEFAULT_FILESIZE;
+    }
+
+    int num_files = va_arg(ap, int);
+    if (num_files >= 0) {
+        conf->num_files = num_files;
+    } else {
+        conf->num_files = DEFAULT_BAKUP;
+    }
+
+    conf->fp       = NULL;
+    conf->file_idx = 0;
 
     return 0;
 }
 
+static void
+file_config_uninit(log_output_t *output)
+{
+    file_output_config *conf = NULL;
+    if (!output) {
+        ERROR_LOG("output is NULL\n");
+        return;
+    }
+    conf = (file_output_config *)output->conf;
+    if (conf == NULL) {
+        return;
+    }
+
+    if (conf->file_path) {
+        free(conf->file_path);
+        conf->file_path = NULL;
+    }
+    if (conf->log_name) {
+        free(conf->log_name);
+        conf->log_name = NULL;
+    }
+    if (conf->fp) {
+        fclose(conf->fp);
+        conf->fp = NULL;
+    }
+    free(conf);
+    conf         = NULL;
+    output->conf = NULL;
+}
+
+static int
+sock_config_init(log_output_t *output, va_list ap)
+{
+    sock_output_config *conf = NULL;
+    if (!output) {
+        ERROR_LOG("output is NULL\n");
+        return -1;
+    }
+
+    if (output->conf == NULL) {
+        output->conf =
+            (sock_output_config *)calloc(1, sizeof(sock_output_config));
+        if (!output->conf) {
+            ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+            goto failed;
+        }
+        ((sock_output_config *)(output->conf))->sockfd = -1;
+    }
+    conf = (sock_output_config *)output->conf;
+
+    char *addr_str = va_arg(ap, char *);
+    if (addr_str && strlen(addr_str) > 0) {
+        strncpy(conf->addr, addr_str, strlen(addr_str) + 1);
+    } else {
+        strncpy(conf->addr, DEFAULT_SOCKADDR, strlen(DEFAULT_SOCKADDR) + 1);
+    }
+
+    unsigned port = va_arg(ap, unsigned);
+    if (port > 0 && port < 65535) {
+        conf->port = port;
+    } else {
+        conf->port = DEFAULT_SOCKPORT;
+    }
+
+    if (conf->sockfd != -1) {
+        close(conf->sockfd);
+        conf->sockfd = -1;
+    }
+
+    struct hostent *host = gethostbyname(conf->addr);
+    if (host == NULL) {
+        ERROR_LOG("gethostbyname failed(%s)\n", strerror(errno));
+        goto failed;
+    }
+
+    if (output->type == LOG_OUTTYPE_TCP) {
+        conf->sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    } else {
+        conf->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    }
+    if (conf->sockfd < 0) {
+        ERROR_LOG("socket failed(%s)\n", strerror(errno));
+        goto failed;
+    }
+
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port   = htons(conf->port);
+    addr.sin_addr   = *(struct in_addr *)(host->h_addr_list[0]);
+    if (connect(conf->sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
+        ERROR_LOG("connect(%s)\n", strerror(errno));
+        goto failed;
+    }
+
+    return 0;
+
+failed:
+    if (conf != NULL) {
+        if (conf->sockfd != -1) {
+            close(conf->sockfd);
+        }
+        free(conf);
+        conf = NULL;
+    }
+    return -1;
+}
+
+static void
+sock_config_uninit(log_output_t *output)
+{
+    sock_output_config *conf = NULL;
+    if (!output) {
+        ERROR_LOG("output is NULL\n");
+        return;
+    }
+    conf = (sock_output_config *)output->conf;
+    if (conf == NULL) {
+        return;
+    }
+
+    if (conf->sockfd != -1) {
+        close(conf->sockfd);
+        conf->sockfd = -1;
+    }
+    free(conf);
+    conf         = NULL;
+    output->conf = NULL;
+}
+
+// ################################################################################
+
 static size_t
-log_parse_format(log_rule_t *r, log_handler_t *handler, const LOG_LEVEL_E level,
-             const char *file, const char *func, const long line,
-             const char *fmt, va_list ap)
+log_parse_format(log_handler_t *handler, log_rule_t *r, const LOG_LEVEL_E level,
+                 const char *file, const char *func, const long line,
+                 const char *fmt, va_list ap)
 {
 
-    if (r == NULL || r->format == NULL || handler == NULL
-        || handler->bufferp == NULL) {
+    if (r == NULL || r->format == NULL || handler == NULL || handler->bufferp == NULL) {
+        ERROR_LOG("invalid argument\n");
         return 0;
     }
 
@@ -513,42 +749,36 @@ begin:
     while (*p) {
         if (idx >= len) {
             if (handler->buffer_real < handler->buffer_max) {
-#ifdef DEBUG_LOG
-                fprintf(stderr, "logdebug: realloc buffer\n");
-#endif
                 if (handler->buffer_real * 2 <= handler->buffer_max) {
                     handler->bufferp = (char *)realloc(
                         handler->bufferp, handler->buffer_real * 2);
                     if (handler->bufferp) {
                         handler->buffer_real *= 2;
+                        DEBUG_LOG("realloc buffer to: %lu\n",
+                                  handler->buffer_real);
                         goto begin;
                     }
 
                     handler->buffer_real = 0;
-#ifdef DEBUG_LOG
-                    fprintf(stderr, "logdebug: realloc failed\n");
-#endif
+                    ERROR_LOG("realloc failed(%s)\n", strerror(errno));
                     goto err;
                 } else {
                     handler->bufferp =
                         (char *)realloc(handler->bufferp, handler->buffer_max);
                     if (handler->bufferp) {
                         handler->buffer_real = handler->buffer_max;
+                        DEBUG_LOG("realloc buffer to: %lu\n",
+                                  handler->buffer_real);
                         goto begin;
                     }
 
                     handler->buffer_real = 0;
-#ifdef DEBUG_LOG
-                    fprintf(stderr, "logdebug: realloc failed\n");
-#endif
+                    ERROR_LOG("realloc failed(%s)\n", strerror(errno));
                     goto err;
                 }
             } else {
                 snprintf(buf + len - 13, 13, "%s", "(truncated)\n");
-#ifdef DEBUG_LOG
-                fprintf(stderr, "logdebug: msg too long, truncated to %u.\n",
-                        (unsigned)idx);
-#endif
+                DEBUG_LOG("msg too long, truncated to %u.\n", (unsigned)idx);
                 goto end;
             }
         }
@@ -557,9 +787,7 @@ begin:
             nread = 0;
             nscan = sscanf(p, "%%%[.0-9]%n", format_buf, &nread);
             if (nscan == 1) {
-#ifdef DEBUG_LOG
-                fprintf(stderr, "logdebug: parse format [%s] failed.\n", p);
-#endif
+                ERROR_LOG("parse format [%s] failed.\n", p);
                 goto err;
             } else {
                 nread = 1;
@@ -575,13 +803,10 @@ begin:
                 }
                 p += nread;
                 if (*(p - 1) != ')') {
-#ifdef DEBUG_LOG
-                    fprintf(stderr,
-                            "logdebug: parse foramt [%s] "
-                            "failed, can't find "
-                            "\')\'.\n",
-                            p);
-#endif
+                    ERROR_LOG(
+                        "parse foramt [%s] failed, can't find "
+                        "\')\'.\n",
+                        p);
                     goto err;
                 }
                 idx += snprintf(buf + idx, len - idx, "%s", getenv(env));
@@ -604,13 +829,10 @@ begin:
                     }
                     p += nread;
                     if (*(p - 1) != ')') {
-#ifdef DEBUG_LOG
-                        fprintf(stderr,
-                                "logdebug: parse format "
-                                "[%s] failed, can't "
-                                "find \')\''.\n",
-                                p);
-#endif
+                        ERROR_LOG(
+                            "parse format [%s] failed, can't find "
+                            "\')\''.\n",
+                            p);
                         goto err;
                     }
                 }
@@ -707,7 +929,7 @@ err:
 }
 
 static void
-log_update_stat(const LOG_LEVEL_E level, size_t len, log_output_t *output)
+log_update_stat(log_output_t *output, const LOG_LEVEL_E level, size_t len)
 {
     if (output) {
         output->stat.stats[level].count++;
@@ -720,15 +942,15 @@ log_update_stat(const LOG_LEVEL_E level, size_t len, log_output_t *output)
 
 static void
 vlog(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
-     const char *function, const long line, const char *format, va_list args)
+     const char *function, const long line, const char *fmt, va_list ap)
 {
     uint16_t i;
-    log_rules *pr;
     int ret;
     LOG_LEVEL_E level;
-
-    if (handler == NULL)
+    if (handler == NULL) {
+        ERROR_LOG("handler is NULL\n");
         return;
+    }
 
     level = lvl;
     if (level > LOG_VERBOSE)
@@ -736,194 +958,121 @@ vlog(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
     if (lvl < LOG_EMERG)
         level = LOG_EMERG;
 
+    log_rule_t *r = NULL;
     pthread_mutex_lock(&handler->mutex);
-    list_for_each_entry(pr, &(handler->rules), l)
+    list_for_each_entry(r, &(handler->rules), rule)
     {
-        log_rule_t *r = pr->rule;
         if (r->level_begin < level || r->level_end > level) {
             continue;
         }
 
-        va_list ap;
-        va_copy(ap, args);
+        va_list ap2;
+        va_copy(ap2, ap);
         size_t len =
-            log_parse_format(r, handler, level, file, function, line, format, ap);
-        va_end(ap);
+            log_parse_format(handler, r, level, file, function, line, fmt, ap2);
+        va_end(ap2);
         if (len <= 0) {
             continue;
         }
 
-        r->output->emit(handler, level, len);
-
-#if 0
-        switch (r->output->type) {
-        case LOG_OUTTYPE_STDOUT:
-            r->output->emit(handler, level, len);
-            fprintf(stdout, "%s", handler->bufferp);
-            fflush(stdout);
-            update_stat(level, len, r->output);
-            break;
-
-        case LOG_OUTTYPE_STDERR:
-            fprintf(stderr, "%s", handler->bufferp);
-            update_stat(level, len, r->output);
-            break;
-
-        case LOG_OUTTYPE_FILE: {
-            file_output_config *config = (file_output_config *)r->output->config;
-            if (!config) {
-                continue;
-            }
-            if (config->fp == NULL) {
-                ret = log_open_logfile(r->poutput);
-                if (ret < 0) {
-#ifdef DEBUG_LOG
-                    fprintf(stderr, "logdebug: open logfile failed\n");
-#endif
-                    continue;
-                }
-            }
-
-            if (r->poutput->u.file.fp) {
-                int nwrite = r->poutput->u.file.file_size
-                             - r->poutput->u.file.data_offset;
-                if (nwrite <= len) {
-                    char *str = strndup(handler->bufferp, nwrite);
-                    if (!str) {
-#ifdef DEBUG_LOG
-                        perror("logdebug: strndup");
-#endif
-                        continue;
-                    }
-                    if (fprintf(r->poutput->u.file.fp, "%s", str) != nwrite) {
-#ifdef DEBUG_LOG
-                        perror("logdebug: fprintf");
-#endif
-                    }
-                    r->poutput->u.file.data_offset += nwrite;
-                    free(str);
-
-                    log_rename_logfile(r->poutput);
-
-                    ret = log_open_logfile(r->poutput);
-                    if (ret != 0) {
-#ifdef DEBUG_LOG
-                        fprintf(stderr, "logdebug: open logfile failed\n");
-#endif
-                        continue;
-                    }
-
-                    if (fprintf(r->poutput->u.file.fp, "%s",
-                                handler->bufferp + nwrite)
-                        != len - nwrite) {
-#ifdef DEBUG_LOG
-                        perror("logdebug: fprintf ");
-#endif
-                    }
-                    r->poutput->u.file.data_offset += (len - nwrite);
-                } else {
-                    if (fprintf(r->poutput->u.file.fp, "%s", handler->bufferp)
-                        != (int)len) {
-                        if (errno != 0) {
-#ifdef DEBUG_LOG
-                            perror("logdebug: fprintf");
-#endif
-                        }
-                    }
-                    r->poutput->u.file.data_offset += len;
-                }
-                update_stat(level, len, r->poutput);
-
-                /* fflush(r->poutput->u.file.fp); */
-            }
-            break;
+        ret = r->output->emit(r->output, level, handler->bufferp, len);
+        if (ret > 0) {
+            log_update_stat(r->output, level, ret);
         }
-
-        case LOG_OUTTYPE_TCP:
-        case LOG_OUTTYPE_UDP: {
-            if (r->poutput->u.sock.sockfd != -1) {
-                int total = 0;
-                int nsend = 0;
-                while (total < len) {
-                    nsend = send(r->poutput->u.sock.sockfd,
-                                 handler->bufferp + total, len - total,
-                                 MSG_NOSIGNAL);
-                    if (nsend < 0) {
-                        if (errno == EAGAIN || errno == EINTR) {
-                            continue;
-                        } else {
-#ifdef DEBUG_LOG
-                            perror("logdebug: send");
-#endif
-                            close(r->poutput->u.sock.sockfd);
-                            r->poutput->u.sock.sockfd = -1;
-                            break;
-                        }
-                    } else if (nsend == 0) {
-#ifdef DEBUG_LOG
-                        fprintf(stderr, "logdebug: sock closed\n");
-#endif
-                        close(r->poutput->u.sock.sockfd);
-                        r->poutput->u.sock.sockfd = -1;
-                        break;
-                    } else {
-                        total += nsend;
-                    }
-                }
-                update_stat(level, len, r->poutput);
-            }
-            break;
-        }
-
-        case LOG_OUTTYPE_LOGCAT: {
-#ifdef ANDROID
-            android_LogPriority l;
-            switch (level) {
-            case LOG_VERBOSE:
-                l = ANDROID_LOG_VERBOSE;
-                break;
-            case LOG_DEBUG:
-                l = ANDROID_LOG_DEBUG;
-                break;
-            case LOG_INFO:
-                l = ANDROID_LOG_INFO;
-                break;
-            case LOG_WARNING:
-                l = ANDROID_LOG_WARN;
-                break;
-            case LOG_ERROR:
-                l = ANDROID_LOG_ERROR;
-                break;
-            case LOG_FATAL:
-                l = ANDROID_LOG_FATAL;
-                break;
-            case LOG_ALERT:
-                l = ANDROID_LOG_FATAL;
-                break;
-            case LOG_EMERG:
-                l = ANDROID_LOG_SILENT;
-                break;
-            default:
-                l = ANDROID_LOG_DEFAULT;
-                break;
-            }
-            __android_log_vprint(l, r->indent, format, args);
-            update_stat(level, len, r->poutput);
-#endif
-            break;
-        }
-
-        case LOG_OUTTYPE_SYSLOG:
-            syslog(level, "%s", handler->bufferp);
-            update_stat(level, len, r->poutput);
-            break;
-
-        default:
-            break;
-        }
-#endif
     }
     pthread_mutex_unlock(&handler->mutex);
+}
+
+static int
+log_ctl_(enum LOG_OPTS opt, va_list ap)
+{
+    log_handler_t *handler = va_arg(ap, log_handler_t *);
+    if (handler == NULL) {
+        ERROR_LOG("invalid indent\n");
+        return -1;
+    }
+    switch (opt) {
+    case LOG_OPT_SET_HANDLER_BUFFERSIZEMIN: {
+        size_t buffer_min   = va_arg(ap, size_t);
+        handler->buffer_min = buffer_min;
+        if (handler->buffer_real < buffer_min)
+            handler->bufferp = (char *)realloc(handler->bufferp, buffer_min);
+        if (handler->bufferp == NULL) {
+            handler->buffer_real = 0;
+            ERROR_LOG("realloc failed(%s)\n", strerror(errno));
+            return -1;
+        }
+        if (handler->buffer_real < buffer_min)
+            handler->buffer_real = buffer_min;
+        break;
+    }
+
+    case LOG_OPT_SET_HANDLER_BUFFERSIZEMAX: {
+        size_t buffer_max   = va_arg(ap, size_t);
+        handler->buffer_max = buffer_max;
+        if (handler->buffer_real > buffer_max)
+            handler->bufferp = (char *)realloc(handler->bufferp, buffer_max);
+        if (handler->bufferp == NULL) {
+            handler->buffer_real = 0;
+            ERROR_LOG("realloc failed(%s)\n", strerror(errno));
+            return -1;
+        }
+        if (handler->buffer_real > buffer_max)
+            handler->buffer_real = buffer_max;
+        break;
+    }
+    case LOG_OPT_GET_HANDLER_BUFFERSIZEMIN: {
+        size_t *buffer_min = va_arg(ap, size_t *);
+        if (!buffer_min) {
+            ERROR_LOG("buffer_min pointer is NULL\n");
+            return -1;
+        }
+        *buffer_min = handler->buffer_min;
+        break;
+    }
+    case LOG_OPT_GET_HANDLER_BUFFERSIZEMAX: {
+        size_t *buffer_max = va_arg(ap, size_t *);
+        if (!buffer_max) {
+            ERROR_LOG("buffer_max pointer is NULL\n");
+            return -1;
+        }
+        *buffer_max = handler->buffer_max;
+        break;
+    }
+    case LOG_OPT_GET_HANDLER_BUFFERSIZEREAL: {
+        size_t *buffer_real = va_arg(ap, size_t *);
+        if (!buffer_real) {
+            ERROR_LOG("buffer_real pointer is NULL\n");
+            return -1;
+        }
+        *buffer_real = handler->buffer_real;
+        break;
+    }
+    case LOG_OPT_SET_HANDLER_IDENT: {
+        char *ident = va_arg(ap, char *);
+        if (!ident) {
+            ERROR_LOG("ident pointer is NULL\n");
+            return -1;
+        }
+        strncpy(handler->ident, ident, strlen(ident) + 1);
+        break;
+    }
+    case LOG_OPT_GET_HANDLER_IDENT: {
+        char *ident = va_arg(ap, char *);
+        if (!ident) {
+            ERROR_LOG("ident is NULL\n");
+            return -1;
+        }
+        strncpy(ident, handler->ident, strlen(handler->ident) + 1);
+
+        break;
+    }
+    default:
+        ERROR_LOG("invalid LOG_OPT: %d\n", opt);
+        return -1;
+    }
+
+    return 0;
 }
 
 int
@@ -939,36 +1088,62 @@ log_ctl(enum LOG_OPTS opt, ...)
 log_handler_t *
 log_handler_create(const char *ident)
 {
-    log_handler_t *lp = log_handler_get(ident);
-    if (lp == NULL) {
-        lp = (log_handler_t *)malloc(sizeof(log_handler_t));
-        if (lp != NULL) {
-            pthread_mutex_init(&lp->mutex, NULL);
-            strncpy(lp->ident, ident, strlen(ident) + 1);
-            lp->buffer_max  = BUFFER_MAX;
-            lp->buffer_min  = BUFFER_MIN;
-            lp->buffer_real = BUFFER_MIN;
-            lp->bufferp     = (char *)calloc(1, BUFFER_MIN);
-            if (lp->bufferp == NULL) {
-#ifdef DEBUG_LOG
-                fprintf(stderr, "logdebug: calloc failed\n");
-#endif
-                free(lp);
+    log_handler_t *handler = log_handler_get(ident);
+    if (handler == NULL) {
+        handler = (log_handler_t *)malloc(sizeof(log_handler_t));
+        if (handler != NULL) {
+            pthread_mutex_init(&handler->mutex, NULL);
+            strncpy(handler->ident, ident, strlen(ident) + 1);
+            handler->buffer_max  = BUFFER_MAX;
+            handler->buffer_min  = BUFFER_MIN;
+            handler->buffer_real = BUFFER_MIN;
+            handler->bufferp     = (char *)calloc(1, BUFFER_MIN);
+            if (handler->bufferp == NULL) {
+                ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+                pthread_mutex_destroy(&handler->mutex);
+                free(handler);
                 return NULL;
             }
 
-            INIT_LIST_HEAD(&lp->rules);
-            list_add_tail(&lp->l, &handler_header);
+            INIT_LIST_HEAD(&handler->rules);
+            list_add_tail(&handler->handler_entry, &handler_header);
         }
     }
-    return lp;
+    return handler;
+}
+
+void
+log_handler_destory(log_handler_t *handler)
+{
+    if (!handler) {
+        ERROR_LOG("handler is NULL\n");
+        return;
+    }
+    list_del(&handler->handler_entry);
+
+    pthread_mutex_destroy(&handler->mutex);
+    if (handler->bufferp) {
+        free(handler->bufferp);
+        handler->bufferp = NULL;
+    }
+
+    log_rule_t *r, *tmp;
+    list_for_each_entry_safe(r, tmp, &(handler->rules), rule)
+    {
+        if (r) {
+            list_del(&r->rule_entry);
+            list_del(&r->rule);
+            free(r);
+            r = NULL;
+        }
+    }
 }
 
 log_handler_t *
 log_handler_get(const char *ident)
 {
     log_handler_t *handler = NULL;
-    list_for_each_entry(handler, &handler_header, l)
+    list_for_each_entry(handler, &handler_header, handler_entry)
     {
         if (handler && strcmp(handler->ident, ident) == 0) {
             return handler;
@@ -990,175 +1165,85 @@ log_format_create(const char *format, int color)
             } else {
                 fp->color = FALSE;
             }
-            list_add_tail(&fp->l, &format_header);
+            list_add_tail(&fp->format_entry, &format_header);
             return fp;
         } else {
-#ifdef DEBUG_LOG
-            fprintf(stderr, "logdebug: alloc failed\n");
-#endif
+            ERROR_LOG("alloc failed(%s)\n", strerror(errno));
             return NULL;
         }
     }
     return NULL;
 }
-
-log_format_t *
-log_format_get_default()
+void
+log_format_destory(log_format_t *format)
 {
-    if (list_empty(&format_header)) {
-        return NULL;
-    } else {
-        return list_entry(format_header.next, log_format_t, l);
+    if (!format) {
+        ERROR_LOG("format is NULL\n");
+        return;
     }
+    /* TODO: delete from rule */
+    list_del(&format->format_entry);
+    free(format);
+    format = NULL;
 }
 
-static log_output_t*
+log_output_t *
 log_output_create_(enum LOG_OUTTYPE type, va_list ap)
 {
 
-    log_output_t*output = NULL;
-    #if 0
-    switch (type) {
-    case LOG_OUTTYPE_STDOUT:
-    case LOG_OUTTYPE_STDERR:
-    case LOG_OUTTYPE_LOGCAT:
-    case LOG_OUTTYPE_SYSLOG:
-        output = (log_output_t*)calloc(1, sizeof(log_output_t));
-        if (output) {
-            pthread_mutex_init(&output->mutex, NULL);
-            output->type = type;
-            list_add_tail(&output->l, &output_header);
-            return output;
-        } else {
-#ifdef DEBUG_LOG
-            fprintf(stderr, "logdebug: calloc failed\n");
-#endif
-            return NULL;
-        }
-        break;
-    case LOG_OUTTYPE_FILE:
-        output = (log_output_t*)calloc(1, sizeof(log_output_t));
-        if (output) {
-            file_output_config *config = (file_output_config *)calloc(1, sizeof(file_output_config));
-            if (!config) {
-                free(output);
-                return NULL;
-            }
-            output->config = config;
-            pthread_mutex_init(&output->mutex, NULL);
-            output->type = type;
-
-            char *file_path = va_arg(ap, char *);
-            if (file_path && strlen(file_path) > 0) {
-                config->file_path = strdup(file_path);
-            } else {
-                output->u.file.file_path = strdup(DEFAULT_FILEPATH);
-            }
-
-            char *file_name = va_arg(ap, char *);
-            if (file_name && strlen(file_name) > 0) {
-                output->u.file.log_name = strdup(file_name);
-            } else {
-                output->u.file.log_name = strdup(DEFAULT_FILENAME);
-            }
-
-            unsigned long file_size = va_arg(ap, unsigned long);
-            if (file_size > 0) {
-                output->u.file.file_size = file_size;
-            } else {
-                output->u.file.file_size = DEFAULT_FILESIZE;
-            }
-
-            int num_files = va_arg(ap, int);
-            if (num_files >= 0) {
-                output->u.file.num_files = num_files;
-            } else {
-                output->u.file.num_files = DEFAULT_BAKUP;
-            }
-
-            output->u.file.fp       = NULL;
-            output->u.file.file_idx = 0;
-            list_add_tail(&output->l, &output_header);
-            return output;
-        } else {
-#ifdef DEBUG_LOG
-            fprintf(stderr, "logdebug: calloc failed\n");
-#endif
-            return NULL;
-        }
-        break;
-
-    case LOG_OUTTYPE_UDP:
-    case LOG_OUTTYPE_TCP:
-        output = (log_output_t*)calloc(1, sizeof(logoutput));
-        if (output) {
-            pthread_mutex_init(&output->mutex, NULL);
-            output->type = type;
-            char *addr   = va_arg(ap, char *);
-            if (addr && strlen(addr) > 0) {
-                strncpy(output->u.sock.addr, addr, strlen(addr) + 1);
-            } else {
-                strncpy(output->u.sock.addr, DEFAULT_SOCKADDR,
-                        strlen(DEFAULT_SOCKADDR) + 1);
-            }
-
-            unsigned port = va_arg(ap, unsigned);
-            if (port > 0 && port < 65535) {
-                output->u.sock.port = port;
-            } else {
-                output->u.sock.port = DEFAULT_SOCKPORT;
-            }
-            output->u.sock.sockfd = -1;
-
-            if (output->u.sock.sockfd == -1) {
-                struct hostent *host = NULL;
-                if ((host = gethostbyname(output->u.sock.addr)) != NULL) {
-                    if (output->type == LOG_OUTTYPE_TCP) {
-                        output->u.sock.sockfd = socket(AF_INET, SOCK_STREAM, 0);
-                    } else {
-                        output->u.sock.sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-                    }
-
-                    if (output->u.sock.sockfd != -1) {
-                        struct sockaddr_in addr;
-                        memset(&addr, 0, sizeof(addr));
-                        addr.sin_family = AF_INET;
-                        addr.sin_port   = htons(output->u.sock.port);
-                        addr.sin_addr =
-                            *(struct in_addr *)(host->h_addr_list[0]);
-                        if (connect(output->u.sock.sockfd,
-                                    (struct sockaddr *)&addr, sizeof(addr))
-                            < 0) {
-#ifdef DEBUG_LOG
-                            perror("logdebug: connect");
-#endif
-                            close(output->u.sock.sockfd);
-                            output->u.sock.sockfd = -1;
-                        }
-                    }
-                }
-            }
-
-            list_add_tail(&output->l, &output_header);
-            return output;
-        } else {
-#ifdef DEBUG_LOG
-            fprintf(stderr, "logdebug: calloc failed\n");
-#endif
-            return NULL;
-        }
-        break;
-    default:
+    log_output_t *output = NULL;
+    output               = (log_output_t *)calloc(1, sizeof(log_output_t));
+    if (!output) {
+        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
         return NULL;
     }
-    #endif
+
+    output->type = type;
+
+    switch (type) {
+    case LOG_OUTTYPE_STDOUT:
+        output->emit = stdout_emit;
+        break;
+    case LOG_OUTTYPE_STDERR:
+        output->emit = stderr_emit;
+        break;
+    case LOG_OUTTYPE_LOGCAT:
+        output->emit = logcat_emit;
+        break;
+    case LOG_OUTTYPE_SYSLOG:
+        output->emit = syslog_emit;
+        break;
+
+    case LOG_OUTTYPE_FILE:
+        if (file_config_init(output, ap) < 0) {
+            goto failed;
+        }
+
+        output->emit = file_emit;
+        break;
+    case LOG_OUTTYPE_TCP:
+    case LOG_OUTTYPE_UDP:
+        if (sock_config_init(output, ap) < 0) {
+            goto failed;
+        }
+        output->emit = sock_emit;
+        break;
+    default:
+        goto failed;
+    }
+
+    list_add_tail(&output->output_entry, &output_header);
+    return output;
+
+failed:
+    free(output);
     return NULL;
 }
 
-log_output_t*
+log_output_t *
 log_output_create(enum LOG_OUTTYPE type, ...)
 {
-    log_output_t*output = NULL;
+    log_output_t *output = NULL;
     va_list ap;
     va_start(ap, type);
     output = log_output_create_(type, ap);
@@ -1166,77 +1251,80 @@ log_output_create(enum LOG_OUTTYPE type, ...)
     return output;
 }
 
-log_output_t*
-log_output_get_default()
+void
+log_output_destroy(log_output_t *output)
 {
-    if (list_empty(&output_header)) {
-        return NULL;
-    } else {
-        return list_entry(output_header.next, log_output_t, l);
+    if (!output) {
+        ERROR_LOG("output is NULL\n");
+        return;
     }
+    /* TODO: delete from rule's list */
+    list_del(&output->output_entry);
+
+    if (output->type == LOG_OUTTYPE_FILE) {
+        file_config_uninit(output);
+    } else if (output->type == LOG_OUTTYPE_TCP
+               || output->type == LOG_OUTTYPE_UDP) {
+        sock_config_uninit(output);
+    }
+    free(output);
+    output = NULL;
 }
+
 
 int
 log_bind(log_handler_t *handler, LOG_LEVEL_E level_begin, LOG_LEVEL_E level_end,
-        log_format_t *format, log_output_t*output)
+         log_format_t *format, log_output_t *output)
 {
-    if (handler == NULL || format == NULL || output == NULL)
+    if (handler == NULL || format == NULL || output == NULL) {
+        ERROR_LOG("invalid argument\n");
         return -1;
+    }
 
     log_rule_t *r = (log_rule_t *)calloc(1, sizeof(log_rule_t));
-    if (r) {
-        if (level_begin >= LOG_EMERG && level_begin <= LOG_VERBOSE) {
-            r->level_begin = level_begin;
-        } else {
-            r->level_begin = LOG_VERBOSE;
-        }
-
-        if (level_end >= LOG_EMERG && level_end <= LOG_VERBOSE) {
-            r->level_end = level_end;
-        } else {
-            r->level_end = LOG_EMERG;
-        }
-
-        r->format = format;
-        r->output = output;
-        list_add_tail(&r->l, &rule_header);
-    } else {
-#ifdef DEBUG_LOG
-        fprintf(stderr, "logdebug: malloc failed\n");
-#endif
+    if (!r) {
+        ERROR_LOG("malloc failed(%s)\n", strerror(errno));
         return -1;
     }
 
-    log_rules *pr = (log_rules *)calloc(1, sizeof(log_rules));
-    if (pr) {
-        pr->rule = r;
-        list_add_tail(&pr->l, &handler->rules);
-        return 0;
+    if (level_begin >= LOG_EMERG && level_begin <= LOG_VERBOSE) {
+        r->level_begin = level_begin;
     } else {
-        free(r);
-#ifdef DEBUG_LOG
-        fprintf(stderr, "logdebug: malloc failed\n");
-#endif
-        return -1;
+        r->level_begin = LOG_VERBOSE;
     }
-    return -1;
+
+    if (level_end >= LOG_EMERG && level_end <= LOG_VERBOSE) {
+        r->level_end = level_end;
+    } else {
+        r->level_end = LOG_EMERG;
+    }
+
+    r->format = format;
+    r->output = output;
+    list_add_tail(&r->rule_entry, &rule_header);
+    list_add_tail(&r->rule, &handler->rules);
+
+    return 0;
 }
 
 int
-log_unbind(log_handler_t *handler, log_output_t*output)
+log_unbind(log_handler_t *handler, log_output_t *output)
 {
     if (handler == NULL || output == NULL) {
+        ERROR_LOG("invalid argument\n");
         return -1;
     }
 
-    log_rules *pr;
-    list_for_each_entry(pr, &(handler->rules), l)
+    log_rule_t *r;
+    list_for_each_entry(r, &(handler->rules), rule)
     {
-        if (pr->rule->output == output) {
-            list_del(&pr->l);
+        if (r->output == output) {
+            list_del(&r->rule);
             return 0;
         }
     }
+
+    ERROR_LOG("output not found\n");
     return -1;
 }
 
@@ -1253,26 +1341,27 @@ mlog(log_handler_t *handle, LOG_LEVEL_E level, const char *file,
 
 void
 slog(LOG_LEVEL_E level, const char *file, const char *function, long line,
-     const char *format, ...)
+     const char *fmt, ...)
 {
     log_handler_t *handler = log_handler_get(DEFAULT_IDENT);
     if (handler) {
-        va_list args;
-        va_start(args, format);
-        vlog(handler, level, file, function, line, format, args);
-        va_end(args);
+        va_list ap;
+        va_start(ap, fmt);
+        vlog(handler, level, file, function, line, fmt, ap);
+        va_end(ap);
+    } else {
+        DEBUG_LOG("can't find handler: %s\n", DEFAULT_IDENT);
     }
     return;
 }
 
 static void
-log_dump_stat(log_output_t*output)
+log_dump_stat(log_output_t *output)
 {
     int i;
     for (i = LOG_VERBOSE; i >= LOG_EMERG; i--) {
         printf("%-8s  count: %-8d  bytes: %-10lu\n", LOGLEVELSTR[i],
-               output->stat.stats[i].count,
-               output->stat.stats[i].bytes);
+               output->stat.stats[i].count, output->stat.stats[i].bytes);
     }
     printf("%-8s  count: %-8lu  bytes: %-10lu\n", "TOTAL",
            output->stat.count_total, output->stat.bytes_total);
@@ -1285,19 +1374,19 @@ log_dump(void)
     int j = 0;
     printf("=====================log profile==============================\n");
     log_rule_t *ru;
-    list_for_each_entry(ru, &rule_header, l) { i++; }
+    list_for_each_entry(ru, &rule_header, rule_entry) { i++; }
     printf("ctx: rule: %d", i);
     i = 0;
     log_format_t *format;
-    list_for_each_entry(format, &format_header, l) { i++; }
+    list_for_each_entry(format, &format_header, format_entry) { i++; }
     printf(" format: %d", i);
     i = 0;
-    log_output_t*output;
-    list_for_each_entry(output, &output_header, l) { i++; }
+    log_output_t *output;
+    list_for_each_entry(output, &output_header, output_entry) { i++; }
     printf(" output: %d\n", i);
     i = 0;
     log_handler_t *handler;
-    list_for_each_entry(handler, &handler_header, l)
+    list_for_each_entry(handler, &handler_header, handler_entry)
     {
         i++;
         j = 0;
@@ -1308,14 +1397,12 @@ log_dump(void)
         printf("buffer_real: %u\n", (unsigned)handler->buffer_real);
         printf("buffer_max: %u\n", (unsigned)handler->buffer_max);
         printf("\n");
-        log_rules *pr;
-        list_for_each_entry(pr, &handler->rules, l)
+        log_rule_t *r = NULL;
+        list_for_each_entry(r, &handler->rules, rule)
         {
             j++;
-            log_rule_t *r = pr->rule;
             if (r) {
                 printf("rule: %d\n", j);
-                #if 0
                 switch (r->output->type) {
                 case LOG_OUTTYPE_STDOUT:
                     printf("type: stdout\n");
@@ -1328,37 +1415,42 @@ log_dump(void)
                     printf("format: %s\n", r->format->format);
                     printf("level: %s\n", LOGLEVELSTR[r->level_begin]);
                     break;
-                case LOG_OUTTYPE_FILE:
+                case LOG_OUTTYPE_FILE: {
+                    file_output_config *conf =
+                        (file_output_config *)r->output->conf;
                     printf("type: file\n");
                     printf("format: %s\n", r->format->format);
                     printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
                            LOGLEVELSTR[r->level_end]);
-                    printf("filepath: %s\n", r->output->u.file.file_path);
-                    printf("filename: %s\n", r->output->u.file.log_name);
-                    printf("filesize: %u\n", r->output->u.file.file_size);
-                    printf("bakup: %d\n", r->poutput->u.file.num_files);
-                    printf("idx: %d\n", r->poutput->u.file.file_idx);
-                    printf("offset: %u\n", r->poutput->u.file.data_offset);
+                    printf("filepath: %s\n", conf->file_path);
+                    printf("filename: %s\n", conf->log_name);
+                    printf("filesize: %u\n", conf->file_size);
+                    printf("bakup: %d\n", conf->num_files);
+                    printf("idx: %d\n", conf->file_idx);
+                    printf("offset: %u\n", conf->data_offset);
                     break;
+                }
                 case LOG_OUTTYPE_UDP:
-                case LOG_OUTTYPE_TCP:
+                case LOG_OUTTYPE_TCP: {
+                    sock_output_config *conf =
+                        (sock_output_config *)r->output->conf;
                     printf("type: socket %s\n",
-                           r->poutput->type == LOG_OUTTYPE_TCP ? "tcp" : "udp");
-                    printf("format: %s\n", r->pformat->format);
+                           r->output->type == LOG_OUTTYPE_TCP ? "tcp" : "udp");
+                    printf("format: %s\n", r->format->format);
                     printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
                            LOGLEVELSTR[r->level_end]);
-                    printf("addr: %s:%d\n", r->poutput->u.sock.addr,
-                           r->poutput->u.sock.port);
+                    printf("addr: %s:%d\n", conf->addr, conf->port);
                     break;
+                }
                 case LOG_OUTTYPE_LOGCAT:
                     printf("type: logcat\n");
-                    printf("format: %s\n", r->pformat->format);
+                    printf("format: %s\n", r->format->format);
                     printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
                            LOGLEVELSTR[r->level_end]);
                     break;
                 case LOG_OUTTYPE_SYSLOG:
                     printf("type: syslog\n");
-                    printf("format: %s\n", r->pformat->format);
+                    printf("format: %s\n", r->format->format);
                     printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
                            LOGLEVELSTR[r->level_end]);
                     break;
@@ -1368,7 +1460,6 @@ log_dump(void)
                     printf("type: unknown\n");
                     break;
                 }
-                #endif
                 log_dump_stat(r->output);
 
                 printf("\n");

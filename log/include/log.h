@@ -145,6 +145,7 @@ int log_bind(log_handler_t *handler, LOG_LEVEL_E level_beign,
 int log_unbind(log_handler_t *handler, log_output_t *output);
 
 int log_ctl(enum LOG_OPTS, ...);
+
 void mlog(log_handler_t *handle, LOG_LEVEL_E level, const char *file,
           const char *function, long line, const char *format, ...);
 

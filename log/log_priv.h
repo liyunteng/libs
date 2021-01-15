@@ -32,8 +32,8 @@
 #define COLOR_WARNING "\033[1;35m"
 #define COLOR_NOTICE "\033[1;34m"
 #define COLOR_INFO "\033[1;37m"
-#define COLOR_DEBUG "\033[0;00m"
-#define COLOR_VERBOSE "\033[0;32m"
+#define COLOR_DEBUG "\033[0;32m"
+#define COLOR_VERBOSE "\033[0;00m"
 
 #define DEFAULT_SOCKADDR "127.0.0.1"
 #define DEFAULT_SOCKPORT 12345

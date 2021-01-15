@@ -180,7 +180,7 @@ void test6()
     b[i] = '\0';
     log_bind(handler, LOG_VERBOSE, -1, format, output1);
     /* log_bind(handler, LOG_VERBOSE, -1, format, output2); */
-    log_bind(handler, LOG_DEBUG, LOG_INFO, format1, output3);
+    /* log_bind(handler, LOG_DEBUG, LOG_INFO, format1, output3); */
     log_bind(handler, LOG_VERBOSE, -1, format, output4);
 
     for (i = 0; i < 102400; i++) {
@@ -248,7 +248,7 @@ main(int argc, char *argv[])
     /* test3(); */
     /* test4(); */
     /* test5(); */
-    /* test6(); */
+    test6();
     /* test7(); */
     return 0;
 }

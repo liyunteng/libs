@@ -70,8 +70,10 @@
 #define BUFFER_MIN 1024 * 4
 #define BUFFER_MAX 1024 * 1024 * 4
 
-#define DEBUG_LOG(fmt,...) fprintf(stdout, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-#define ERROR_LOG(fmt,...) fprintf(stderr, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#define DEBUG_LOG(fmt, ...)                                                    \
+    fprintf(stdout, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#define ERROR_LOG(fmt, ...)                                                    \
+    fprintf(stderr, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 
 struct log_format {
     char format[128];
@@ -79,10 +81,14 @@ struct log_format {
     struct list_head format_entry;
 };
 
+typedef int (*log_output_config_init_fn)(log_output_t *output, va_list ap);
+typedef void (*log_output_config_uninit_fn)(log_output_t *output);
 typedef int (*log_output_emit_fn)(log_output_t *output, LOG_LEVEL_E level,
                                   char *buf, size_t len);
+typedef void (*log_output_dump_fn)(log_output_t *output);
 struct log_output {
     enum LOG_OUTTYPE type;
+    char *type_name;
     struct list_head output_entry;
     struct {
         struct {
@@ -93,7 +99,10 @@ struct log_output {
         uint64_t bytes_total;
     } stat;
     void *conf;
+    log_output_config_init_fn config_init;
+    log_output_config_uninit_fn config_uninit;
     log_output_emit_fn emit;
+    log_output_dump_fn dump;
 };
 
 typedef struct {
@@ -185,6 +194,31 @@ log_dump_environment(void)
     }
 }
 
+inline static void
+statstic_dump(log_output_t *output)
+{
+    int i;
+    if (output) {
+        for (i = LOG_VERBOSE; i >= LOG_EMERG; i--) {
+            printf("%-8s  count: %-8d  bytes: %-10llu\n", LOGLEVELSTR[i],
+                   output->stat.stats[i].count,
+                   (unsigned long long)output->stat.stats[i].bytes);
+        }
+        printf("%-8s  count: %-8llu  bytes: %-10llu\n", "TOTAL",
+               (unsigned long long)output->stat.count_total,
+               (unsigned long long)output->stat.bytes_total);
+    }
+}
+
+static void
+logout_dump(log_output_t *output)
+{
+    if (output) {
+        printf("type: %s\n", output->type_name);
+
+        statstic_dump(output);
+    }
+}
 
 static int
 file_getname(log_output_t *output, char *file_name, uint16_t len)
@@ -310,6 +344,7 @@ file_rename_logfile(log_output_t *output)
         rename(old_file_name, new_file_name);
 
         ++conf->file_idx;
+        DEBUG_LOG("rename %s ==> %s\n", old_file_name, new_file_name);
         free(old_file_name);
         free(new_file_name);
     }
@@ -321,7 +356,7 @@ stdout_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
 {
     if (fwrite(buf, len, 1, stdout) != 1) {
         ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
-        return 0;
+        return -1;
     }
     return len;
 }
@@ -331,7 +366,7 @@ stderr_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
 {
     if (fwrite(buf, len, 1, stderr) != 1) {
         ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
-        return 0;
+        return -1;
     }
     return len;
 }
@@ -372,7 +407,7 @@ logcat_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
     }
     return __android_log_vprint(l, r->indent, format, args);
 #else
-    return 0;
+    return -1;
 #endif
 }
 
@@ -390,58 +425,50 @@ file_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
     file_output_config *conf = NULL;
     if (!output) {
         ERROR_LOG("output is NULL\n");
-        return 0;
+        return -1;
     }
 
     conf = (file_output_config *)output->conf;
     if (!conf) {
         ERROR_LOG("conf is NULL\n");
-        return 0;
+        return -1;
     }
 
     if (conf->fp == NULL) {
         ret = file_open_logfile(output);
         if (ret < 0) {
             ERROR_LOG("open logfile failed\n");
-            return 0;
+            return -1;
         }
     }
 
-    int nwrite = conf->file_size - conf->data_offset;
-    if (nwrite <= len) {
-        char *str = strndup(buf, nwrite);
-        if (!str) {
-            ERROR_LOG("strndup failed(%s)\n", strerror(errno));
-            return 0;
-        }
-
-        if (fwrite(buf, len, 1, conf->fp) != 1) {
+    int left = conf->file_size - conf->data_offset;
+    if (left <= len) {
+        if (fwrite(buf, left, 1, conf->fp) != 1) {
             ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
-            return 0;
+            return -1;
         }
-        conf->data_offset += nwrite;
-        free(str);
+        conf->data_offset += left;
 
         file_rename_logfile(output);
-
         ret = file_open_logfile(output);
         if (ret != 0) {
             ERROR_LOG("open logfile failed\n");
-            return nwrite;
+            return left;
         }
 
-        if (fwrite(buf + nwrite, len - nwrite, 1, conf->fp) != 1) {
+        if (fwrite(buf + left, len - left, 1, conf->fp) != 1) {
             ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
-            return nwrite;
+            return left;
         }
 
-
-        conf->data_offset += (len - nwrite);
+        conf->data_offset += (len - left);
         return len;
     } else {
+
         if (fwrite(buf, len, 1, conf->fp) != 1) {
-            ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
-            return 0;
+            ERROR_LOG("fwrite failed(%s) len:%lu\n", strerror(errno), len);
+            return -1;
         }
         conf->data_offset += len;
         return len;
@@ -455,17 +482,16 @@ sock_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
 
     if (!output) {
         ERROR_LOG("output is NULL\n");
-        return 0;
+        return -1;
     }
     conf = (sock_output_config *)output->conf;
     if (!conf) {
         ERROR_LOG("conf is NULL\n");
-        return 0;
+        return -1;
     }
 
     if (conf->sockfd == -1) {
-        ERROR_LOG("sockfd is -1\n");
-        return 0;
+        return -1;
     }
 
     int total = 0;
@@ -491,6 +517,24 @@ sock_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
         }
     }
     return total;
+}
+
+static void
+file_config_dump(log_output_t *output)
+{
+    if (output) {
+        printf("type: %s\n", output->type_name);
+        file_output_config *conf = (file_output_config *)output->conf;
+        if (conf) {
+            printf("filepath: %s\n", conf->file_path);
+            printf("logname:  %s\n", conf->log_name);
+            printf("filesize: %d\n", conf->file_size);
+            printf("bakup:    %d\n", conf->num_files);
+            printf("idx:      %d\n", conf->file_idx);
+            printf("offset:   %u\n", conf->data_offset);
+        }
+        statstic_dump(output);
+    }
 }
 
 static int
@@ -576,6 +620,19 @@ file_config_uninit(log_output_t *output)
     output->conf = NULL;
 }
 
+static void
+sock_config_dump(log_output_t *output)
+{
+    if (output) {
+        printf("type: %s\n", output->type_name);
+        sock_output_config *conf = (sock_output_config *)output->conf;
+        if (conf) {
+            printf("addr: %s:%d\n", conf->addr, conf->port);
+        }
+        statstic_dump(output);
+    }
+}
+
 static int
 sock_config_init(log_output_t *output, va_list ap)
 {
@@ -647,6 +704,7 @@ failed:
     if (conf != NULL) {
         if (conf->sockfd != -1) {
             close(conf->sockfd);
+            conf->sockfd = -1;
         }
         free(conf);
         conf = NULL;
@@ -684,7 +742,8 @@ log_parse_format(log_handler_t *handler, log_rule_t *r, const LOG_LEVEL_E level,
                  const char *fmt, va_list ap)
 {
 
-    if (r == NULL || r->format == NULL || handler == NULL || handler->bufferp == NULL) {
+    if (r == NULL || r->format == NULL || handler == NULL
+        || handler->bufferp == NULL) {
         ERROR_LOG("invalid argument\n");
         return 0;
     }
@@ -976,7 +1035,7 @@ vlog(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
         }
 
         ret = r->output->emit(r->output, level, handler->bufferp, len);
-        if (ret > 0) {
+        if (ret >= 0) {
             log_update_stat(r->output, level, ret);
         }
     }
@@ -1190,7 +1249,6 @@ log_format_destory(log_format_t *format)
 log_output_t *
 log_output_create_(enum LOG_OUTTYPE type, va_list ap)
 {
-
     log_output_t *output = NULL;
     output               = (log_output_t *)calloc(1, sizeof(log_output_t));
     if (!output) {
@@ -1199,37 +1257,55 @@ log_output_create_(enum LOG_OUTTYPE type, va_list ap)
     }
 
     output->type = type;
+    output->dump = logout_dump;
 
     switch (type) {
     case LOG_OUTTYPE_STDOUT:
-        output->emit = stdout_emit;
+        output->type_name = "stdout";
+        output->emit      = stdout_emit;
         break;
     case LOG_OUTTYPE_STDERR:
-        output->emit = stderr_emit;
+        output->type_name = "stderr";
+        output->emit      = stderr_emit;
         break;
     case LOG_OUTTYPE_LOGCAT:
-        output->emit = logcat_emit;
+        output->type_name = "logcat";
+        output->emit      = logcat_emit;
         break;
     case LOG_OUTTYPE_SYSLOG:
-        output->emit = syslog_emit;
+        output->type_name = "syslog";
+        output->emit      = syslog_emit;
         break;
-
     case LOG_OUTTYPE_FILE:
-        if (file_config_init(output, ap) < 0) {
-            goto failed;
-        }
-
-        output->emit = file_emit;
+        output->type_name     = "file";
+        output->emit          = file_emit;
+        output->config_init   = file_config_init;
+        output->config_uninit = file_config_uninit;
+        output->dump          = file_config_dump;
         break;
     case LOG_OUTTYPE_TCP:
     case LOG_OUTTYPE_UDP:
-        if (sock_config_init(output, ap) < 0) {
-            goto failed;
+        if (type == LOG_OUTTYPE_TCP) {
+            output->type_name = "tcp";
+        } else {
+            output->type_name = "udp";
         }
-        output->emit = sock_emit;
+        output->emit          = sock_emit;
+        output->config_init   = sock_config_init;
+        output->config_uninit = sock_config_uninit;
+        output->dump          = sock_config_dump;
         break;
     default:
+        output->type_name = "unknown";
+        ERROR_LOG("invalid type: %d\n", type);
         goto failed;
+    }
+
+    if (output->config_init) {
+        if (output->config_init(output, ap) != 0) {
+            ERROR_LOG("%s config_init failed\n", output->type_name);
+            goto failed;
+        }
     }
 
     list_add_tail(&output->output_entry, &output_header);
@@ -1238,6 +1314,8 @@ log_output_create_(enum LOG_OUTTYPE type, va_list ap)
 failed:
     free(output);
     return NULL;
+    /* list_add_tail(&output->output_entry, &output_header); */
+    /* return output; */
 }
 
 log_output_t *
@@ -1355,18 +1433,6 @@ slog(LOG_LEVEL_E level, const char *file, const char *function, long line,
     return;
 }
 
-static void
-log_dump_stat(log_output_t *output)
-{
-    int i;
-    for (i = LOG_VERBOSE; i >= LOG_EMERG; i--) {
-        printf("%-8s  count: %-8d  bytes: %-10lu\n", LOGLEVELSTR[i],
-               output->stat.stats[i].count, output->stat.stats[i].bytes);
-    }
-    printf("%-8s  count: %-8lu  bytes: %-10lu\n", "TOTAL",
-           output->stat.count_total, output->stat.bytes_total);
-}
-
 void
 log_dump(void)
 {
@@ -1403,64 +1469,13 @@ log_dump(void)
             j++;
             if (r) {
                 printf("rule: %d\n", j);
-                switch (r->output->type) {
-                case LOG_OUTTYPE_STDOUT:
-                    printf("type: stdout\n");
-                    printf("format: %s\n", r->format->format);
-                    printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
-                           LOGLEVELSTR[r->level_end]);
-                    break;
-                case LOG_OUTTYPE_STDERR:
-                    printf("type: stdout\n");
-                    printf("format: %s\n", r->format->format);
-                    printf("level: %s\n", LOGLEVELSTR[r->level_begin]);
-                    break;
-                case LOG_OUTTYPE_FILE: {
-                    file_output_config *conf =
-                        (file_output_config *)r->output->conf;
-                    printf("type: file\n");
-                    printf("format: %s\n", r->format->format);
-                    printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
-                           LOGLEVELSTR[r->level_end]);
-                    printf("filepath: %s\n", conf->file_path);
-                    printf("filename: %s\n", conf->log_name);
-                    printf("filesize: %u\n", conf->file_size);
-                    printf("bakup: %d\n", conf->num_files);
-                    printf("idx: %d\n", conf->file_idx);
-                    printf("offset: %u\n", conf->data_offset);
-                    break;
+                printf("format: %s\n", r->format->format);
+                printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
+                       LOGLEVELSTR[r->level_end]);
+
+                if (r->output->dump) {
+                    r->output->dump(r->output);
                 }
-                case LOG_OUTTYPE_UDP:
-                case LOG_OUTTYPE_TCP: {
-                    sock_output_config *conf =
-                        (sock_output_config *)r->output->conf;
-                    printf("type: socket %s\n",
-                           r->output->type == LOG_OUTTYPE_TCP ? "tcp" : "udp");
-                    printf("format: %s\n", r->format->format);
-                    printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
-                           LOGLEVELSTR[r->level_end]);
-                    printf("addr: %s:%d\n", conf->addr, conf->port);
-                    break;
-                }
-                case LOG_OUTTYPE_LOGCAT:
-                    printf("type: logcat\n");
-                    printf("format: %s\n", r->format->format);
-                    printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
-                           LOGLEVELSTR[r->level_end]);
-                    break;
-                case LOG_OUTTYPE_SYSLOG:
-                    printf("type: syslog\n");
-                    printf("format: %s\n", r->format->format);
-                    printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
-                           LOGLEVELSTR[r->level_end]);
-                    break;
-                case LOG_OUTTYPE_NONE:
-                    break;
-                default:
-                    printf("type: unknown\n");
-                    break;
-                }
-                log_dump_stat(r->output);
 
                 printf("\n");
             }

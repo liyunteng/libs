@@ -144,6 +144,7 @@ static int
 file_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
 {
     int ret;
+    size_t nwrite;
     file_output_ctx *ctx = NULL;
     if (!output) {
         ERROR_LOG("output is NULL\n");
@@ -165,31 +166,7 @@ file_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
     }
 
     int left = ctx->file_size - ctx->data_offset;
-    if (left <= len) {
-        if (fwrite(buf, left, 1, ctx->fp) != 1) {
-            ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
-            return -1;
-        }
-        ctx->data_offset += left;
-
-        file_rename_logfile(output);
-        ret = file_open_logfile(output);
-        if (ret != 0) {
-            ERROR_LOG("open logfile failed\n");
-            return left;
-        }
-
-        if (len - left > 0) {
-            if (fwrite(buf + left, len - left, 1, ctx->fp) != 1) {
-                ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
-                return left;
-            }
-
-            ctx->data_offset += (len - left);
-        }
-        return len;
-    } else {
-
+    if (left > len) {
         if (fwrite(buf, len, 1, ctx->fp) != 1) {
             ERROR_LOG("fwrite failed(%s) len:%lu\n", strerror(errno), len);
             return -1;
@@ -197,6 +174,26 @@ file_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
         ctx->data_offset += len;
         return len;
     }
+
+
+    nwrite = len;
+    while (nwrite > 0) {
+        if (fwrite(buf, left, 1, ctx->fp) != 1) {
+            ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
+            return -1;
+        }
+        ctx->data_offset += left;
+        nwrite -= left;
+
+        file_rename_logfile(output);
+        ret = file_open_logfile(output);
+        if (ret != 0) {
+            ERROR_LOG("open logfile failed\n");
+            return left;
+        }
+        left = ctx->file_size;
+    }
+    return len;
 }
 
 static void

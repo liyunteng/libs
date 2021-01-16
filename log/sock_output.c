@@ -184,12 +184,12 @@ tcp_output_create(void)
         return NULL;
     }
 
-    output->type = LOG_OUTTYPE_TCP;
-    output->type_name = "tcp";
-    output->emit = sock_emit;
-    output->ctx_init = sock_ctx_init;
+    output->type       = LOG_OUTTYPE_TCP;
+    output->type_name  = "tcp";
+    output->emit       = sock_emit;
+    output->ctx_init   = sock_ctx_init;
     output->ctx_uninit = sock_ctx_uninit;
-    output->dump = sock_ctx_dump;
+    output->dump       = sock_ctx_dump;
 
     return output;
 }
@@ -205,12 +205,12 @@ udp_output_create(void)
         return NULL;
     }
 
-    output->type = LOG_OUTTYPE_UDP;
-    output->type_name = "udp";
-    output->emit = sock_emit;
-    output->ctx_init = sock_ctx_init;
+    output->type       = LOG_OUTTYPE_UDP;
+    output->type_name  = "udp";
+    output->emit       = sock_emit;
+    output->ctx_init   = sock_ctx_init;
     output->ctx_uninit = sock_ctx_uninit;
-    output->dump = sock_ctx_dump;
+    output->dump       = sock_ctx_dump;
 
     return output;
 }

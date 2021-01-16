@@ -24,7 +24,7 @@ static int
 spec_write_time(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
     time_t now_sec = e->timestamp.tv_sec;
-    struct tm *tm = &(e->tm);
+    struct tm *tm  = &(e->tm);
 
     if (!now_sec) {
         gettimeofday(&(e->timestamp), NULL);
@@ -114,7 +114,7 @@ spec_write_pid(log_spec_t *s, log_event_t *e, char *buf, size_t len)
         e->pid = getpid();
 
         if (e->pid != e->last_pid) {
-            e->last_pid = e->pid;
+            e->last_pid    = e->pid;
             e->pid_str_len = sprintf(e->pid_str, "%u", e->pid);
         }
     }
@@ -137,10 +137,12 @@ spec_write_level(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 static int
 spec_write_message(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
-    return vsnprintf(buf, len, e->fmt, e->ap);
+    int ret = vsnprintf(buf, len, e->fmt, e->ap);
+    DEBUG_LOG("LEN: %u ret: %d\n", len, ret);
+    return ret;
 }
 
-
+
 static int
 spec_parse_print_fmt(log_spec_t *s)
 {
@@ -161,7 +163,8 @@ spec_parse_print_fmt(log_spec_t *s)
     i = j = 0;
     sscanf(p, "%ld.", &i);
     q = strchr(p, '.');
-    if (q) sscanf(q, ".%ld", &j);
+    if (q)
+        sscanf(q, ".%ld", &j);
 
 
     s->min_width = (size_t)i;
@@ -173,9 +176,9 @@ log_spec_t *
 spec_create(char *pstart, char **pnext)
 {
     char *p;
-    int nscan           = 0;
-    int nread           = 0;
-    log_spec_t *s       = NULL;
+    int nscan     = 0;
+    int nread     = 0;
+    log_spec_t *s = NULL;
 
     if (!pstart || !pnext) {
         return NULL;
@@ -206,7 +209,7 @@ spec_create(char *pstart, char **pnext)
         p += nread;
 
         if (*p == 'd') {
-            if (*(p+1) != '(') {
+            if (*(p + 1) != '(') {
                 /* without '(', use default */
                 strcpy(s->time_fmt, DEFAULT_TIME_FORMAT);
                 p++;
@@ -222,36 +225,36 @@ spec_create(char *pstart, char **pnext)
                 }
 
                 p += nread;
-                if (*(p-1) != ')') {
+                if (*(p - 1) != ')') {
                     ERROR_LOG("in string[%s] can't find match \')\'\n", s->str);
                     goto failed;
                 }
             }
 
             s->write_buf = spec_write_time;
-            *pnext = p;
-            s->len = p - s->str;
+            *pnext       = p;
+            s->len       = p - s->str;
             break;
         }
 
         if (strncmp(p, "ms", 2) == 0) {
             p += 2;
-            *pnext = p;
-            s->len = p - s->str;
+            *pnext       = p;
+            s->len       = p - s->str;
             s->write_buf = spec_write_ms;
             break;
         } else if (strncmp(p, "us", 2) == 0) {
             p += 2;
-            *pnext = p;
-            s->len = p - s->str;
+            *pnext       = p;
+            s->len       = p - s->str;
             s->write_buf = spec_write_us;
             break;
         }
 
-        *pnext = p+1;
+        *pnext = p + 1;
         s->len = p - s->str + 1;
 
-        switch(*p) {
+        switch (*p) {
         case 'c':
             s->write_buf = spec_write_ident;
             break;
@@ -323,18 +326,17 @@ event_update(log_event_t *e, log_handler_t *handler, log_rule_t *rule,
              LOG_LEVEL_E level, const char *file, const char *func, long line,
              const char *fmt, va_list ap)
 {
-    e->ident = handler->ident;
+    e->ident     = handler->ident;
     e->ident_len = strlen(handler->ident);
 
-    e->level   = level;
-
-    e->file    = file;
+    e->level    = level;
+    e->file     = file;
     e->file_len = strlen(file);
-    e->func    = func;
+    e->func     = func;
     e->func_len = strlen(func);
-    e->line    = line;
+    e->line     = line;
 
-    e->fmt     = fmt;
+    e->fmt = fmt;
     va_copy(e->ap, ap);
 
     e->pid = (pid_t)0;
@@ -348,6 +350,6 @@ event_update(log_event_t *e, log_handler_t *handler, log_rule_t *rule,
         }
     }
 
-    e->hostname_len = strlen(e->hostname);
+    e->hostname_len     = strlen(e->hostname);
     e->timestamp.tv_sec = 0;
 }

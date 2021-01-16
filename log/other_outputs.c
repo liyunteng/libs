@@ -101,10 +101,10 @@ stderr_output_create(void)
         return NULL;
     }
 
-    output->type = LOG_OUTTYPE_STDERR;
+    output->type      = LOG_OUTTYPE_STDERR;
     output->type_name = "stderr";
-    output->dump = dump_output;
-    output->emit = stderr_emit;
+    output->dump      = dump_output;
+    output->emit      = stderr_emit;
 
     return output;
 }
@@ -120,10 +120,10 @@ stdout_output_create(void)
         return NULL;
     }
 
-    output->type = LOG_OUTTYPE_STDOUT;
+    output->type      = LOG_OUTTYPE_STDOUT;
     output->type_name = "stdout";
-    output->dump = dump_output;
-    output->emit = stdout_emit;
+    output->dump      = dump_output;
+    output->emit      = stdout_emit;
 
     return output;
 }
@@ -139,10 +139,10 @@ logcat_output_create(void)
         return NULL;
     }
 
-    output->type = LOG_OUTTYPE_LOGCAT;
+    output->type      = LOG_OUTTYPE_LOGCAT;
     output->type_name = "logcat";
-    output->dump = dump_output;
-    output->emit = logcat_emit;
+    output->dump      = dump_output;
+    output->emit      = logcat_emit;
 
     return output;
 }
@@ -158,10 +158,10 @@ syslog_output_create(void)
         return NULL;
     }
 
-    output->type = LOG_OUTTYPE_SYSLOG;
+    output->type      = LOG_OUTTYPE_SYSLOG;
     output->type_name = "syslog";
-    output->dump = dump_output;
-    output->emit = syslog_emit;
+    output->dump      = dump_output;
+    output->emit      = syslog_emit;
 
     return output;
 }

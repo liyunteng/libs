@@ -24,6 +24,8 @@
 #include "log.h"
 #include <pthread.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
 
 void
 test_mlog()
@@ -263,15 +265,57 @@ test_simple()
     log_dump();
 }
 
+void
+test_big_buf()
+{
+    char *buf = NULL;
+    size_t size = 1024*1024*128;
+    int ret;
+    log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n", 0);
+    log_output_t *output =
+        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 5);
+    log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
+    if (!format) {
+        printf("format create failed\n");
+        return;
+    }
+
+    if (!output) {
+        printf("output create failed\n");
+        return;
+    }
+    if (!handler) {
+        printf("handler create failed\n");
+        return;
+    }
+    ret = log_bind(handler, -1, -1, format, output);
+    if (ret < 0) {
+        printf("bind failed\n");
+        return;
+    }
+
+    buf =(char*)malloc(size);
+    if (!buf) {
+        printf("malloc failed\n");
+        return;
+    }
+    for (int i = 0; i < size - 2; i++) {
+        buf[i] = 'a';
+    }
+
+    LOGV("%s", buf);
+}
+
 int
 main(int argc, char *argv[])
 {
     /* test_mlog(); */
     /* test_log_thread(); */
     /* test_mlog_benchmark(); */
-    test_log_benchmark();
+    /* test_log_benchmark(); */
     /* test_log_big_benchmark(); */
     /* test_multi_output(); */
     /* test_simple(); */
+    test_big_buf();
     return 0;
 }

@@ -3,9 +3,9 @@
  *
  * Date   : 2021/01/15
  */
-#include "log_priv.h"
-#include "buf.h"
 #include "file_output.h"
+#include "buf.h"
+#include "log_priv.h"
 #include <errno.h>
 #include <string.h>
 
@@ -145,7 +145,7 @@ file_emit(log_output_t *output, log_handler_t *handler)
 {
     int ret;
     file_output_ctx *ctx = NULL;
-    log_buf_t *buf = NULL;
+    log_buf_t *buf       = NULL;
     size_t len;
 
     if (!output) {
@@ -178,7 +178,7 @@ file_emit(log_output_t *output, log_handler_t *handler)
         }
     }
 
-    len = buf_len(buf);
+    len      = buf_len(buf);
     int left = ctx->file_size - ctx->data_offset;
     if (left > len) {
         if (fwrite(buf->start, len, 1, ctx->fp) != 1) {
@@ -190,19 +190,25 @@ file_emit(log_output_t *output, log_handler_t *handler)
     }
 
     size_t nwrite = 0;
-    size_t total = 0;
+    size_t total  = 0;
     while (total < len) {
         if (len - total > left) {
             nwrite = left;
         } else {
             nwrite = len - total;
         }
-        if (fwrite(buf->start + total, nwrite, 1, ctx->fp) != 1) {
-            ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
-            return -1;
+
+        if (nwrite > 0) {
+            if (fwrite(buf->start + total, nwrite, 1, ctx->fp) != 1) {
+                ERROR_LOG(
+                    "fwrite failed(%s) nwrite: %lu total: %lu len: %lu left: "
+                    "%lu\n",
+                    strerror(errno), nwrite, total, len, left);
+                return -1;
+            }
+            ctx->data_offset += nwrite;
+            total += nwrite;
         }
-        ctx->data_offset += nwrite;
-        total += nwrite;
 
         if (total >= len) {
             break;

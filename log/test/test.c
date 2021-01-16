@@ -236,8 +236,7 @@ test_format()
 {
     int ret;
     log_format_t *format = log_format_create(
-        "%E(a) %E(LOGNAME) %H %d %D %ms %us %c %C[%-7.7V]%R %.10F:%U:%L %p "
-        "%t:%T %% %m%n");
+        "%C%E(a) %E(LOGNAME) %H %d %D %ms %us %c [%-7.7V] %.10F:%U:%L %p %t:%T %% %m%R%n");
     log_output_t *output =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
     log_handler_t *handler = log_handler_create("ihi");
@@ -355,8 +354,8 @@ main(int argc, char *argv[])
     /* test_mlog_benchmark(); */
     /* test_log_benchmark(); */
     /* test_log_big_benchmark(); */
-    /* test_multi_output(); */
-    test_format();
+    test_multi_output();
+    /* test_format(); */
     /* test_big_buf(); */
     /* test_simple(); */
     return 0;

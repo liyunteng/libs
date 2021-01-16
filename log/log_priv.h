@@ -8,6 +8,7 @@
 
 #include "list.h"
 #include "log.h"
+#include "buf.h"
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -25,30 +26,26 @@
 #endif
 
 #define DEBUG_LOG(fmt, ...)
-/* #define DEBUG_LOG(fmt, ...) \ fprintf(stdout, "%s:%d " fmt, __FILE__,
- * __LINE__, ##__VA_ARGS__) */
+/* #define DEBUG_LOG(fmt, ...)                                                    \
+ *     fprintf(stdout, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__) */
 #define ERROR_LOG(fmt, ...)                                                    \
     fprintf(stderr, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 
-typedef int (*formater)(char *buf, size_t len, char *fmt, ...);
-typedef struct {
-    struct list_head formater_entry;
-    formater formater;
-    char *mode;
-    char *key;
-} log_formater_t;
+
+enum LOG_OPTS {
+    LOG_OPT_SET_HANDLER_IDENT, /* log_handler_t *handler, char *ident */
+    LOG_OPT_GET_HANDLER_IDENT, /* log_handler_t *handler, char *ident */
+};
 
 struct log_format {
     char format[128];
-    BOOL color;
     struct list_head format_entry;
     struct list_head callbacks;
 };
 
 typedef int (*log_output_ctx_init_fn)(log_output_t *output, va_list ap);
 typedef void (*log_output_ctx_uninit_fn)(log_output_t *output);
-typedef int (*log_output_emit_fn)(log_output_t *output, LOG_LEVEL_E level,
-                                  char *buf, size_t len);
+typedef int (*log_output_emit_fn)(log_output_t *output, log_handler_t *handler);
 typedef void (*log_output_dump_fn)(log_output_t *output);
 struct log_output {
     enum LOG_OUTTYPE type;
@@ -78,14 +75,47 @@ typedef struct {
     struct list_head rule;
 } log_rule_t;
 
+typedef struct {
+    char *ident;
+    size_t ident_len;
+
+    LOG_LEVEL_E level;
+
+    const char *file;
+    size_t file_len;
+    const char *func;
+    size_t func_len;
+    long line;
+
+    const char *fmt;
+    va_list ap;
+
+    time_t ts;
+    struct tm tm;
+    struct timeval timestamp;
+
+    pid_t pid;
+    pid_t last_pid;
+    char pid_str[32];
+    size_t pid_str_len;
+
+    pthread_t tid;
+    char tid_str[32];
+    size_t tid_str_len;
+
+
+    char hostname[256];
+    size_t hostname_len;
+
+    log_buf_t *msg_buf;
+    log_buf_t *pre_msg_buf;
+} log_event_t;
+
 struct log_handler {
     pthread_mutex_t mutex;
     char ident[128];
 
-    char *bufferp;
-    size_t buffer_max;
-    size_t buffer_min;
-    size_t buffer_real;
+    log_event_t event;
 
     struct list_head rules;  // rules
     struct list_head handler_entry;

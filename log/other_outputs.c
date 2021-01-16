@@ -24,9 +24,23 @@ dump_output(log_output_t *output)
 }
 
 static int
-stdout_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
+stdout_emit(log_output_t *output, log_handler_t *handler)
 {
-    if (fwrite(buf, len, 1, stdout) != 1) {
+    log_buf_t *buf = NULL;
+    size_t len;
+
+    if (!handler) {
+        ERROR_LOG("handler is NULL\n");
+        return -1;
+    }
+    buf = handler->event.msg_buf;
+    if (!buf) {
+        ERROR_LOG("msg_buf is NULL\n");
+        return -1;
+    }
+
+    len = buf_len(buf);
+    if (fwrite(buf->start, len, 1, stdout) != 1) {
         ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
         return -1;
     }
@@ -34,9 +48,22 @@ stdout_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
 }
 
 static int
-stderr_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
+stderr_emit(log_output_t *output, log_handler_t *handler)
 {
-    if (fwrite(buf, len, 1, stderr) != 1) {
+    log_buf_t *buf = NULL;
+    size_t len;
+    if (!handler) {
+        ERROR_LOG("handler is NULL\n");
+        return -1;
+    }
+    buf = handler->event.msg_buf;
+    if (!buf) {
+        ERROR_LOG("msg_buf is NULL\n");
+        return -1;
+    }
+
+    len = buf_len(buf);
+    if (fwrite(buf->start, len, 1, stderr) != 1) {
         ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
         return -1;
     }
@@ -44,8 +71,24 @@ stderr_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
 }
 
 static int
-logcat_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
+logcat_emit(log_output_t *output, log_handler_t *handler)
 {
+    log_buf_t *buf = NULL;
+    size_t len;
+    LOG_LEVEL_E level;
+    if (!handler) {
+        ERROR_LOG("handler is NULL\n");
+        return -1;
+    }
+    buf = handler->event.msg_buf;
+    if (!buf) {
+        ERROR_LOG("msg_buf is NULL\n");
+        return -1;
+    }
+
+    len   = buf_len(buf);
+    level = handler->event.level;
+
 #ifdef ANDROID
     android_LogPriority pri;
     switch (level) {
@@ -77,16 +120,33 @@ logcat_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
         pri = ANDROID_LOG_DEFAULT;
         break;
     }
-    return __android_log_vprint(l, r->indent, format, args);
+    return __android_log_vprint(pri, handler->event.ident, hanlder->event.fmt,
+                                handler->event.ap);
 #else
     return -1;
 #endif
 }
 
 static int
-syslog_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
+syslog_emit(log_output_t *output, log_handler_t *handler)
 {
-    syslog(level, "%s", buf);
+    log_buf_t *buf = NULL;
+    size_t len;
+    LOG_LEVEL_E level;
+    if (!handler) {
+        ERROR_LOG("handler is NULL\n");
+        return -1;
+    }
+    buf = handler->event.msg_buf;
+    if (!buf) {
+        ERROR_LOG("msg_buf is NULL\n");
+        return -1;
+    }
+
+    len   = buf_len(buf);
+    level = handler->event.level;
+
+    syslog(level, "%s", buf->start);
     return len;
 }
 
@@ -101,10 +161,10 @@ stderr_output_create(void)
         return NULL;
     }
 
-    output->type = LOG_OUTTYPE_STDERR;
+    output->type      = LOG_OUTTYPE_STDERR;
     output->type_name = "stderr";
-    output->dump = dump_output;
-    output->emit = stderr_emit;
+    output->dump      = dump_output;
+    output->emit      = stderr_emit;
 
     return output;
 }
@@ -120,10 +180,10 @@ stdout_output_create(void)
         return NULL;
     }
 
-    output->type = LOG_OUTTYPE_STDOUT;
+    output->type      = LOG_OUTTYPE_STDOUT;
     output->type_name = "stdout";
-    output->dump = dump_output;
-    output->emit = stdout_emit;
+    output->dump      = dump_output;
+    output->emit      = stdout_emit;
 
     return output;
 }
@@ -139,10 +199,10 @@ logcat_output_create(void)
         return NULL;
     }
 
-    output->type = LOG_OUTTYPE_LOGCAT;
+    output->type      = LOG_OUTTYPE_LOGCAT;
     output->type_name = "logcat";
-    output->dump = dump_output;
-    output->emit = logcat_emit;
+    output->dump      = dump_output;
+    output->emit      = logcat_emit;
 
     return output;
 }
@@ -158,10 +218,10 @@ syslog_output_create(void)
         return NULL;
     }
 
-    output->type = LOG_OUTTYPE_SYSLOG;
+    output->type      = LOG_OUTTYPE_SYSLOG;
     output->type_name = "syslog";
-    output->dump = dump_output;
-    output->emit = syslog_emit;
+    output->dump      = dump_output;
+    output->emit      = syslog_emit;
 
     return output;
 }

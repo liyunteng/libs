@@ -11,9 +11,9 @@
 #endif
 
 #include "file_output.h"
+#include "other_outputs.h"
 #include "sock_output.h"
 #include "syslog_output.h"
-#include "other_outputs.h"
 
 #include "format.h"
 #include "log_priv.h"
@@ -86,7 +86,7 @@ dump_environment(log_handler_t *handler)
     static char buf[BUFSIZ];
     int cnt = 0;
 
-    MLOGI(handler,
+    mlogi(handler,
           "############################## LOG SYSTEM "
           "##############################\n");
     while (1) {
@@ -99,13 +99,13 @@ dump_environment(log_handler_t *handler)
         snprintf(buf, sizeof(buf), "%s", e);
         e = strchr(buf, '=');
         if (!e) {
-            MLOGE(handler, "Can't parse environment variable %s", buf);
+            mloge(handler, "Can't parse environment variable %s", buf);
             continue;
         }
 
         *e = 0;
         ++e;
-        MLOGI(handler, "Environment: [%s] = [%s]", buf, e);
+        mlogi(handler, "Environment: [%s] = [%s]", buf, e);
     }
 }
 
@@ -460,8 +460,8 @@ log_unbind(log_handler_t *handler, log_format_t *format, log_output_t *output)
 }
 
 static void
-mlogv(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
-      const char *func, const long line, const char *fmt, va_list ap)
+mlog_vprintf(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
+             const char *func, const long line, const char *fmt, va_list ap)
 {
     uint16_t i;
     int ret;
@@ -508,25 +508,25 @@ mlogv(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
 }
 
 void
-mlog(log_handler_t *handle, LOG_LEVEL_E level, const char *file,
-     const char *function, long line, const char *fmt, ...)
+mlog_printf(log_handler_t *handle, LOG_LEVEL_E level, const char *file,
+            const char *function, long line, const char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    mlogv(handle, level, file, function, line, fmt, ap);
+    mlog_vprintf(handle, level, file, function, line, fmt, ap);
     va_end(ap);
     return;
 }
 
 void
-slog(LOG_LEVEL_E level, const char *file, const char *function, long line,
-     const char *fmt, ...)
+log_printf(LOG_LEVEL_E level, const char *file, const char *function, long line,
+           const char *fmt, ...)
 {
     va_list ap;
 
     if (default_handler) {
         va_start(ap, fmt);
-        mlogv(default_handler, level, file, function, line, fmt, ap);
+        mlog_vprintf(default_handler, level, file, function, line, fmt, ap);
         va_end(ap);
     }
     return;

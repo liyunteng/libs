@@ -208,7 +208,7 @@ file_emit(log_output_t *output, log_handler_t *handler)
             if (fwrite(buf->start + total, nwrite, 1, ctx->fp) != 1) {
                 ERROR_LOG(
                     "fwrite failed(%s) nwrite: %lu total: %lu len: %lu left: "
-                    "%lu\n",
+                    "%d\n",
                     strerror(errno), nwrite, total, len, left);
                 return -1;
             }

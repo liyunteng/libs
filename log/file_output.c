@@ -3,9 +3,9 @@
  *
  * Date   : 2021/01/15
  */
-
-#include "file_output.h"
 #include "log_priv.h"
+#include "buf.h"
+#include "file_output.h"
 #include <errno.h>
 #include <string.h>
 
@@ -141,13 +141,26 @@ file_rename_logfile(log_output_t *output)
 }
 
 static int
-file_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
+file_emit(log_output_t *output, log_handler_t *handler)
 {
     int ret;
-    size_t nwrite;
     file_output_ctx *ctx = NULL;
+    log_buf_t *buf = NULL;
+    size_t len;
+
     if (!output) {
         ERROR_LOG("output is NULL\n");
+        return -1;
+    }
+
+    if (!handler) {
+        ERROR_LOG("handler is NULL\n");
+        return -1;
+    }
+
+    buf = handler->event.msg_buf;
+    if (!buf) {
+        ERROR_LOG("msg_buf is NULL\n");
         return -1;
     }
 
@@ -165,9 +178,10 @@ file_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
         }
     }
 
+    len = buf_len(buf);
     int left = ctx->file_size - ctx->data_offset;
     if (left > len) {
-        if (fwrite(buf, len, 1, ctx->fp) != 1) {
+        if (fwrite(buf->start, len, 1, ctx->fp) != 1) {
             ERROR_LOG("fwrite failed(%s) len:%lu\n", strerror(errno), len);
             return -1;
         }
@@ -175,25 +189,34 @@ file_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
         return len;
     }
 
-
-    nwrite = len;
-    while (nwrite > 0) {
-        if (fwrite(buf, left, 1, ctx->fp) != 1) {
+    size_t nwrite = 0;
+    size_t total = 0;
+    while (total < len) {
+        if (len - total > left) {
+            nwrite = left;
+        } else {
+            nwrite = len - total;
+        }
+        if (fwrite(buf->start + total, nwrite, 1, ctx->fp) != 1) {
             ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
             return -1;
         }
-        ctx->data_offset += left;
-        nwrite -= left;
+        ctx->data_offset += nwrite;
+        total += nwrite;
+
+        if (total >= len) {
+            break;
+        }
 
         file_rename_logfile(output);
         ret = file_open_logfile(output);
         if (ret != 0) {
             ERROR_LOG("open logfile failed\n");
-            return left;
+            return total;
         }
         left = ctx->file_size;
     }
-    return len;
+    return total;
 }
 
 static void

@@ -12,16 +12,16 @@
 
 #define DEFAULT_TIME_FORMAT "%F %T"
 extern char *LOGLEVELSTR[];
+extern char *COLORSTR[];
 
 static int
-spec_write_str(log_spec_t *s, log_event_t *e, char *buf, size_t len)
+spec_write_str(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
-    memcpy(buf, s->str, s->len);
-    return s->len;
+    return buf_append(buf, s->str, s->len);
 }
 
 static int
-spec_write_time(log_spec_t *s, log_event_t *e, char *buf, size_t len)
+spec_write_time(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
     time_t now_sec = e->timestamp.tv_sec;
     struct tm *tm  = &(e->tm);
@@ -35,80 +35,84 @@ spec_write_time(log_spec_t *s, log_event_t *e, char *buf, size_t len)
         localtime_r(&(now_sec), tm);
         e->ts = now_sec;
     }
-    return strftime(buf, len, s->time_fmt, tm);
+    char time_buf[64];
+    size_t len = strftime(time_buf, sizeof(time_buf) - 1, s->time_fmt, tm);
+
+    return buf_append(buf, time_buf, len);
 }
 
 static int
-spec_write_ms(log_spec_t *s, log_event_t *e, char *buf, size_t len)
+spec_write_ms(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
     if (!e->timestamp.tv_sec) {
         gettimeofday(&e->timestamp, NULL);
     }
-    return snprintf(buf, len, "%03d", (int)(e->timestamp.tv_usec / 1000));
+    return buf_printf_dec32(buf, (e->timestamp.tv_usec / 1000), 3);
 }
 
 static int
-spec_write_us(log_spec_t *s, log_event_t *e, char *buf, size_t len)
+spec_write_us(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
     if (!e->timestamp.tv_sec) {
         gettimeofday(&e->timestamp, NULL);
     }
-
-    return snprintf(buf, len, "%06d", (int)(e->timestamp.tv_usec));
+    return buf_printf_dec32(buf, e->timestamp.tv_usec, 6);
 }
 
 static int
-spec_write_ident(log_spec_t *s, log_event_t *e, char *buf, size_t len)
+spec_write_ident(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
-    memcpy(buf, e->ident, e->ident_len);
-    return e->ident_len;
+    return buf_append(buf, e->ident, e->ident_len);
 }
 
 static int
-spec_write_file(log_spec_t *s, log_event_t *e, char *buf, size_t len)
+spec_write_file(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
-    memcpy(buf, e->file, e->file_len);
-    return e->file_len;
-}
-
-static int
-spec_write_line(log_spec_t *s, log_event_t *e, char *buf, size_t len)
-{
-    return snprintf(buf, len, "%ld", e->line);
-}
-
-static int
-spec_write_func(log_spec_t *s, log_event_t *e, char *buf, size_t len)
-{
-    memcpy(buf, e->func, e->func_len);
-    return e->func_len;
-}
-
-static int
-spec_write_hostname(log_spec_t *s, log_event_t *e, char *buf, size_t len)
-{
-    if (e->hostname_len) {
-        memcpy(buf, e->hostname, e->hostname_len);
+    if (!e->file) {
+        return buf_append(buf, "(file=null)", strlen("(file=null"));
+    } else {
+        return buf_append(buf, e->file, e->file_len);
     }
-    return e->hostname_len;
 }
 
 static int
-spec_write_newline(log_spec_t *s, log_event_t *e, char *buf, size_t len)
+spec_write_line(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
-    memcpy(buf, "\n", 1);
-    return 1;
+    return buf_printf_dec64(buf, e->line, 0);
 }
 
 static int
-spec_write_percent(log_spec_t *s, log_event_t *e, char *buf, size_t len)
+spec_write_func(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
-    memcpy(buf, "%", 1);
-    return 1;
+    return buf_append(buf, e->func, e->func_len);
 }
 
 static int
-spec_write_pid(log_spec_t *s, log_event_t *e, char *buf, size_t len)
+spec_write_hostname(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+{
+    return buf_append(buf, e->hostname, e->hostname_len);
+}
+
+static int
+spec_write_newline(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+{
+    return buf_append(buf, "\n", 1);
+}
+
+static int
+spec_write_cr(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+{
+    return buf_append(buf, "\r", 1);
+}
+
+static int
+spec_write_percent(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+{
+    return buf_append(buf, "%", 1);
+}
+
+static int
+spec_write_pid(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
     if (!e->pid) {
         e->pid = getpid();
@@ -118,31 +122,77 @@ spec_write_pid(log_spec_t *s, log_event_t *e, char *buf, size_t len)
             e->pid_str_len = sprintf(e->pid_str, "%u", e->pid);
         }
     }
-    memcpy(buf, e->pid_str, e->pid_str_len);
-    return e->pid_str_len;
+    return buf_append(buf, e->pid_str, e->pid_str_len);
 }
 
 static int
-spec_write_tid(log_spec_t *s, log_event_t *e, char *buf, size_t len)
+spec_write_tid(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
-    return snprintf(buf, len, "%lu", (unsigned long)pthread_self());
+    e->tid_str_len = sprintf(e->tid_str, "%lu", (unsigned long)pthread_self());
+    return buf_append(buf, e->tid_str, e->tid_str_len);
 }
 
 static int
-spec_write_level(log_spec_t *s, log_event_t *e, char *buf, size_t len)
+spec_write_level(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
-    return snprintf(buf, len, "%5.5s", LOGLEVELSTR[e->level]);
+    return buf_append(buf, LOGLEVELSTR[e->level], 5);
 }
 
 static int
-spec_write_message(log_spec_t *s, log_event_t *e, char *buf, size_t len)
+spec_write_message(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
-    int ret = vsnprintf(buf, len, e->fmt, e->ap);
-    DEBUG_LOG("LEN: %u ret: %d\n", len, ret);
-    return ret;
+    if (e->fmt) {
+        return buf_vprintf(buf, e->fmt, e->ap);
+    } else {
+        return buf_append(buf, "format=(null)", strlen("format=(null)"));
+    }
 }
 
-
+static int
+spec_write_color(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+{
+    return buf_append(buf, COLORSTR[e->level], strlen(COLORSTR[e->level]));
+}
+
+static int
+spec_write_reset_color(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+{
+    return buf_append(buf, COLORSTR[LOG_VERBOSE+1], strlen(COLORSTR[LOG_VERBOSE+1]));
+}
+
+/* ********************************************************************** */
+
+static int
+spec_gen_msg_direct(log_spec_t *s, log_event_t *e)
+{
+    return s->write_buf(s, e, e->msg_buf);
+}
+
+static int
+spec_gen_msg_reformat(log_spec_t *s, log_event_t *e)
+{
+    int ret;
+
+    buf_restart(e->pre_msg_buf);
+
+    ret = s->write_buf(s, e, e->pre_msg_buf);
+    if (ret < 0) {
+        ERROR_LOG("spec->gen_buf failed\n");
+        return -1;
+    } else if (ret > 0) {
+        /* TODO: buf is full */
+    }
+
+    return buf_adjust_append(e->msg_buf,
+                             buf_str(e->pre_msg_buf),
+                             buf_len(e->pre_msg_buf),
+                             s->left_adjust,
+                             s->left_fill_zeros,
+                             s->min_width,
+                             s->max_width);
+}
+/* ********************************************************************** */
+
 static int
 spec_parse_print_fmt(log_spec_t *s)
 {
@@ -151,13 +201,13 @@ spec_parse_print_fmt(log_spec_t *s)
 
     p = s->print_fmt;
     if (*p == '-') {
-        s->left_adjust = TRUE;
+        s->left_adjust = 1;
         p++;
     } else {
         if (*p == '0') {
-            s->left_fill_zeros = TRUE;
+            s->left_fill_zeros = 1;
         }
-        s->left_adjust = FALSE;
+        s->left_adjust = 0;
     }
 
     i = j = 0;
@@ -194,21 +244,25 @@ spec_create(char *pstart, char **pnext)
 
     switch (*p) {
     case '%':
+        /* a string begin with %: %12.35d(%F %X) */
+
+        /* process width and precision char in %-12.35P */
         nread = 0;
         nscan = sscanf(p, "%%%[.0-9-]%n", s->print_fmt, &nread);
         if (nscan == 1) {
-            /* TODO: parse like %-02d */
+            s->gen_msg = spec_gen_msg_reformat;
             if (spec_parse_print_fmt(s)) {
                 ERROR_LOG("spec_parse_print_fmt failed\n");
                 goto failed;
             }
         } else {
             /* skip the % char */
-            nread = 1;
+            nread      = 1;
+            s->gen_msg = spec_gen_msg_direct;
         }
         p += nread;
 
-        if (*p == 'd') {
+        if (*p == 'd') {        /* datetime */
             if (*(p + 1) != '(') {
                 /* without '(', use default */
                 strcpy(s->time_fmt, DEFAULT_TIME_FORMAT);
@@ -237,13 +291,13 @@ spec_create(char *pstart, char **pnext)
             break;
         }
 
-        if (strncmp(p, "ms", 2) == 0) {
+        if (strncmp(p, "ms", 2) == 0) { /* ms */
             p += 2;
             *pnext       = p;
             s->len       = p - s->str;
             s->write_buf = spec_write_ms;
             break;
-        } else if (strncmp(p, "us", 2) == 0) {
+        } else if (strncmp(p, "us", 2) == 0) { /* us */
             p += 2;
             *pnext       = p;
             s->len       = p - s->str;
@@ -255,47 +309,56 @@ spec_create(char *pstart, char **pnext)
         s->len = p - s->str + 1;
 
         switch (*p) {
-        case 'c':
+        case 'c':               /* ident */
             s->write_buf = spec_write_ident;
             break;
-        case 'D':
+        case 'D':               /* date */
             strcpy(s->time_fmt, "%F");
             s->write_buf = spec_write_time;
             break;
-        case 'T':
+        case 'T':               /* time */
             strcpy(s->time_fmt, "%T");
             s->write_buf = spec_write_time;
             break;
-        case 'F':
-            s->write_buf = spec_write_file;
-            break;
-        case 'H':
+        case 'H':               /* hostname */
             s->write_buf = spec_write_hostname;
             break;
-        case 'L':
-            s->write_buf = spec_write_line;
+        case 'F':               /* file */
+            s->write_buf = spec_write_file;
             break;
-        case 'm':
-            s->write_buf = spec_write_message;
-            break;
-        case 'n':
-            s->write_buf = spec_write_newline;
-            break;
-        case 'p':
-            s->write_buf = spec_write_pid;
-            break;
-        case 'U':
+        case 'U':               /* function */
             s->write_buf = spec_write_func;
             break;
-        case 'v':
+        case 'L':               /* line */
+            s->write_buf = spec_write_line;
+            break;
+        case 'p':               /* pid */
+            s->write_buf = spec_write_pid;
+            break;
+        case 't':               /* tid */
+            s->write_buf = spec_write_tid;
+            break;
+        case 'v':               /* level */
         case 'V':
             s->write_buf = spec_write_level;
             break;
-        case 't':
-            s->write_buf = spec_write_tid;
+        case 'm':               /* message */
+            s->write_buf = spec_write_message;
             break;
-        case '%':
+        case 'r':               /* '\r' */
+            s->write_buf = spec_write_cr;
+            break;
+        case 'n':               /* '\n' */
+            s->write_buf = spec_write_newline;
+            break;
+        case '%':               /* '%' */
             s->write_buf = spec_write_percent;
+            break;
+        case 'C':
+            s->write_buf = spec_write_color;
+            break;
+        case 'R':
+            s->write_buf = spec_write_reset_color;
             break;
         default:
             ERROR_LOG("str[%s] in wrong format, p[%c]\n", s->str, *p);
@@ -313,6 +376,7 @@ spec_create(char *pstart, char **pnext)
             *pnext = p + s->len;
         }
         s->write_buf = spec_write_str;
+        s->gen_msg   = spec_gen_msg_direct;
     }
 
     return s;

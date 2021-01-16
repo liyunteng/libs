@@ -29,6 +29,8 @@ extern "C" {
 //%n \n
 //%p pid
 //%t tid
+//%C color
+//%R color_reset
 //%% %
 
 typedef enum {
@@ -106,8 +108,7 @@ typedef struct log_output log_output_t;
 
 #define LOG_INIT(log_name, level)                                              \
     do {                                                                       \
-        log_format_t *__format =                                               \
-            log_format_create("%d.%ms %c:%p [%V] %m%n", 0);                    \
+        log_format_t *__format = log_format_create("%d.%ms %c:%p [%V] %m%n");  \
         log_output_t *__output = log_output_create(                            \
             LOG_OUTTYPE_FILE, ".", (log_name), 4 * 1024 * 1024, 4);            \
         log_handler_t *__handler = log_handler_create(DEFAULT_IDENT);          \
@@ -118,8 +119,10 @@ typedef struct log_output log_output_t;
 
 
 log_handler_t *log_handler_create(const char *ident);
+void log_handler_destroy(log_handler_t *handler);
 log_handler_t *log_handler_get(const char *ident);
-log_format_t *log_format_create(const char *format, int color);
+log_format_t *log_format_create(const char *format);
+void log_formate_destroy(log_format_t *format);
 
 // LOG_OUTTYPE_STDERR
 // LOG_OUTTYPE_STDOUT
@@ -135,6 +138,7 @@ log_format_t *log_format_create(const char *format, int color);
 // LOG_OUTTYPE_TCP  char *addr
 //                  int port
 log_output_t *log_output_create(enum LOG_OUTTYPE type, ...);
+void log_output_destroy(log_output_t *output);
 
 // level_begin  -1 == LOG_VERBOSE
 // level_en     -1 == LOG_EMERG

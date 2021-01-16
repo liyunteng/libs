@@ -33,7 +33,7 @@ test_mlog()
     const char *s    = "this is a test.";
     log_handler_t *h = log_handler_create("h");
 
-    log_format_t *format = log_format_create("%d %p %c %V %F:%U:%L %m%n", 1);
+    log_format_t *format = log_format_create("%d %p %c %V %F:%U:%L %m%n");
     log_output_t *fileout =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
     log_output_t *std_out = log_output_create(LOG_OUTTYPE_STDOUT);
@@ -91,7 +91,7 @@ test_mlog_benchmark()
     log_handler_t *h1     = log_handler_create("h1");
     log_handler_t *h2     = log_handler_create("h2");
     log_handler_t *h3     = log_handler_create("h3");
-    log_format_t *format  = log_format_create("%d %p %c %V %F:%U:%L %m%n", 0);
+    log_format_t *format  = log_format_create("%d %p %c %V %F:%U:%L %m%n");
     log_output_t *fileout = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi",
                                               1024 * 1024 * 100, 0600, 4);
 
@@ -125,8 +125,8 @@ test_mlog_benchmark()
 void
 test_log_benchmark()
 {
-    log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n", 0);
-    /* log_format_t *format = log_format_create("%m%d", 0); */
+    log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
+    /* log_format_t *format = log_format_create("%m%d"); */
     log_output_t *output =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
     log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
@@ -162,7 +162,7 @@ test_log_benchmark()
 void
 test_log_big_benchmark()
 {
-    log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n", 0);
+    log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
     log_output_t *output =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
     log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
@@ -187,8 +187,8 @@ test_multi_output()
     int i;
     char b[4096];
     log_format_t *format =
-        log_format_create("%d.%ms %H %c %F:%U%L %p:%t [%V] %m%n", 1);
-    log_format_t *format1 = log_format_create("%m", 0);
+        log_format_create("%d.%ms %H %c %F:%U%L %p:%t [%V] %m%n");
+    log_format_t *format1 = log_format_create("%m");
     log_output_t *output1 =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 8 * 1024 * 1024, 50);
     log_output_t *output2 = log_output_create(LOG_OUTTYPE_STDOUT);
@@ -227,7 +227,7 @@ test_simple()
     /* LOG_INIT("ihi", LOG_VERBOSE); */
 
     int ret;
-    log_format_t *format = log_format_create("%H %d %D %T %ms %us %c [%V] %F:%U:%L %p %t %% %m%n", 1);
+    log_format_t *format = log_format_create("%H %d %D %T %ms %us %c %C[%V]%R %.10F:%U:%L %p %t %% %.2m%n");
     log_output_t *output =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
     log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
@@ -269,11 +269,11 @@ void
 test_big_buf()
 {
     char *buf = NULL;
-    size_t size = 1024*1024*128;
+    size_t size = 1024*1024*2;
     int ret;
-    log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n", 0);
+    log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 5);
+        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1, 5);
     log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
     if (!format) {
         printf("format create failed\n");
@@ -304,6 +304,9 @@ test_big_buf()
     }
 
     LOGV("%s", buf);
+    LOGD("%s", buf);
+    LOGE("%s", buf);
+    log_dump();
 }
 
 int
@@ -315,7 +318,7 @@ main(int argc, char *argv[])
     /* test_log_benchmark(); */
     /* test_log_big_benchmark(); */
     /* test_multi_output(); */
-    /* test_simple(); */
-    test_big_buf();
+    test_simple();
+    /* test_big_buf(); */
     return 0;
 }

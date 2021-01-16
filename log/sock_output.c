@@ -17,9 +17,10 @@
 
 
 static int
-sock_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
+sock_emit(log_output_t *output, log_handler_t *handler)
 {
     sock_output_ctx *ctx = NULL;
+    log_buf_t *buf = NULL;
 
     if (!output) {
         ERROR_LOG("output is NULL\n");
@@ -31,14 +32,26 @@ sock_emit(log_output_t *output, LOG_LEVEL_E level, char *buf, size_t len)
         return -1;
     }
 
+    if (!handler) {
+        ERROR_LOG("handler is NULL\n");
+        return -1;
+    }
+
+    buf = handler->event.msg_buf;
+    if (!buf) {
+        ERROR_LOG("msg_buf is NULL\n");
+        return -1;
+    }
+
     if (ctx->sockfd == -1) {
         return -1;
     }
 
     int total = 0;
     int nsend = 0;
+    size_t len = buf_len(buf);
     while (total < len) {
-        nsend = send(ctx->sockfd, buf + total, len - total, MSG_NOSIGNAL);
+        nsend = send(ctx->sockfd, buf->start + total, len - total, MSG_NOSIGNAL);
         if (nsend < 0) {
             if (errno == EAGAIN || errno == EINTR) {
                 continue;

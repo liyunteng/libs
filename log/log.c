@@ -29,16 +29,16 @@
 #include <unistd.h>
 /* #include <fcntl.h> */
 
-#define COLOR_NORMAL "\033[0;0;00m"
-#define COLOR_EMERG "\033[5;7;31m"
-#define COLOR_ALERT "\033[5;7;35m"
-#define COLOR_FATAL "\033[5;7;33m"
-#define COLOR_ERROR "\033[1;0;31m"
-#define COLOR_WARNING "\033[1;0;35m"
-#define COLOR_NOTICE "\033[1;0;34m"
+#define COLOR_EMERG "\033[1;7;31m"
+#define COLOR_ALERT "\033[1;7;35m"
+#define COLOR_FATAL "\033[1;7;33m"
+#define COLOR_ERROR "\033[1;1;31m"
+#define COLOR_WARNING "\033[1;1;35m"
+#define COLOR_NOTICE "\033[1;0;33m"
 #define COLOR_INFO "\033[1;0;37m"
 #define COLOR_DEBUG "\033[0;0;32m"
 #define COLOR_VERBOSE "\033[0;0;00m"
+#define COLOR_NORMAL "\033[0;0;00m"
 
 #define DEFAULT_FORMAT "%d.%ms %c:%p [%V] %F:%U(%L) %m%n"
 
@@ -53,9 +53,9 @@ const char *const LOGLEVELSTR[] = {
     "NOTICE", "INFO",  "DEBUG", "VERBOSE",
 };
 
-static const char *const COLORSTR[] = {
+const char *const COLORSTR[] = {
     COLOR_EMERG,  COLOR_ALERT, COLOR_FATAL, COLOR_ERROR,   COLOR_WARNING,
-    COLOR_NOTICE, COLOR_INFO,  COLOR_DEBUG, COLOR_VERBOSE,
+    COLOR_NOTICE, COLOR_INFO,  COLOR_DEBUG, COLOR_VERBOSE, COLOR_NORMAL,
 };
 
 static struct list_head output_header = {
@@ -109,13 +109,9 @@ dump_environment(log_handler_t *handler)
 static size_t
 log_format(log_handler_t *handler, log_rule_t *r)
 {
-    size_t idx;
-    size_t len;
-    char *buf;
-    int nwrite = 0;
     log_spec_t *s;
     log_event_t *event = NULL;
-    BOOL truncated     = FALSE;
+    int ret;
 
     if (!handler || !r) {
         ERROR_LOG("invalid argument\n");
@@ -123,59 +119,17 @@ log_format(log_handler_t *handler, log_rule_t *r)
     }
     event = &handler->event;
 
-    buf = handler->bufferp;
-    len = handler->buffer_real;
-    idx = 0;
-    if (r->format->color) {
-        idx += snprintf(buf + idx, len - idx, "%s", COLORSTR[event->level]);
-    }
-
-    list_for_each_entry (s, &r->format->callbacks, spec_entry) {
-        DEBUG_LOG("nwrite: %d, len-idx: %d\n", nwrite, len - idx);
-        nwrite = s->write_buf(s, event, buf + idx, len - idx);
-        if (nwrite <= 0) {
+    buf_restart(event->msg_buf);
+    list_for_each_entry(s, &r->format->callbacks, spec_entry)
+    {
+        ret = s->gen_msg(s, event);
+        if (ret < 0) {
             ERROR_LOG("spec %s failed\n", s->str);
             continue;
         }
-        DEBUG_LOG("nwrite: %d\n", nwrite);
-        idx += nwrite;
-        while (idx >= len) {
-            if (handler->buffer_real < handler->buffer_max) {
-                if (handler->buffer_real * 2 <= handler->buffer_max) {
-                    handler->buffer_real = handler->buffer_real * 2;
-                } else {
-                    handler->buffer_real = handler->buffer_max;
-                }
-                handler->bufferp =
-                    (char *)realloc(handler->bufferp, handler->buffer_real);
-                if (!handler->bufferp) {
-                    ERROR_LOG("realloc to %lu failed(%s)\n",
-                              handler->buffer_real, strerror(errno));
-                    handler->buffer_real = 0;
-                    goto err;
-                } else {
-                    DEBUG_LOG("realloc buffer to: %lu\n", handler->buffer_real);
-                    len = handler->buffer_real;
-                }
-
-            } else {
-                DEBUG_LOG("msg too long, truncated to %u.\n", (unsigned)handler->buffer_real);
-                memcpy(buf + len - 13, "(truncated)\n", 13);
-                truncated = TRUE;
-                idx = handler->buffer_real;
-                goto end;
-            }
-        }
     }
 
-end:
-    if (!truncated && r->format->color) {
-        idx += snprintf(buf + idx, len - idx, "%s", COLOR_NORMAL);
-    }
-    return idx;
-
-err:
-    return -1;
+    return buf_len(event->msg_buf);
 }
 
 static int
@@ -188,62 +142,6 @@ log_ctl_v(enum LOG_OPTS opt, va_list ap)
     }
 
     switch (opt) {
-    case LOG_OPT_SET_HANDLER_BUFFERSIZEMIN: {
-        size_t buffer_min   = va_arg(ap, size_t);
-        handler->buffer_min = buffer_min;
-        if (handler->buffer_real < buffer_min)
-            handler->bufferp = (char *)realloc(handler->bufferp, buffer_min);
-        if (handler->bufferp == NULL) {
-            handler->buffer_real = 0;
-            ERROR_LOG("realloc failed(%s)\n", strerror(errno));
-            return -1;
-        }
-        if (handler->buffer_real < buffer_min)
-            handler->buffer_real = buffer_min;
-        break;
-    }
-
-    case LOG_OPT_SET_HANDLER_BUFFERSIZEMAX: {
-        size_t buffer_max   = va_arg(ap, size_t);
-        handler->buffer_max = buffer_max;
-        if (handler->buffer_real > buffer_max)
-            handler->bufferp = (char *)realloc(handler->bufferp, buffer_max);
-        if (handler->bufferp == NULL) {
-            handler->buffer_real = 0;
-            ERROR_LOG("realloc failed(%s)\n", strerror(errno));
-            return -1;
-        }
-        if (handler->buffer_real > buffer_max)
-            handler->buffer_real = buffer_max;
-        break;
-    }
-    case LOG_OPT_GET_HANDLER_BUFFERSIZEMIN: {
-        size_t *buffer_min = va_arg(ap, size_t *);
-        if (!buffer_min) {
-            ERROR_LOG("buffer_min pointer is NULL\n");
-            return -1;
-        }
-        *buffer_min = handler->buffer_min;
-        break;
-    }
-    case LOG_OPT_GET_HANDLER_BUFFERSIZEMAX: {
-        size_t *buffer_max = va_arg(ap, size_t *);
-        if (!buffer_max) {
-            ERROR_LOG("buffer_max pointer is NULL\n");
-            return -1;
-        }
-        *buffer_max = handler->buffer_max;
-        break;
-    }
-    case LOG_OPT_GET_HANDLER_BUFFERSIZEREAL: {
-        size_t *buffer_real = va_arg(ap, size_t *);
-        if (!buffer_real) {
-            ERROR_LOG("buffer_real pointer is NULL\n");
-            return -1;
-        }
-        *buffer_real = handler->buffer_real;
-        break;
-    }
     case LOG_OPT_SET_HANDLER_IDENT: {
         char *ident = va_arg(ap, char *);
         if (!ident) {
@@ -282,76 +180,8 @@ log_ctl(enum LOG_OPTS opt, ...)
     return ret;
 }
 
-log_handler_t *
-log_handler_create(const char *ident)
-{
-    log_handler_t *handler = log_handler_get(ident);
-    if (handler) {
-        return handler;
-    }
-
-    handler = (log_handler_t *)calloc(1, sizeof(log_handler_t));
-    if (!handler) {
-        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
-        return NULL;
-    }
-    pthread_mutex_init(&handler->mutex, NULL);
-    strncpy(handler->ident, ident, strlen(ident) + 1);
-    handler->buffer_max  = BUFFER_MAX;
-    handler->buffer_min  = BUFFER_MIN;
-    handler->buffer_real = BUFFER_MIN;
-    handler->bufferp     = (char *)calloc(1, BUFFER_MIN);
-    if (!handler->bufferp) {
-        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
-        pthread_mutex_destroy(&handler->mutex);
-        free(handler);
-        return NULL;
-    }
-
-    INIT_LIST_HEAD(&handler->rules);
-    list_add_tail(&handler->handler_entry, &handler_header);
-
-    return handler;
-}
-
-void
-log_handler_destory(log_handler_t *handler)
-{
-    if (!handler) {
-        ERROR_LOG("handler is NULL\n");
-        return;
-    }
-    list_del(&handler->handler_entry);
-
-    pthread_mutex_destroy(&handler->mutex);
-    if (handler->bufferp) {
-        free(handler->bufferp);
-        handler->bufferp = NULL;
-    }
-
-    log_rule_t *r, *tmp;
-    list_for_each_entry_safe (r, tmp, &(handler->rules), rule) {
-        list_del(&r->rule_entry);
-        list_del(&r->rule);
-        free(r);
-        r = NULL;
-    }
-}
-
-log_handler_t *
-log_handler_get(const char *ident)
-{
-    log_handler_t *handler = NULL;
-    list_for_each_entry (handler, &handler_header, handler_entry) {
-        if (strcmp(handler->ident, ident) == 0) {
-            return handler;
-        }
-    }
-    return NULL;
-}
-
 log_format_t *
-log_format_create(const char *fmt, int color)
+log_format_create(const char *fmt)
 {
     log_format_t *fp = NULL;
     char *p, *q;
@@ -369,11 +199,6 @@ log_format_create(const char *fmt, int color)
     }
 
     strncpy(fp->format, fmt, strlen(fmt) + 1);
-    if (color) {
-        fp->color = TRUE;
-    } else {
-        fp->color = FALSE;
-    }
 
     INIT_LIST_HEAD(&fp->callbacks);
     for (p = fp->format; *p != '\0'; p = q) {
@@ -485,6 +310,85 @@ log_output_destroy(log_output_t *output)
 }
 
 
+log_handler_t *
+log_handler_create(const char *ident)
+{
+    log_handler_t *handler = log_handler_get(ident);
+    if (handler) {
+        return handler;
+    }
+
+    handler = (log_handler_t *)calloc(1, sizeof(log_handler_t));
+    if (!handler) {
+        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        return NULL;
+    }
+    pthread_mutex_init(&handler->mutex, NULL);
+    strncpy(handler->ident, ident, strlen(ident) + 1);
+    handler->event.msg_buf = buf_create(BUFFER_MIN, BUFFER_MAX);
+    if (!handler->event.msg_buf) {
+        ERROR_LOG("buf_create failed\n");
+        goto failed;
+    }
+    handler->event.pre_msg_buf = buf_create(BUFFER_MIN, BUFFER_MAX);
+    if (!handler->event.pre_msg_buf) {
+        ERROR_LOG("buf_create failed\n");
+        goto failed;
+    }
+
+    INIT_LIST_HEAD(&handler->rules);
+    list_add_tail(&handler->handler_entry, &handler_header);
+
+    return handler;
+
+failed:
+    if (handler) {
+        log_handler_destroy(handler);
+    }
+    return NULL;
+}
+
+void
+log_handler_destroy(log_handler_t *handler)
+{
+    if (!handler) {
+        ERROR_LOG("handler is NULL\n");
+        return;
+    }
+    list_del(&handler->handler_entry);
+
+    pthread_mutex_destroy(&handler->mutex);
+    if (handler->event.msg_buf) {
+        buf_destroy(handler->event.msg_buf);
+    }
+    if (handler->event.pre_msg_buf) {
+        buf_destroy(handler->event.pre_msg_buf);
+    }
+
+    log_rule_t *r, *tmp;
+    list_for_each_entry_safe(r, tmp, &(handler->rules), rule)
+    {
+        list_del(&r->rule_entry);
+        list_del(&r->rule);
+        free(r);
+        r = NULL;
+    }
+}
+
+log_handler_t *
+log_handler_get(const char *ident)
+{
+    log_handler_t *handler = NULL;
+    list_for_each_entry(handler, &handler_header, handler_entry)
+    {
+        if (strcmp(handler->ident, ident) == 0) {
+            return handler;
+        }
+    }
+    return NULL;
+}
+
+
 int
 log_bind(log_handler_t *handler, LOG_LEVEL_E level_begin, LOG_LEVEL_E level_end,
          log_format_t *format, log_output_t *output)
@@ -530,7 +434,8 @@ log_unbind(log_handler_t *handler, log_output_t *output)
     }
 
     log_rule_t *r;
-    list_for_each_entry (r, &(handler->rules), rule) {
+    list_for_each_entry(r, &(handler->rules), rule)
+    {
         if (r->output == output) {
             list_del(&r->rule);
             return 0;
@@ -549,7 +454,7 @@ mlogv(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
     int ret;
     LOG_LEVEL_E level;
     log_rule_t *r = NULL;
-    size_t len;
+    int len;
 
     if (handler == NULL) {
         ERROR_LOG("handler is NULL\n");
@@ -564,19 +469,21 @@ mlogv(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
 
     pthread_mutex_lock(&handler->mutex);
 
-    list_for_each_entry (r, &handler->rules, rule) {
+    list_for_each_entry(r, &handler->rules, rule)
+    {
         if (r->level_begin < level || r->level_end > level) {
             continue;
         }
 
-        event_update(&handler->event, handler, r, level, file, func, line, fmt,
-                     ap);
+        event_update(&handler->event, handler, r, level, file, func, line, fmt, ap);
         len = log_format(handler, r);
         if (len <= 0) {
+            DEBUG_LOG("len: %d\n", len);
             continue;
         }
 
-        ret = r->output->emit(r->output, level, handler->bufferp, len);
+        ret = r->output->emit(r->output, handler);
+        ERROR_LOG("%s: %d len: %d\n", LOGLEVELSTR[level], ret, len);
         if (ret >= 0) {
             r->output->stat.stats[level].count++;
             r->output->stat.stats[level].bytes += len;
@@ -640,39 +547,42 @@ log_dump(void)
     int rule_count = 0, format_count = 0, output_count = 0, handler_count = 0;
     printf("=====================log profile==============================\n");
     log_rule_t *rule;
-    list_for_each_entry (rule, &rule_header, rule_entry) {
-        rule_count++;
-    }
+    list_for_each_entry(rule, &rule_header, rule_entry) { rule_count++; }
 
     log_format_t *format;
-    list_for_each_entry (format, &format_header, format_entry) {
+    list_for_each_entry(format, &format_header, format_entry)
+    {
         format_count++;
     }
 
     log_output_t *output;
-    list_for_each_entry (output, &output_header, output_entry) {
+    list_for_each_entry(output, &output_header, output_entry)
+    {
         output_count++;
     }
 
     log_handler_t *handler;
-    list_for_each_entry (handler, &handler_header, handler_entry) {
+    list_for_each_entry(handler, &handler_header, handler_entry)
+    {
         handler_count++;
     }
 
     printf("handler: %d output: %d format: %d rule: %d\n", handler_count,
            output_count, format_count, rule_count);
 
-    list_for_each_entry (handler, &handler_header, handler_entry) {
+    list_for_each_entry(handler, &handler_header, handler_entry)
+    {
         i++;
         j = 0;
         printf("------------------------\n");
         printf("handler: %d\n", i);
         printf("ident: %s\n", handler->ident);
-        printf("buffer_min: %u\n", (unsigned)handler->buffer_min);
-        printf("buffer_real: %u\n", (unsigned)handler->buffer_real);
-        printf("buffer_max: %u\n", (unsigned)handler->buffer_max);
+        printf("buffer_min: %u\n", (unsigned)handler->event.msg_buf->size_min);
+        printf("buffer_real: %u\n", (unsigned)handler->event.msg_buf->size_real);
+        printf("buffer_max: %u\n", (unsigned)handler->event.msg_buf->size_max);
         printf("\n");
-        list_for_each_entry (rule, &handler->rules, rule) {
+        list_for_each_entry(rule, &handler->rules, rule)
+        {
             j++;
 
             printf("rule: %d\n", j);

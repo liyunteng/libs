@@ -29,14 +29,14 @@
 #include <unistd.h>
 /* #include <fcntl.h> */
 
-#define COLOR_EMERG "\033[7;9;31m"
-#define COLOR_ALERT "\033[7;9;35m"
-#define COLOR_FATAL "\033[7;9;33m"
+#define COLOR_EMERG "\033[7;49;31m"
+#define COLOR_ALERT "\033[7;49;35m"
+#define COLOR_FATAL "\033[7;49;33m"
 #define COLOR_ERROR "\033[1;1;31m"
 #define COLOR_WARNING "\033[1;1;35m"
-#define COLOR_NOTICE "\033[1;0;33m"
-#define COLOR_INFO "\033[1;0;37m"
-#define COLOR_DEBUG "\033[0;0;32m"
+#define COLOR_NOTICE "\033[1;1;33m"
+#define COLOR_INFO "\033[1;1;32m"
+#define COLOR_DEBUG "\033[1;1;37m"
 #define COLOR_VERBOSE "\033[0;0;00m"
 #define COLOR_NORMAL "\033[0;0;00m"
 

@@ -8,10 +8,10 @@
 #include <errno.h>
 #include <string.h>
 
-#include <syslog.h>
 #ifdef ANDROID
 #include <android/log.h>
 #endif
+
 
 static void
 dump_output(log_output_t *output)
@@ -127,29 +127,6 @@ logcat_emit(log_output_t *output, log_handler_t *handler)
 #endif
 }
 
-static int
-syslog_emit(log_output_t *output, log_handler_t *handler)
-{
-    log_buf_t *buf = NULL;
-    size_t len;
-    LOG_LEVEL_E level;
-    if (!handler) {
-        ERROR_LOG("handler is NULL\n");
-        return -1;
-    }
-    buf = handler->event.msg_buf;
-    if (!buf) {
-        ERROR_LOG("msg_buf is NULL\n");
-        return -1;
-    }
-
-    len   = buf_len(buf);
-    level = handler->event.level;
-
-    syslog(level, "%s", buf->start);
-    return len;
-}
-
 log_output_t *
 stderr_output_create(void)
 {
@@ -203,25 +180,6 @@ logcat_output_create(void)
     output->type_name = "logcat";
     output->dump      = dump_output;
     output->emit      = logcat_emit;
-
-    return output;
-}
-
-log_output_t *
-syslog_output_create(void)
-{
-    log_output_t *output = NULL;
-
-    output = (log_output_t *)calloc(1, sizeof(log_output_t));
-    if (!output) {
-        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
-        return NULL;
-    }
-
-    output->type      = LOG_OUTTYPE_SYSLOG;
-    output->type_name = "syslog";
-    output->dump      = dump_output;
-    output->emit      = syslog_emit;
 
     return output;
 }

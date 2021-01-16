@@ -25,18 +25,20 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/syslog.h>
 #include <unistd.h>
 #define TAG "abc"
 
 void
 test_mlog()
 {
+    LOG_INIT("ihi", -1);
     const char *s    = "this is a test.";
     log_handler_t *h = log_handler_create("h");
 
     log_format_t *format = log_format_create("%d %p %c %C%V%R %F:%U:%L %m%n");
     log_output_t *fileout =
-        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
+        log_output_create(LOG_OUTTYPE_FILE, ".", "h", 1024 * 1024 * 4, 4);
     log_output_t *std_out = log_output_create(LOG_OUTTYPE_STDOUT);
     log_bind(h, LOG_VERBOSE, -1, format, fileout);
     log_bind(h, LOG_VERBOSE, -1, format, std_out);
@@ -52,6 +54,16 @@ test_mlog()
     MLOGF(h, "this is a fatal");
     MLOGA(h, "this is a alert");
     MLOGX(h, "this is a emergency");
+
+    LOGV("this is a verbose");
+    LOGD("this is a debug");
+    LOGI("this is a info");
+    LOGN("this is a notice");
+    LOGW("this is a warning");
+    LOGE("this is a error");
+    LOGF("this is a fatal");
+    LOGA("this is a alert");
+    LOGX("this is a emergency");
 
     log_dump();
 }
@@ -201,7 +213,9 @@ test_multi_output()
     log_output_t *file =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 8 * 1024 * 1024, 50);
     log_output_t *sdo    = log_output_create(LOG_OUTTYPE_STDOUT);
-    log_output_t *syslog = log_output_create(LOG_OUTTYPE_SYSLOG);
+    log_output_t *syslog = log_output_create(LOG_OUTTYPE_SYSLOG, "ihi",
+                                             LOG_NDELAY | LOG_NOWAIT | LOG_PID,
+                                             LOG_USER);
     log_output_t *tcp =
         log_output_create(LOG_OUTTYPE_TCP, "127.0.0.1", (unsigned)12345);
     log_handler_t *handler = log_handler_create("ihi");

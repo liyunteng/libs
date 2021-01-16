@@ -11,10 +11,12 @@
 #endif
 
 #include "file_output.h"
+#include "sock_output.h"
+#include "syslog_output.h"
+#include "other_outputs.h"
+
 #include "format.h"
 #include "log_priv.h"
-#include "other_outputs.h"
-#include "sock_output.h"
 
 #include <errno.h>
 #include <pthread.h>

@@ -354,8 +354,8 @@ main(int argc, char *argv[])
     /* test_mlog_benchmark(); */
     /* test_log_benchmark(); */
     /* test_log_big_benchmark(); */
-    test_multi_output();
-    /* test_format(); */
+    /* test_multi_output(); */
+    test_format();
     /* test_big_buf(); */
     /* test_simple(); */
     return 0;

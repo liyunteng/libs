@@ -15,6 +15,9 @@
 #include <string.h>
 #include <unistd.h>
 
+#define DEFAULT_SOCKADDR "127.0.0.1"
+#define DEFAULT_SOCKPORT 12345
+
 
 static int
 sock_emit(log_output_t *output, log_handler_t *handler)

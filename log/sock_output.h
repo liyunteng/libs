@@ -10,8 +10,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define DEFAULT_SOCKADDR "127.0.0.1"
-#define DEFAULT_SOCKPORT 12345
 
 typedef struct {
     char addr[256];

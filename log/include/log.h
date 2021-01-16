@@ -76,17 +76,21 @@ void log_format_destroy(log_format_t *format);
 
 // LOG_OUTTYPE_STDERR
 // LOG_OUTTYPE_STDOUT
-// LOG_OUTTYPE_LOGCAT
-// LOG_OUTTYPE_SYSLOG need not arg
+// LOG_OUTTYPE_LOGCAT  need no arg
 //
-// LOG_OUTTYPE_FILE char *file_path
-//                  char *log_name
-//                  unsigned long filesize
-//                  int bakupnum
+// LOG_OUTTYPE_SYSLOG  char *ident
+//                     int options
+//                     int facility
+//
+// LOG_OUTTYPE_FILE    char *file_path
+//                     char *log_name
+//                     unsigned long filesize
+//                     int bakupnum
 //
 // LOG_OUTTYPE_UDP
-// LOG_OUTTYPE_TCP  char *addr
-//                  int port
+// LOG_OUTTYPE_TCP     char *addr
+//                     int port
+//
 log_output_t *log_output_create(enum LOG_OUTTYPE type, ...);
 void log_output_destroy(log_output_t *output);
 

@@ -9,6 +9,12 @@
 #include <errno.h>
 #include <string.h>
 
+#define DEFAULT_FILEPATH "."
+#define DEFAULT_FILENAME "test"
+#define DEFAULT_BAKUP 0
+#define DEFAULT_FILESIZE 4 * 1024 * 1024
+
+
 static int
 file_getname(log_output_t *output, char *file_name, uint16_t len)
 {

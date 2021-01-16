@@ -35,4 +35,5 @@ void event_update(log_event_t *e, log_handler_t *handler, log_rule_t *rule,
                   long line, const char *fmt, va_list ap);
 
 log_spec_t *spec_create(char *pstart, char **pnext);
+
 #endif

@@ -10,10 +10,6 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define DEFAULT_FILEPATH "."
-#define DEFAULT_FILENAME "test"
-#define DEFAULT_BAKUP 0
-#define DEFAULT_FILESIZE 4 * 1024 * 1024
 
 typedef struct {
     char *file_path;

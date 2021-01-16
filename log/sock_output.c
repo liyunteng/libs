@@ -23,7 +23,7 @@ static int
 sock_emit(log_output_t *output, log_handler_t *handler)
 {
     sock_output_ctx *ctx = NULL;
-    log_buf_t *buf = NULL;
+    log_buf_t *buf       = NULL;
 
     if (!output) {
         ERROR_LOG("output is NULL\n");
@@ -50,11 +50,12 @@ sock_emit(log_output_t *output, log_handler_t *handler)
         return -1;
     }
 
-    int total = 0;
-    int nsend = 0;
+    int total  = 0;
+    int nsend  = 0;
     size_t len = buf_len(buf);
     while (total < len) {
-        nsend = send(ctx->sockfd, buf->start + total, len - total, MSG_NOSIGNAL);
+        nsend =
+            send(ctx->sockfd, buf->start + total, len - total, MSG_NOSIGNAL);
         if (nsend < 0) {
             if (errno == EAGAIN || errno == EINTR) {
                 continue;

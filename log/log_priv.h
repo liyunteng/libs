@@ -6,9 +6,9 @@
 #ifndef LOG_PRIV_H
 #define LOG_PRIV_H
 
+#include "buf.h"
 #include "list.h"
 #include "log.h"
-#include "buf.h"
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -26,8 +26,8 @@
 #endif
 
 #define DEBUG_LOG(fmt, ...)
-/* #define DEBUG_LOG(fmt, ...)                                                    \
- *     fprintf(stdout, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__) */
+/* #define DEBUG_LOG(fmt, ...) \ fprintf(stdout, "%s:%d " fmt, __FILE__,
+ * __LINE__, ##__VA_ARGS__) */
 #define ERROR_LOG(fmt, ...)                                                    \
     fprintf(stderr, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 

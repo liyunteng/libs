@@ -6,9 +6,9 @@
 #include "syslog_output.h"
 #include "log_priv.h"
 
-#include <syslog.h>
-#include <string.h>
 #include <errno.h>
+#include <string.h>
+#include <syslog.h>
 
 #define DEFAULT_SYSLOG_IDENT "default"
 

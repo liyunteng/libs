@@ -8,7 +8,6 @@
 #include "log.h"
 
 #include <stdint.h>
-#include <stdio.h>
 
 
 typedef struct {

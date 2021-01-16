@@ -11,7 +11,6 @@
 #include <unistd.h>
 
 #define DEFAULT_TIME_FORMAT "%F %T"
-#define DEFAULT_ENV_NAME ""
 
 extern char *LOGLEVELSTR[];
 extern char *COLORSTR[];
@@ -145,7 +144,8 @@ spec_write_tid_hex(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 static int
 spec_write_level(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
-    return buf_append(buf, LOGLEVELSTR[e->level], strlen(LOGLEVELSTR[e->level]));
+    return buf_append(buf, LOGLEVELSTR[e->level],
+                      strlen(LOGLEVELSTR[e->level]));
 }
 
 static int
@@ -167,7 +167,8 @@ spec_write_color(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 static int
 spec_write_reset_color(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
-    return buf_append(buf, COLORSTR[LOG_VERBOSE+1], strlen(COLORSTR[LOG_VERBOSE+1]));
+    return buf_append(buf, COLORSTR[LOG_VERBOSE + 1],
+                      strlen(COLORSTR[LOG_VERBOSE + 1]));
 }
 
 static int
@@ -288,7 +289,7 @@ spec_create(char *pstart, char **pnext)
         }
         p += nread;
 
-        if (*p == 'd') {        /* datetime */
+        if (*p == 'd') { /* datetime */
             if (*(p + 1) != '(') {
                 /* without '(', use default */
                 strcpy(s->time_fmt, DEFAULT_TIME_FORMAT);
@@ -338,8 +339,8 @@ spec_create(char *pstart, char **pnext)
             }
 
             s->write_buf = spec_write_env;
-            *pnext = p;
-            s->len = p - s->str;
+            *pnext       = p;
+            s->len       = p - s->str;
             break;
         }
 
@@ -361,53 +362,53 @@ spec_create(char *pstart, char **pnext)
         s->len = p - s->str + 1;
 
         switch (*p) {
-        case 'c':               /* ident */
+        case 'c': /* ident */
             s->write_buf = spec_write_ident;
             break;
-        case 'D':               /* datetime 21/01/01 12:00:00 */
+        case 'D': /* datetime 21/01/01 12:00:00 */
             strcpy(s->time_fmt, "%Y/%m/%d %H:%M:%S");
             s->write_buf = spec_write_time;
             break;
-        case 'H':               /* hostname */
+        case 'H': /* hostname */
             s->write_buf = spec_write_hostname;
             break;
-        case 'F':               /* file */
+        case 'F': /* file */
             s->write_buf = spec_write_file;
             break;
-        case 'U':               /* function */
+        case 'U': /* function */
             s->write_buf = spec_write_func;
             break;
-        case 'L':               /* line */
+        case 'L': /* line */
             s->write_buf = spec_write_line;
             break;
-        case 'p':               /* pid */
+        case 'p': /* pid */
             s->write_buf = spec_write_pid;
             break;
-        case 't':               /* tid */
+        case 't': /* tid */
             s->write_buf = spec_write_tid;
             break;
-        case 'T':               /* tid hex */
+        case 'T': /* tid hex */
             s->write_buf = spec_write_tid_hex;
             break;
-        case 'V':               /* level */
+        case 'V': /* level */
             s->write_buf = spec_write_level;
             break;
-        case 'm':               /* message */
+        case 'm': /* message */
             s->write_buf = spec_write_message;
             break;
-        case 'r':               /* '\r' */
+        case 'r': /* '\r' */
             s->write_buf = spec_write_cr;
             break;
-        case 'n':               /* '\n' */
+        case 'n': /* '\n' */
             s->write_buf = spec_write_newline;
             break;
-        case '%':               /* '%' */
+        case '%': /* '%' */
             s->write_buf = spec_write_percent;
             break;
-        case 'C':               /* color */
+        case 'C': /* color */
             s->write_buf = spec_write_color;
             break;
-        case 'R':               /* color reset */
+        case 'R': /* color reset */
             s->write_buf = spec_write_reset_color;
             break;
         default:

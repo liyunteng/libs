@@ -362,7 +362,7 @@ buf_printf_hex(log_buf_t *buf, uint32_t ui32, int width)
     unsigned char tmp[LOG_INT32_LEN + 1];
     size_t num_len, zero_len, out_len;
     static unsigned char hex[] = "0123456789abcdef";
-    //static unsigned char   HEX[] = "0123456789ABCDEF";
+    // static unsigned char   HEX[] = "0123456789ABCDEF";
 
     if (!buf->start) {
         ERROR_LOG("buf->start is NULL\n");

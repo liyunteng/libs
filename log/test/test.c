@@ -132,7 +132,7 @@ void
 test_log_benchmark()
 {
     log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
-    /* log_format_t *format = log_format_create("%m%d"); */
+    /* log_format_t *format = log_format_create("%m%n"); */
     log_output_t *output =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
     log_handler_t *handler = log_handler_create("ihi");
@@ -234,8 +234,6 @@ test_multi_output()
 void
 test_format()
 {
-    /* LOG_INIT("ihi", LOG_VERBOSE); */
-
     int ret;
     log_format_t *format = log_format_create(
         "%E(a) %E(LOGNAME) %H %d %D %ms %us %c %C[%-7.7V]%R %.10F:%U:%L %p "
@@ -276,6 +274,13 @@ test_format()
         LOGA("this is a alert");
         LOGX("this is a emerge");
     }
+    log_dump();
+
+    log_unbind(handler, format, output);
+    log_handler_destroy(handler);
+    log_format_destroy(format);
+    log_output_destroy(output);
+
     log_dump();
 }
 
@@ -324,13 +329,6 @@ test_big_buf()
     LOGE("%s", buf);
 
     log_dump();
-
-    log_unbind(handler, format, output);
-    log_handler_destroy(handler);
-    log_format_destroy(format);
-    log_output_destroy(output);
-
-    log_dump();
 }
 
 void
@@ -352,13 +350,13 @@ test_simple()
 int
 main(int argc, char *argv[])
 {
-    test_mlog();
+    /* test_mlog(); */
     /* test_log_thread(); */
     /* test_mlog_benchmark(); */
     /* test_log_benchmark(); */
     /* test_log_big_benchmark(); */
     /* test_multi_output(); */
-    /* test_format(); */
+    test_format();
     /* test_big_buf(); */
     /* test_simple(); */
     return 0;

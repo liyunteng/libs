@@ -24,8 +24,8 @@
 #include "log.h"
 #include <pthread.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
+#include <unistd.h>
 #define TAG "abc"
 
 void
@@ -75,10 +75,12 @@ void
 test_log_thread()
 {
     pthread_t tid1, tid2, tid3;
-    log_handler_t *h = log_handler_create(DEFAULT_IDENT);
-    log_format_t *f = log_format_create("%D.%ms %c:%10.10T [%-5.5V] %m%n");
-    log_output_t *o = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024*1024*4, 4);
+    log_handler_t *h = log_handler_create("ihi");
+    log_format_t *f  = log_format_create("%D.%ms %c:%10.10T [%-5.5V] %m%n");
+    log_output_t *o =
+        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
     log_bind(h, -1, -1, f, o);
+    log_handler_set_default(h);
 
     pthread_create(&tid1, NULL, run, NULL);
     pthread_create(&tid2, NULL, run, NULL);
@@ -133,12 +135,13 @@ test_log_benchmark()
     /* log_format_t *format = log_format_create("%m%d"); */
     log_output_t *output =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
-    log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
+    log_handler_t *handler = log_handler_create("ihi");
     log_bind(handler, -1, -1, format, output);
+    log_handler_set_default(handler);
 
     unsigned i;
     for (i = 0; i < 1024 * 1024 * 16; i++) {
-#if 1
+#if 0
         MLOGV(handler, "this is a verbose");
         MLOGD(handler, "this is a debug");
         MLOGI(handler, "this is a info");
@@ -169,8 +172,9 @@ test_log_big_benchmark()
     log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
     log_output_t *output =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
-    log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
+    log_handler_t *handler = log_handler_create("ihi");
     log_bind(handler, -1, -1, format, output);
+    log_handler_set_default(handler);
 
     char b[1024 * 8] = {0};
     int i;
@@ -196,11 +200,12 @@ test_multi_output()
     log_format_t *format2 = log_format_create("%m");
     log_output_t *file =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 8 * 1024 * 1024, 50);
-    log_output_t *sdo = log_output_create(LOG_OUTTYPE_STDOUT);
+    log_output_t *sdo    = log_output_create(LOG_OUTTYPE_STDOUT);
     log_output_t *syslog = log_output_create(LOG_OUTTYPE_SYSLOG);
     log_output_t *tcp =
         log_output_create(LOG_OUTTYPE_TCP, "127.0.0.1", (unsigned)12345);
-    log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
+    log_handler_t *handler = log_handler_create("ihi");
+    log_handler_set_default(handler);
 
     for (i = 0; i < sizeof(b) / sizeof(b[0]) - 1; i++) {
         b[i] = 'b';
@@ -227,15 +232,19 @@ test_multi_output()
 }
 
 void
-test_simple()
+test_format()
 {
     /* LOG_INIT("ihi", LOG_VERBOSE); */
 
     int ret;
-    log_format_t *format = log_format_create("%E(a) %E(LOGNAME) %H %d %D %ms %us %c %C[%-7.7V]%R %.10F:%U:%L %p %t:%T %% %.2m%n");
+    log_format_t *format = log_format_create(
+        "%E(a) %E(LOGNAME) %H %d %D %ms %us %c %C[%-7.7V]%R %.10F:%U:%L %p "
+        "%t:%T %% %m%n");
     log_output_t *output =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
-    log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
+    log_handler_t *handler = log_handler_create("ihi");
+    log_handler_set_default(handler);
+
     if (!format) {
         printf("format create failed\n");
         return;
@@ -273,13 +282,15 @@ test_simple()
 void
 test_big_buf()
 {
-    char *buf = NULL;
-    size_t size = 1024*1024*2;
+    char *buf   = NULL;
+    size_t size = 1024 * 1024 * 2;
     int ret;
     log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
     log_output_t *output =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1, 5);
-    log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
+    log_handler_t *handler = log_handler_create("ihi");
+    log_handler_set_default(handler);
+
     if (!format) {
         printf("format create failed\n");
         return;
@@ -299,7 +310,7 @@ test_big_buf()
         return;
     }
 
-    buf =(char*)malloc(size);
+    buf = (char *)malloc(size);
     if (!buf) {
         printf("malloc failed\n");
         return;
@@ -314,6 +325,22 @@ test_big_buf()
     log_dump();
 }
 
+void
+test_simple()
+{
+    LOG_INIT("ihi", LOG_VERBOSE);
+
+    LOGV("this is a %s", "verbose");
+    LOGD("this is a %s", "debug");
+    LOGI("this is a info");
+    LOGN("this is a notice");
+    LOGW("this is a warnning");
+    LOGE("this is a error");
+    LOGF("this is a fatal");
+    LOGA("this is a alert");
+    LOGX("this is a emerge");
+    log_dump();
+}
 int
 main(int argc, char *argv[])
 {
@@ -323,7 +350,8 @@ main(int argc, char *argv[])
     /* test_log_benchmark(); */
     /* test_log_big_benchmark(); */
     /* test_multi_output(); */
-    test_simple();
-    /* test_big_buf(); */
+    /* test_format(); */
+    test_big_buf();
+    /* test_simple(); */
     return 0;
 }

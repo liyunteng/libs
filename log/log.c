@@ -29,9 +29,9 @@
 #include <unistd.h>
 /* #include <fcntl.h> */
 
-#define COLOR_EMERG "\033[1;7;31m"
-#define COLOR_ALERT "\033[1;7;35m"
-#define COLOR_FATAL "\033[1;7;33m"
+#define COLOR_EMERG "\033[7;9;31m"
+#define COLOR_ALERT "\033[7;9;35m"
+#define COLOR_FATAL "\033[7;9;33m"
 #define COLOR_ERROR "\033[1;1;31m"
 #define COLOR_WARNING "\033[1;1;35m"
 #define COLOR_NOTICE "\033[1;0;33m"
@@ -74,6 +74,8 @@ static struct list_head handler_header = {
     &handler_header,
     &handler_header,
 };
+
+static log_handler_t *default_handler = NULL;
 
 /* dump the environment */
 static void
@@ -168,7 +170,7 @@ log_ctl_v(enum LOG_OPTS opt, va_list ap)
     return 0;
 }
 
-int
+static int
 log_ctl(enum LOG_OPTS opt, ...)
 {
     va_list ap;
@@ -388,6 +390,12 @@ log_handler_get(const char *ident)
     return NULL;
 }
 
+int
+log_handler_set_default(log_handler_t *handler)
+{
+    default_handler = handler;
+    return 0;
+}
 
 int
 log_bind(log_handler_t *handler, LOG_LEVEL_E level_begin, LOG_LEVEL_E level_end,
@@ -475,7 +483,8 @@ mlogv(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
             continue;
         }
 
-        event_update(&handler->event, handler, r, level, file, func, line, fmt, ap);
+        event_update(&handler->event, handler, r, level, file, func, line, fmt,
+                     ap);
         len = log_format(handler, r);
         if (len <= 0) {
             DEBUG_LOG("len: %d\n", len);
@@ -510,14 +519,10 @@ slog(LOG_LEVEL_E level, const char *file, const char *function, long line,
 {
     va_list ap;
 
-    /* TODO: optimize */
-    log_handler_t *handler = log_handler_get(DEFAULT_IDENT);
-    if (handler) {
+    if (default_handler) {
         va_start(ap, fmt);
-        mlogv(handler, level, file, function, line, fmt, ap);
+        mlogv(default_handler, level, file, function, line, fmt, ap);
         va_end(ap);
-    } else {
-        ERROR_LOG("can't find handler: %s\n", DEFAULT_IDENT);
     }
     return;
 }
@@ -577,7 +582,8 @@ log_dump(void)
         printf("handler: %d\n", i);
         printf("ident: %s\n", handler->ident);
         printf("buffer_min: %u\n", (unsigned)handler->event.msg_buf->size_min);
-        printf("buffer_real: %u\n", (unsigned)handler->event.msg_buf->size_real);
+        printf("buffer_real: %u\n",
+               (unsigned)handler->event.msg_buf->size_real);
         printf("buffer_max: %u\n", (unsigned)handler->event.msg_buf->size_max);
         printf("\n");
         list_for_each_entry(rule, &handler->rules, rule)

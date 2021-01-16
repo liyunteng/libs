@@ -31,6 +31,12 @@
 #define ERROR_LOG(fmt, ...)                                                    \
     fprintf(stderr, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 
+
+enum LOG_OPTS {
+    LOG_OPT_SET_HANDLER_IDENT, /* log_handler_t *handler, char *ident */
+    LOG_OPT_GET_HANDLER_IDENT, /* log_handler_t *handler, char *ident */
+};
+
 struct log_format {
     char format[128];
     struct list_head format_entry;

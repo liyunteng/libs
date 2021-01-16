@@ -13,393 +13,341 @@
 #define DEFAULT_TIME_FORMAT "%F %T"
 extern char *LOGLEVELSTR[];
 
-inline static int
-formater_write_u32(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
+static int
+spec_write_str(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
-    return snprintf(buf, len, "%u", f->u.u32);
+    memcpy(buf, s->str, s->len);
+    return s->len;
 }
 
-inline static int
-formater_write_u64(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
+static int
+spec_write_time(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
-    return snprintf(buf, len, "%lu", f->u.u64);
+    time_t now_sec = e->timestamp.tv_sec;
+    struct tm *tm = &(e->tm);
+
+    if (!now_sec) {
+        gettimeofday(&(e->timestamp), NULL);
+        now_sec = e->timestamp.tv_sec;
+    }
+
+    if (e->ts != now_sec) {
+        localtime_r(&(now_sec), tm);
+        e->ts = now_sec;
+    }
+    return strftime(buf, len, s->time_fmt, tm);
 }
 
-inline static int
-formater_write_char(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
+static int
+spec_write_ms(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
-    return snprintf(buf, len, "%c", f->u.c);
+    if (!e->timestamp.tv_sec) {
+        gettimeofday(&e->timestamp, NULL);
+    }
+    return snprintf(buf, len, "%03d", (int)(e->timestamp.tv_usec / 1000));
 }
 
-
-inline static int
-formater_write_str(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
+static int
+spec_write_us(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
-    return snprintf(buf, len, "%s", f->u.str);
+    if (!e->timestamp.tv_sec) {
+        gettimeofday(&e->timestamp, NULL);
+    }
+
+    return snprintf(buf, len, "%06d", (int)(e->timestamp.tv_usec));
 }
 
-inline static int
-formater_write_hex(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
+static int
+spec_write_ident(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
-    return snprintf(buf, len, "0x%x", f->u.hex);
+    memcpy(buf, e->ident, e->ident_len);
+    return e->ident_len;
 }
 
-inline static int
-formater_write_env(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
+static int
+spec_write_file(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
-    return snprintf(buf, len, "%s", getenv(f->key));
+    memcpy(buf, e->file, e->file_len);
+    return e->file_len;
 }
 
-inline static int
-formater_write_datetime(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
+static int
+spec_write_line(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
-    time_t t;
-    struct tm now;
-    t = time(NULL);
-    localtime_r(&t, &now);
-    return strftime(buf, len, f->key, &now);
+    return snprintf(buf, len, "%ld", e->line);
 }
 
-inline static int
-formater_write_ms(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
+static int
+spec_write_func(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-
-    return snprintf(buf, len, "%03d", (int)(tv.tv_usec / 1000));
+    memcpy(buf, e->func, e->func_len);
+    return e->func_len;
 }
 
-inline static int
-formater_write_us(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
+static int
+spec_write_hostname(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-
-    return snprintf(buf, len, "%06d", (int)(tv.tv_usec));
+    if (e->hostname_len) {
+        memcpy(buf, e->hostname, e->hostname_len);
+    }
+    return e->hostname_len;
 }
 
-
-inline static int
-formater_write_hostname(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
+static int
+spec_write_newline(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
-    return snprintf(buf, len, "%s", f->key);
+    memcpy(buf, "\n", 1);
+    return 1;
 }
 
-inline static int
-formater_write_file(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
+static int
+spec_write_percent(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
-    return snprintf(buf, len, "%s", s->file);
+    memcpy(buf, "%", 1);
+    return 1;
 }
 
-inline static int
-formater_write_func(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
+static int
+spec_write_pid(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
-    return snprintf(buf, len, "%s", s->func);
+    if (!e->pid) {
+        e->pid = getpid();
+
+        if (e->pid != e->last_pid) {
+            e->last_pid = e->pid;
+            e->pid_str_len = sprintf(e->pid_str, "%u", e->pid);
+        }
+    }
+    memcpy(buf, e->pid_str, e->pid_str_len);
+    return e->pid_str_len;
 }
 
-inline static int
-formater_write_line(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
-{
-    return snprintf(buf, len, "%ld", s->line);
-}
-
-inline static int
-formater_write_level(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
-{
-    return snprintf(buf, len, "%5.5s", LOGLEVELSTR[s->level]);
-}
-
-inline static int
-formater_write_ident(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
-{
-    return snprintf(buf, len, "%s", s->handler->ident);
-}
-
-inline static int
-formater_write_tid(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
+static int
+spec_write_tid(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
     return snprintf(buf, len, "%lu", (unsigned long)pthread_self());
 }
 
-inline static int
-formater_write_message(log_formater_t *f, log_argument_t *s, char *buf, size_t len)
+static int
+spec_write_level(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
-    return vsnprintf(buf, len, s->fmt, s->ap);
+    return snprintf(buf, len, "%5.5s", LOGLEVELSTR[e->level]);
 }
 
-static log_formater_t *
-formater_create()
+static int
+spec_write_message(log_spec_t *s, log_event_t *e, char *buf, size_t len)
 {
-    log_formater_t *f = NULL;
-    f                 = (log_formater_t *)calloc(1, sizeof(log_formater_t));
-    if (!f) {
+    return vsnprintf(buf, len, e->fmt, e->ap);
+}
+
+
+static int
+spec_parse_print_fmt(log_spec_t *s)
+{
+    char *p, *q;
+    long i, j;
+
+    p = s->print_fmt;
+    if (*p == '-') {
+        s->left_adjust = TRUE;
+        p++;
+    } else {
+        if (*p == '0') {
+            s->left_fill_zeros = TRUE;
+        }
+        s->left_adjust = FALSE;
+    }
+
+    i = j = 0;
+    sscanf(p, "%ld.", &i);
+    q = strchr(p, '.');
+    if (q) sscanf(q, ".%ld", &j);
+
+
+    s->min_width = (size_t)i;
+    s->max_width = (size_t)j;
+    return 0;
+}
+
+log_spec_t *
+spec_create(char *pstart, char **pnext)
+{
+    char *p;
+    int nscan           = 0;
+    int nread           = 0;
+    log_spec_t *s       = NULL;
+
+    if (!pstart || !pnext) {
+        return NULL;
+    }
+
+
+    s = calloc(1, sizeof(log_spec_t));
+    if (!s) {
         ERROR_LOG("calloc failed(%s)\n", strerror(errno));
         return NULL;
     }
-    return f;
-}
+    s->str = p = pstart;
 
-int
-format_parse(log_format_t *fmt)
-{
-    char *p             = fmt->format;
-    int nscan           = 0;
-    int nread           = 0;
-    char buf[128]       = {0};
-    log_formater_t *f   = NULL;
-    log_formater_t *tmp = NULL;
-
-    while (*p) {
-        if (*p == '%') {
-            nread = 0;
-            nscan = sscanf(p, "%%%[.0-9-]%n", buf, &nread);
-            if (nscan == 1) {
-                ERROR_LOG("parse format [%s] failed.\n", p);
+    switch (*p) {
+    case '%':
+        nread = 0;
+        nscan = sscanf(p, "%%%[.0-9-]%n", s->print_fmt, &nread);
+        if (nscan == 1) {
+            /* TODO: parse like %-02d */
+            if (spec_parse_print_fmt(s)) {
+                ERROR_LOG("spec_parse_print_fmt failed\n");
                 goto failed;
-            } else {
-                nread = 1;
             }
-            p += nread;
+        } else {
+            /* skip the % char */
+            nread = 1;
+        }
+        p += nread;
 
-            if (*p == 'E') {
-                char env[128];
+        if (*p == 'd') {
+            if (*(p+1) != '(') {
+                /* without '(', use default */
+                strcpy(s->time_fmt, DEFAULT_TIME_FORMAT);
+                p++;
+            } else if (strncmp(p, "d()", 3) == 0) {
+                /* with () but without detail time format. */
+                strcpy(s->time_fmt, DEFAULT_TIME_FORMAT);
+                p += 3;
+            } else {
                 nread = 0;
-                nscan = sscanf(p, "E(%[^)])%n", env, &nread);
+                nscan = sscanf(p, "d(%[^)])%n", s->time_fmt, &nread);
                 if (nscan != 1) {
                     nread = 0;
                 }
+
                 p += nread;
-
-                if (*(p - 1) != ')') {
-                    ERROR_LOG("parse format [%s] failed\n", p);
+                if (*(p-1) != ')') {
+                    ERROR_LOG("in string[%s] can't find match \')\'\n", s->str);
                     goto failed;
                 }
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "env";
-                f->formater = formater_write_env;
-                f->key      = strdup(env);
-                list_add(&f->formater_entry, &fmt->callbacks);
             }
 
-            if (*p == 'd') {
-                if (*(p + 1) != '(') {
-                    strcpy(buf, DEFAULT_TIME_FORMAT);
-                    p++;
-                } else if (strncmp(p, "d()", 3) == 0) {
-                    strcpy(buf, DEFAULT_TIME_FORMAT);
-                    p += 3;
-                } else {
-                    nread = 0;
-                    nscan = sscanf(p, "d(%[^)])%n", buf, &nread);
-                    if (nscan != 1) {
-                        nread = 0;
-                    }
-                    p += nread;
-                    if (*(p - 1) != ')') {
-                        ERROR_LOG("parse format [%s] failed\n", p);
-                        goto failed;
-                    }
-                }
+            s->write_buf = spec_write_time;
+            *pnext = p;
+            s->len = p - s->str;
+            break;
+        }
 
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "datetime";
-                f->formater = formater_write_datetime;
-                f->key      = strdup(buf);
-                list_add(&f->formater_entry, &fmt->callbacks);
-            }
+        if (strncmp(p, "ms", 2) == 0) {
+            p += 2;
+            *pnext = p;
+            s->len = p - s->str;
+            s->write_buf = spec_write_ms;
+            break;
+        } else if (strncmp(p, "us", 2) == 0) {
+            p += 2;
+            *pnext = p;
+            s->len = p - s->str;
+            s->write_buf = spec_write_us;
+            break;
+        }
 
-            if (strncmp(p, "ms", 2) == 0) {
-                p += 2;
+        *pnext = p+1;
+        s->len = p - s->str + 1;
 
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "ms";
-                f->formater = formater_write_ms;
-                list_add(&f->formater_entry, &fmt->callbacks);
-            }
+        switch(*p) {
+        case 'c':
+            s->write_buf = spec_write_ident;
+            break;
+        case 'D':
+            strcpy(s->time_fmt, "%F");
+            s->write_buf = spec_write_time;
+            break;
+        case 'T':
+            strcpy(s->time_fmt, "%T");
+            s->write_buf = spec_write_time;
+            break;
+        case 'F':
+            s->write_buf = spec_write_file;
+            break;
+        case 'H':
+            s->write_buf = spec_write_hostname;
+            break;
+        case 'L':
+            s->write_buf = spec_write_line;
+            break;
+        case 'm':
+            s->write_buf = spec_write_message;
+            break;
+        case 'n':
+            s->write_buf = spec_write_newline;
+            break;
+        case 'p':
+            s->write_buf = spec_write_pid;
+            break;
+        case 'U':
+            s->write_buf = spec_write_func;
+            break;
+        case 'v':
+        case 'V':
+            s->write_buf = spec_write_level;
+            break;
+        case 't':
+            s->write_buf = spec_write_tid;
+            break;
+        case '%':
+            s->write_buf = spec_write_percent;
+            break;
+        default:
+            ERROR_LOG("str[%s] in wrong format, p[%c]\n", s->str, *p);
+            goto failed;
+        }
+        break;
 
-            if (strncmp(p, "us", 2) == 0) {
-                p += 2;
-
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "us";
-                f->formater = formater_write_us;
-                list_add(&f->formater_entry, &fmt->callbacks);
-            }
-
-            switch (*p) {
-            case 'D': /* 2020-01-01 */
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "time";
-                f->formater = formater_write_datetime;
-                f->key      = strdup("%F");
-                list_add(&f->formater_entry, &fmt->callbacks);
-                break;
-            case 'T': /* 12:00:00 */
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "time";
-                f->formater = formater_write_datetime;
-                f->key      = strdup("%T");
-                list_add(&f->formater_entry, &fmt->callbacks);
-                break;
-            case 'F': /* __FILE__ */
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "file";
-                f->formater = formater_write_file;
-                list_add(&f->formater_entry, &fmt->callbacks);
-                break;
-            case 'U': /* __FUNC__ */
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "func";
-                f->formater = formater_write_func;
-                list_add(&f->formater_entry, &fmt->callbacks);
-                break;
-            case 'L': /* __LINE__ */
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "line";
-                f->formater = formater_write_line;
-                list_add(&f->formater_entry, &fmt->callbacks);
-                break;
-            case 'n': /* \n */
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "str";
-                f->formater = formater_write_str;
-                f->u.str    = "\n";
-                list_add(&f->formater_entry, &fmt->callbacks);
-                break;
-            case 'p': /* pid */
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "pid";
-                f->formater = formater_write_u32;
-                f->u.u32    = getpid();
-                list_add(&f->formater_entry, &fmt->callbacks);
-                break;
-            case 'm': /* message */
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "message";
-                f->formater = formater_write_message;
-                list_add(&f->formater_entry, &fmt->callbacks);
-                break;
-            case 'c': /* handler->ident */
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "ident";
-                f->formater = formater_write_ident;
-                list_add(&f->formater_entry, &fmt->callbacks);
-                break;
-            case 'V': /* level */
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "level";
-                f->formater = formater_write_level;
-                list_add(&f->formater_entry, &fmt->callbacks);
-                break;
-            case 'H': /* hostname */
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                gethostname(buf, 128);
-                f->mode     = "hostname";
-                f->formater = formater_write_hostname;
-                f->key      = strdup(buf);
-                list_add(&f->formater_entry, &fmt->callbacks);
-                break;
-            case 't': /* tid */
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "tid";
-                f->formater = formater_write_tid;
-                list_add(&f->formater_entry, &fmt->callbacks);
-                break;
-            case '%':
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "str";
-                f->formater = formater_write_str;
-                f->u.str    = "%";
-                list_add(&f->formater_entry, &fmt->callbacks);
-                break;
-
-            default:
-                f = formater_create();
-                if (!f) {
-                    goto failed;
-                }
-                f->mode     = "char";
-                f->formater = formater_write_char;
-                f->u.c      = *p;
-                list_add(&f->formater_entry, &fmt->callbacks);
-                break;
-            }
+    default:
+        /* a cont string:/home/bb */
+        *pnext = strchr(p, '%');
+        if (*pnext) {
+            s->len = *pnext - p;
         } else {
-            f = formater_create();
-            if (!f) {
-                goto failed;
-            }
-            f->mode     = "char";
-            f->formater = formater_write_char;
-            f->u.c      = *p;
-            list_add(&f->formater_entry, &fmt->callbacks);
+            s->len = strlen(p);
+            *pnext = p + s->len;
         }
-        p++;
+        s->write_buf = spec_write_str;
     }
-    return 0;
+
+    return s;
 failed:
-    list_for_each_entry_safe(f, tmp, &fmt->callbacks, formater_entry)
-    {
-        if (f) {
-            list_del(&f->formater_entry);
-            if (f->key) {
-                free(f->key);
-                f->key = NULL;
-            }
-            free(f);
-            f = NULL;
+    free(s);
+    return NULL;
+}
+
+void
+event_update(log_event_t *e, log_handler_t *handler, log_rule_t *rule,
+             LOG_LEVEL_E level, const char *file, const char *func, long line,
+             const char *fmt, va_list ap)
+{
+    e->ident = handler->ident;
+    e->ident_len = strlen(handler->ident);
+
+    e->level   = level;
+
+    e->file    = file;
+    e->file_len = strlen(file);
+    e->func    = func;
+    e->func_len = strlen(func);
+    e->line    = line;
+
+    e->fmt     = fmt;
+    va_copy(e->ap, ap);
+
+    e->pid = (pid_t)0;
+    e->tid = 0;
+
+    if (e->hostname_len == 0) {
+        if (gethostname(e->hostname, sizeof(e->hostname) - 1) < 0) {
+            ERROR_LOG("gethostname failed(%s)\n", strerror(errno));
+        } else {
+            e->hostname_len = strlen(e->hostname);
         }
     }
-    return -1;
+
+    e->hostname_len = strlen(e->hostname);
+    e->timestamp.tv_sec = 0;
 }

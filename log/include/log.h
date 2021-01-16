@@ -15,9 +15,8 @@ extern "C" {
 
 // format
 //%d(%F %T)  timeformat
-//%E(LOGNAME) env
-//%T hh:mm:ss
 //%D YYYY-MM-DD
+//%T hh:mm:ss
 //%ms ms
 //%us us
 //%H hostname
@@ -74,6 +73,7 @@ enum LOG_OPTS {
 typedef struct log_handler log_handler_t;
 typedef struct log_format log_format_t;
 typedef struct log_output log_output_t;
+
 
 #define MLOG(handle, level, fmt...)                                            \
     do {                                                                       \

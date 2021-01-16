@@ -70,6 +70,39 @@ typedef struct {
     struct list_head rule;
 } log_rule_t;
 
+typedef struct {
+    char *ident;
+    size_t ident_len;
+
+    LOG_LEVEL_E level;
+
+    const char *file;
+    size_t file_len;
+    const char *func;
+    size_t func_len;
+    long line;
+
+    const char *fmt;
+    va_list ap;
+
+    time_t ts;
+    struct tm tm;
+    struct timeval timestamp;
+
+    pid_t pid;
+    pid_t last_pid;
+    char pid_str[32];
+    size_t pid_str_len;
+
+    pthread_t tid;
+    char tid_str[32];
+    size_t tid_str_len;
+
+
+    char hostname[256];
+    size_t hostname_len;
+} log_event_t;
+
 struct log_handler {
     pthread_mutex_t mutex;
     char ident[128];
@@ -78,6 +111,7 @@ struct log_handler {
     size_t buffer_max;
     size_t buffer_min;
     size_t buffer_real;
+    log_event_t event;
 
     struct list_head rules;  // rules
     struct list_head handler_entry;

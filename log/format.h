@@ -8,34 +8,28 @@
 #include "log_priv.h"
 #include <stdint.h>
 
-typedef struct {
-    const char *file;
-    const char *func;
-    const char *fmt;
-    va_list ap;
-    LOG_LEVEL_E level;
-    log_handler_t *handler;
-    long line;
-} log_argument_t;
 
-typedef struct log_formater log_formater_t;
-typedef int (*formater)(log_formater_t *f, log_argument_t*s, char *buf, size_t len);
+typedef struct log_spec log_spec_t;
+typedef int (*write_buf)(log_spec_t *f, log_event_t *e, char *buf, size_t len);
+struct log_spec {
+    struct list_head spec_entry;
+
+    write_buf write_buf;
+    char *str;
+    int len;
+    char time_fmt[64];
 
 
-struct log_formater {
-    struct list_head formater_entry;
-    formater formater;
-    char *mode;
-    char *key;
-
-    union {
-        uint32_t u32;
-        uint64_t u64;
-        char *str;
-        uint32_t hex;
-        char c;
-    } u;
+    size_t min_width;
+    size_t max_width;
+    int left_fill_zeros;
+    int left_adjust;
+    char print_fmt[64];
 };
 
-int format_parse(log_format_t *fmt);
+void event_update(log_event_t *e, log_handler_t *handler, log_rule_t *rule,
+                  LOG_LEVEL_E level, const char *file, const char *func,
+                  long line, const char *fmt, va_list ap);
+
+log_spec_t * spec_create(char *pstart, char **pnext);
 #endif

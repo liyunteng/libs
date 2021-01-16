@@ -107,49 +107,37 @@ dump_environment(log_handler_t *handler)
 
 
 static size_t
-log_format(log_handler_t *handler, log_rule_t *r, const LOG_LEVEL_E level,
-           const char *file, const char *func, const long line, const char *fmt,
-           va_list ap)
+log_format(log_handler_t *handler, log_rule_t *r)
 {
     size_t idx;
     size_t len;
     char *buf;
-    log_argument_t arg;
-    log_formater_t *f;
+    log_spec_t *s;
     int n = 0;
+    log_event_t *event = NULL;
 
-    if (r == NULL || r->format == NULL || handler == NULL
-        || handler->bufferp == NULL) {
+    if (!handler || !r) {
         ERROR_LOG("invalid argument\n");
-        return 0;
+        return -1;
     }
-
-    arg.file = file;
-    arg.func = func;
-    arg.fmt = fmt;
-    va_copy(arg.ap, ap);
-    arg.level = level;
-    arg.handler=handler;
-    arg.line = line;
+    event = &handler->event;
 
 begin:
     buf = handler->bufferp;
     len = handler->buffer_real;
-    memset(buf, 0, handler->buffer_real);
-
     idx = 0;
 
     if (r->format->color) {
-        idx += snprintf(buf + idx, len - idx, "%s", COLORSTR[level]);
+        idx += snprintf(buf + idx, len - idx, "%s", COLORSTR[event->level]);
     }
 
-    list_for_each_entry_reverse(f, &r->format->callbacks, formater_entry) {
-        if (f == NULL) {
-            break;
-        }
-
-        n = f->formater(f, &arg, buf+idx, len-idx);
+    int count = 0;
+    list_for_each_entry(s, &r->format->callbacks, spec_entry)
+    {
+        count ++;
+        n = s->write_buf(s, event, buf+idx, len-idx);
         if (n <= 0) {
+            ERROR_LOG("spec %s failed\n", s->str);
             goto err;
         }
         idx += n;
@@ -190,7 +178,6 @@ begin:
             }
         }
     }
-
 end:
     if (r->format->color) {
         idx += snprintf(buf + idx, len - idx, "%s", COLOR_NORMAL);
@@ -198,232 +185,8 @@ end:
     return idx;
 
 err:
-    return 0;
+    return -1;
 }
-
-#if 0
-static size_t
-log_format(log_handler_t *handler, log_rule_t *r, const LOG_LEVEL_E level,
-           const char *file, const char *func, const long line, const char *fmt,
-           va_list ap)
-{
-
-    if (r == NULL || r->format == NULL || handler == NULL
-        || handler->bufferp == NULL) {
-        ERROR_LOG("invalid argument\n");
-        return 0;
-    }
-
-    va_list local_ap;
-    size_t idx;
-    struct tm now;
-    size_t len;
-    char *buf;
-    int nscan;
-    int nread;
-    time_t t;
-    char hostname[128];
-
-begin:
-    va_copy(local_ap, ap);
-    buf = handler->bufferp;
-    len = handler->buffer_real;
-    memset(buf, 0, handler->buffer_real);
-
-    nscan = 0;
-    nread = 0;
-    idx   = 0;
-
-
-    if (r->format->color) {
-        idx += snprintf(buf + idx, len - idx, "%s", COLORSTR[level]);
-    }
-
-    char *p = r->format->format;
-    char format_buf[128];
-    while (*p) {
-        if (idx >= len) {
-            if (handler->buffer_real < handler->buffer_max) {
-                if (handler->buffer_real * 2 <= handler->buffer_max) {
-                    handler->bufferp = (char *)realloc(
-                        handler->bufferp, handler->buffer_real * 2);
-                    if (handler->bufferp) {
-                        handler->buffer_real *= 2;
-                        DEBUG_LOG("realloc buffer to: %lu\n",
-                                  handler->buffer_real);
-                        goto begin;
-                    }
-
-                    handler->buffer_real = 0;
-                    ERROR_LOG("realloc failed(%s)\n", strerror(errno));
-                    goto err;
-                } else {
-                    handler->bufferp =
-                        (char *)realloc(handler->bufferp, handler->buffer_max);
-                    if (handler->bufferp) {
-                        handler->buffer_real = handler->buffer_max;
-                        DEBUG_LOG("realloc buffer to: %lu\n",
-                                  handler->buffer_real);
-                        goto begin;
-                    }
-
-                    handler->buffer_real = 0;
-                    ERROR_LOG("realloc failed(%s)\n", strerror(errno));
-                    goto err;
-                }
-            } else {
-                snprintf(buf + len - 13, 13, "%s", "(truncated)\n");
-                DEBUG_LOG("msg too long, truncated to %u.\n", (unsigned)idx);
-                goto end;
-            }
-        }
-
-        if (*p == '%') {
-            nread = 0;
-            nscan = sscanf(p, "%%%[.0-9]%n", format_buf, &nread);
-            if (nscan == 1) {
-                ERROR_LOG("parse format [%s] failed.\n", p);
-                goto err;
-            } else {
-                nread = 1;
-            }
-            p += nread;
-
-            if (*p == 'E') {
-                char env[128];
-                nread = 0;
-                nscan = sscanf(p, "E(%[^)])%n", env, &nread);
-                if (nscan != 1) {
-                    nread = 0;
-                }
-                p += nread;
-                if (*(p - 1) != ')') {
-                    ERROR_LOG(
-                        "parse foramt [%s] failed, can't find "
-                        "\')\'.\n",
-                        p);
-                    goto err;
-                }
-                idx += snprintf(buf + idx, len - idx, "%s", getenv(env));
-                continue;
-            }
-
-            if (*p == 'd') {
-                char time_format[32] = {0};
-                if (*(p + 1) != '(') {
-                    strcpy(time_format, DEFAULT_TIME_FORMAT);
-                    p++;
-                } else if (strncmp(p, "d()", 3) == 0) {
-                    strcpy(time_format, DEFAULT_TIME_FORMAT);
-                    p += 3;
-                } else {
-                    nread = 0;
-                    nscan = sscanf(p, "d(%[^)])%n", time_format, &nread);
-                    if (nscan != 1) {
-                        nread = 0;
-                    }
-                    p += nread;
-                    if (*(p - 1) != ')') {
-                        ERROR_LOG(
-                            "parse format [%s] failed, can't find "
-                            "\')\''.\n",
-                            p);
-                        goto err;
-                    }
-                }
-
-                t = time(NULL);
-                localtime_r(&t, &now);
-                idx += strftime(buf + idx, len - idx, time_format, &now);
-                continue;
-            }
-
-            if (strncmp(p, "ms", 2) == 0) {
-                p += 2;
-                struct timeval tv;
-                gettimeofday(&tv, NULL);
-                idx += snprintf(buf + idx, len - idx, "%03d",
-                                (int)(tv.tv_usec / 1000));
-                continue;
-            }
-
-            if (strncmp(p, "us", 2) == 0) {
-                p += 2;
-                struct timeval tv;
-                gettimeofday(&tv, NULL);
-                idx +=
-                    snprintf(buf + idx, len - idx, "%06d", (int)(tv.tv_usec));
-                continue;
-            }
-
-            switch (*p) {
-            case 'D':
-                t = time(NULL);
-                localtime_r(&t, &now);
-                idx += strftime(buf + idx, len - idx, "%F", &now);
-                break;
-            case 'T':
-                t = time(NULL);
-                localtime_r(&t, &now);
-                idx += strftime(buf + idx, len - idx, "%T", &now);
-                break;
-            case 'F':
-                idx += snprintf(buf + idx, len - idx, "%s", file);
-                break;
-            case 'U':
-                idx += snprintf(buf + idx, len - idx, "%s", func);
-                break;
-            case 'L':
-                idx += snprintf(buf + idx, len - idx, "%ld", line);
-                break;
-            case 'n':
-                idx += snprintf(buf + idx, len - idx, "%c", '\n');
-                break;
-            case 'p':
-                idx += snprintf(buf + idx, len - idx, "%u", getpid());
-                break;
-            case 'm':
-                idx += vsnprintf(buf + idx, len - idx, fmt, local_ap);
-                break;
-            case 'c':
-                idx += snprintf(buf + idx, len - idx, "%s", handler->ident);
-                break;
-            case 'V':
-                idx +=
-                    snprintf(buf + idx, len - idx, "%5.5s", LOGLEVELSTR[level]);
-                break;
-            case 'H':
-                gethostname(hostname, 128);
-                idx += snprintf(buf + idx, len - idx, "%s", hostname);
-                break;
-            case 't':
-                idx += snprintf(buf + idx, len - idx, "%lu",
-                                (unsigned long)pthread_self());
-                break;
-            case '%':
-                idx += snprintf(buf + idx, len - idx, "%c", *p);
-                break;
-            default:
-                idx += snprintf(buf + idx, len - idx, "%c", *p);
-                break;
-            }
-        } else {
-            idx += snprintf(buf + idx, len - idx, "%c", *p);
-        }
-
-        p++;
-    }
-
-end:
-    if (r->format->color) {
-        idx += snprintf(buf + idx, len - idx, "%s", COLOR_NORMAL);
-    }
-    return idx;
-
-err:
-    return 0;
-}
-#endif
 
 static int
 log_ctl_v(enum LOG_OPTS opt, va_list ap)
@@ -587,7 +350,7 @@ log_handler_get(const char *ident)
     log_handler_t *handler = NULL;
     list_for_each_entry(handler, &handler_header, handler_entry)
     {
-        if (handler && strcmp(handler->ident, ident) == 0) {
+        if (strcmp(handler->ident, ident) == 0) {
             return handler;
         }
     }
@@ -598,6 +361,8 @@ log_format_t *
 log_format_create(const char *fmt, int color)
 {
     log_format_t *fp = NULL;
+    char *p, *q;
+    log_spec_t *s;
     if (fmt) {
         fp = (log_format_t *)calloc(1, sizeof(log_format_t));
         if (fp) {
@@ -607,10 +372,17 @@ log_format_create(const char *fmt, int color)
             } else {
                 fp->color = FALSE;
             }
+
             INIT_LIST_HEAD(&fp->callbacks);
-            if (format_parse(fp) < 0) {
-                free(fp);
-                return NULL;
+            for (p = fp->format; *p != '\0'; p = q) {
+
+                /* TODO: memleak */
+                s = spec_create(p, &q);
+                if (s == NULL) {
+                    ERROR_LOG("spec create failed\n");
+                    return NULL;
+                }
+                list_add_tail(&s->spec_entry, &fp->callbacks);
             }
             list_add_tail(&fp->format_entry, &format_header);
             return fp;
@@ -775,11 +547,14 @@ log_unbind(log_handler_t *handler, log_output_t *output)
 
 static void
 mlogv(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
-      const char *function, const long line, const char *fmt, va_list ap)
+      const char *func, const long line, const char *fmt, va_list ap)
 {
     uint16_t i;
     int ret;
     LOG_LEVEL_E level;
+    log_rule_t *r = NULL;
+    size_t len;
+
     if (handler == NULL) {
         ERROR_LOG("handler is NULL\n");
         return;
@@ -791,19 +566,17 @@ mlogv(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
     if (lvl < LOG_EMERG)
         level = LOG_EMERG;
 
-    log_rule_t *r = NULL;
+    /* TOOD: optimize */
     pthread_mutex_lock(&handler->mutex);
-    list_for_each_entry(r, &(handler->rules), rule)
+
+    list_for_each_entry(r, &handler->rules, rule)
     {
         if (r->level_begin < level || r->level_end > level) {
             continue;
         }
 
-        va_list ap2;
-        va_copy(ap2, ap);
-        size_t len =
-            log_format(handler, r, level, file, function, line, fmt, ap2);
-        va_end(ap2);
+        event_update(&handler->event, handler, r, level, file, func, line, fmt, ap);
+        len = log_format(handler, r);
         if (len <= 0) {
             continue;
         }
@@ -821,12 +594,12 @@ mlogv(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
 
 void
 mlog(log_handler_t *handle, LOG_LEVEL_E level, const char *file,
-     const char *function, long line, const char *format, ...)
+     const char *function, long line, const char *fmt, ...)
 {
-    va_list args;
-    va_start(args, format);
-    mlogv(handle, level, file, function, line, format, args);
-    va_end(args);
+    va_list ap;
+    va_start(ap, fmt);
+    mlogv(handle, level, file, function, line, fmt, ap);
+    va_end(ap);
     return;
 }
 
@@ -834,9 +607,10 @@ void
 slog(LOG_LEVEL_E level, const char *file, const char *function, long line,
      const char *fmt, ...)
 {
+    va_list ap;
+    /* TODO: optimize */
     log_handler_t *handler = log_handler_get(DEFAULT_IDENT);
     if (handler) {
-        va_list ap;
         va_start(ap, fmt);
         mlogv(handler, level, file, function, line, fmt, ap);
         va_end(ap);
@@ -903,18 +677,17 @@ log_dump(void)
         list_for_each_entry(r, &handler->rules, rule)
         {
             j++;
-            if (r) {
-                printf("rule: %d\n", j);
-                printf("format: %s\n", r->format->format);
-                printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
-                       LOGLEVELSTR[r->level_end]);
 
-                if (r->output->dump) {
-                    r->output->dump(r->output);
-                }
+            printf("rule: %d\n", j);
+            printf("format: %s\n", r->format->format);
+            printf("level: %s -- %s\n", LOGLEVELSTR[r->level_begin],
+                   LOGLEVELSTR[r->level_end]);
 
-                printf("\n");
+            if (r->output->dump) {
+                r->output->dump(r->output);
             }
+
+            printf("\n");
         }
     }
 }

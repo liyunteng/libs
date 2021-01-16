@@ -72,7 +72,7 @@ int log_handler_set_default(log_handler_t *handler);
 //%r '\r'
 //%% '%'
 log_format_t *log_format_create(const char *format);
-void log_formate_destroy(log_format_t *format);
+void log_format_destroy(log_format_t *format);
 
 // LOG_OUTTYPE_STDERR
 // LOG_OUTTYPE_STDOUT
@@ -97,7 +97,7 @@ void log_output_destroy(log_output_t *output);
 // level_begin and level_end
 int log_bind(log_handler_t *handler, LOG_LEVEL_E level_beign,
              LOG_LEVEL_E level_end, log_format_t *format, log_output_t *output);
-int log_unbind(log_handler_t *handler, log_output_t *output);
+    int log_unbind(log_handler_t *handler, log_format_t *format, log_output_t *output);
 
 
 void mlog(log_handler_t *handle, LOG_LEVEL_E level, const char *file,

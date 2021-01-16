@@ -219,7 +219,7 @@ log_format_create(const char *fmt)
 }
 
 void
-log_format_destory(log_format_t *format)
+log_format_destroy(log_format_t *format)
 {
     if (!format) {
         ERROR_LOG("format is NULL\n");
@@ -434,7 +434,7 @@ log_bind(log_handler_t *handler, LOG_LEVEL_E level_begin, LOG_LEVEL_E level_end,
 }
 
 int
-log_unbind(log_handler_t *handler, log_output_t *output)
+log_unbind(log_handler_t *handler, log_format_t *format, log_output_t *output)
 {
     if (handler == NULL || output == NULL) {
         ERROR_LOG("invalid argument\n");
@@ -444,8 +444,11 @@ log_unbind(log_handler_t *handler, log_output_t *output)
     log_rule_t *r;
     list_for_each_entry(r, &(handler->rules), rule)
     {
-        if (r->output == output) {
+        if (r->output == output && r->format == format) {
             list_del(&r->rule);
+            list_del(&r->rule_entry);
+            free(r);
+            r = NULL;
             return 0;
         }
     }

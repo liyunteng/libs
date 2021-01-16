@@ -43,7 +43,7 @@ test_mlog()
 
     MLOGV(h, "this is a verbose");
     MLOGD(h, "this is a debug");
-    log_unbind(h, fileout);
+    log_unbind(h, format, fileout);
     MLOGI(h, "%s", "this is a info");
     MLOGN(h, "this is a notice");
     MLOGW(h, "this is a warning");
@@ -322,6 +322,14 @@ test_big_buf()
     LOGV("%s", buf);
     LOGD("%s", buf);
     LOGE("%s", buf);
+
+    log_dump();
+
+    log_unbind(handler, format, output);
+    log_handler_destroy(handler);
+    log_format_destroy(format);
+    log_output_destroy(output);
+
     log_dump();
 }
 
@@ -344,14 +352,14 @@ test_simple()
 int
 main(int argc, char *argv[])
 {
-    /* test_mlog(); */
+    test_mlog();
     /* test_log_thread(); */
     /* test_mlog_benchmark(); */
     /* test_log_benchmark(); */
     /* test_log_big_benchmark(); */
     /* test_multi_output(); */
     /* test_format(); */
-    test_big_buf();
+    /* test_big_buf(); */
     /* test_simple(); */
     return 0;
 }

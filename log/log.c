@@ -483,7 +483,6 @@ mlogv(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
         }
 
         ret = r->output->emit(r->output, handler);
-        ERROR_LOG("%s: %d len: %d\n", LOGLEVELSTR[level], ret, len);
         if (ret >= 0) {
             r->output->stat.stats[level].count++;
             r->output->stat.stats[level].bytes += len;

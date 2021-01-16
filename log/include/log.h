@@ -13,10 +13,10 @@ extern "C" {
 #include <stdint.h>
 #define DEFAULT_IDENT "default"
 
-// format
-//%d(%F %T)  timeformat
-//%D YYYY-MM-DD
-//%T hh:mm:ss
+// formats
+//%d  YYYY-MM-DD HH:MM:SS
+//%D  YYYY/MM/DD HH:MM:SS  == %d(%Y/%m/%d %H:%M:%S)
+//%E(LOGNAME)  environment
 //%ms ms
 //%us us
 //%H hostname
@@ -26,12 +26,14 @@ extern "C" {
 //%U func
 //%L line
 //%m message
-//%n \n
 //%p pid
 //%t tid
+//%T tid hex
 //%C color
 //%R color_reset
-//%% %
+//%n '\n'
+//%r '\r'
+//%% '%'
 
 typedef enum {
     LOG_EMERG,              /* 0 */
@@ -108,7 +110,7 @@ typedef struct log_output log_output_t;
 
 #define LOG_INIT(log_name, level)                                              \
     do {                                                                       \
-        log_format_t *__format = log_format_create("%d.%ms %c:%p [%V] %m%n");  \
+        log_format_t *__format = log_format_create("%D.%ms %c:%p [%5.5V] %m%n");  \
         log_output_t *__output = log_output_create(                            \
             LOG_OUTTYPE_FILE, ".", (log_name), 4 * 1024 * 1024, 4);            \
         log_handler_t *__handler = log_handler_create(DEFAULT_IDENT);          \

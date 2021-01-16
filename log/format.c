@@ -11,6 +11,8 @@
 #include <unistd.h>
 
 #define DEFAULT_TIME_FORMAT "%F %T"
+#define DEFAULT_ENV_NAME ""
+
 extern char *LOGLEVELSTR[];
 extern char *COLORSTR[];
 
@@ -133,9 +135,17 @@ spec_write_tid(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 }
 
 static int
+spec_write_tid_hex(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+{
+    e->tid_str_len = sprintf(e->tid_str, "0x%x", (unsigned int)pthread_self());
+    return buf_append(buf, e->tid_str, e->tid_str_len);
+}
+
+
+static int
 spec_write_level(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
-    return buf_append(buf, LOGLEVELSTR[e->level], 5);
+    return buf_append(buf, LOGLEVELSTR[e->level], strlen(LOGLEVELSTR[e->level]));
 }
 
 static int
@@ -158,6 +168,22 @@ static int
 spec_write_reset_color(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
     return buf_append(buf, COLORSTR[LOG_VERBOSE+1], strlen(COLORSTR[LOG_VERBOSE+1]));
+}
+
+static int
+spec_write_env(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+{
+    if (strlen(s->env_name) > 0) {
+        char *env = getenv(s->env_name);
+        if (env) {
+            return buf_append(buf, env, strlen(env));
+        } else {
+            char tmp[64];
+            snprintf(tmp, 64, "env(%s)=(null)", s->env_name);
+            return buf_append(buf, tmp, strlen(tmp));
+        }
+    }
+    return 0;
 }
 
 /* ********************************************************************** */
@@ -291,6 +317,32 @@ spec_create(char *pstart, char **pnext)
             break;
         }
 
+        if (*p == 'E') {
+            if (*(p + 1) != '(') {
+                ERROR_LOG("in string[%s] can't find \'(\'\n", s->str);
+                goto failed;
+            } else if (strncmp(p, "E()", 3) == 0) {
+                ERROR_LOG("in string[%s] can't find key\n", s->str);
+                goto failed;
+            } else {
+                nread = 0;
+                nscan = sscanf(p, "E(%[^)])%n", s->env_name, &nread);
+                if (nscan != 1) {
+                    nread = 0;
+                }
+                p += nread;
+                if (*(p - 1) != ')') {
+                    ERROR_LOG("in string[%s] can't find match \')\'\n", s->str);
+                    goto failed;
+                }
+            }
+
+            s->write_buf = spec_write_env;
+            *pnext = p;
+            s->len = p - s->str;
+            break;
+        }
+
         if (strncmp(p, "ms", 2) == 0) { /* ms */
             p += 2;
             *pnext       = p;
@@ -312,12 +364,8 @@ spec_create(char *pstart, char **pnext)
         case 'c':               /* ident */
             s->write_buf = spec_write_ident;
             break;
-        case 'D':               /* date */
-            strcpy(s->time_fmt, "%F");
-            s->write_buf = spec_write_time;
-            break;
-        case 'T':               /* time */
-            strcpy(s->time_fmt, "%T");
+        case 'D':               /* datetime 21/01/01 12:00:00 */
+            strcpy(s->time_fmt, "%Y/%m/%d %H:%M:%S");
             s->write_buf = spec_write_time;
             break;
         case 'H':               /* hostname */
@@ -338,8 +386,10 @@ spec_create(char *pstart, char **pnext)
         case 't':               /* tid */
             s->write_buf = spec_write_tid;
             break;
-        case 'v':               /* level */
-        case 'V':
+        case 'T':               /* tid hex */
+            s->write_buf = spec_write_tid_hex;
+            break;
+        case 'V':               /* level */
             s->write_buf = spec_write_level;
             break;
         case 'm':               /* message */
@@ -354,10 +404,10 @@ spec_create(char *pstart, char **pnext)
         case '%':               /* '%' */
             s->write_buf = spec_write_percent;
             break;
-        case 'C':
+        case 'C':               /* color */
             s->write_buf = spec_write_color;
             break;
-        case 'R':
+        case 'R':               /* color reset */
             s->write_buf = spec_write_reset_color;
             break;
         default:

@@ -20,8 +20,8 @@ struct log_spec {
 
     char *str;
     int len;
-    char time_fmt[64];
-
+    char time_fmt[32];
+    char env_name[32];
 
     size_t min_width;
     size_t max_width;

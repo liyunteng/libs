@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+#define TAG "abc"
 
 void
 test_mlog()
@@ -33,7 +34,7 @@ test_mlog()
     const char *s    = "this is a test.";
     log_handler_t *h = log_handler_create("h");
 
-    log_format_t *format = log_format_create("%d %p %c %V %F:%U:%L %m%n");
+    log_format_t *format = log_format_create("%d %p %c %C%V%R %F:%U:%L %m%n");
     log_output_t *fileout =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
     log_output_t *std_out = log_output_create(LOG_OUTTYPE_STDOUT);
@@ -60,12 +61,12 @@ run(void *arg)
 {
     unsigned i;
     for (i = 0; i < 1024 * 10; i++) {
-        LOGV("%lu this is a verbose", (unsigned long)pthread_self());
-        LOGD("%lu this is a debug", (unsigned long)pthread_self());
-        LOGI("%lu this is a info", (unsigned long)pthread_self());
-        LOGW("%lu this is a warning", (unsigned long)pthread_self());
-        LOGE("%lu this is a error", (unsigned long)pthread_self());
-        LOGF("%lu this is a fatal", (unsigned long)pthread_self());
+        LOGV("this is a verbose", (unsigned long)pthread_self());
+        LOGD("this is a debug", (unsigned long)pthread_self());
+        LOGI("this is a info", (unsigned long)pthread_self());
+        LOGW("this is a warning", (unsigned long)pthread_self());
+        LOGE("this is a error", (unsigned long)pthread_self());
+        LOGF("this is a fatal", (unsigned long)pthread_self());
     }
     return (void *)0;
 }
@@ -74,8 +75,11 @@ void
 test_log_thread()
 {
     pthread_t tid1, tid2, tid3;
+    log_handler_t *h = log_handler_create(DEFAULT_IDENT);
+    log_format_t *f = log_format_create("%D.%ms %c:%10.10T [%-5.5V] %m%n");
+    log_output_t *o = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024*1024*4, 4);
+    log_bind(h, -1, -1, f, o);
 
-    LOG_INIT("ihi", LOG_VERBOSE);
     pthread_create(&tid1, NULL, run, NULL);
     pthread_create(&tid2, NULL, run, NULL);
     pthread_create(&tid3, NULL, run, NULL);
@@ -188,12 +192,13 @@ test_multi_output()
     char b[4096];
     log_format_t *format =
         log_format_create("%d.%ms %H %c %F:%U%L %p:%t [%V] %m%n");
-    log_format_t *format1 = log_format_create("%m");
-    log_output_t *output1 =
+    log_format_t *format1 = log_format_create("%m%n");
+    log_format_t *format2 = log_format_create("%m");
+    log_output_t *file =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 8 * 1024 * 1024, 50);
-    log_output_t *output2 = log_output_create(LOG_OUTTYPE_STDOUT);
-    log_output_t *output3 = log_output_create(LOG_OUTTYPE_SYSLOG);
-    log_output_t *output4 =
+    log_output_t *sdo = log_output_create(LOG_OUTTYPE_STDOUT);
+    log_output_t *syslog = log_output_create(LOG_OUTTYPE_SYSLOG);
+    log_output_t *tcp =
         log_output_create(LOG_OUTTYPE_TCP, "127.0.0.1", (unsigned)12345);
     log_handler_t *handler = log_handler_create(DEFAULT_IDENT);
 
@@ -201,10 +206,10 @@ test_multi_output()
         b[i] = 'b';
     }
     b[i] = '\0';
-    log_bind(handler, LOG_VERBOSE, -1, format, output1);
-    /* log_bind(handler, LOG_VERBOSE, -1, format, output2); */
-    /* log_bind(handler, LOG_DEBUG, LOG_INFO, format1, output3); */
-    log_bind(handler, LOG_VERBOSE, -1, format, output4);
+    log_bind(handler, -1, -1, format, file);
+    /* log_bind(handler, -1, -1, format, sdo); */
+    log_bind(handler, LOG_DEBUG, LOG_ERROR, format2, syslog);
+    log_bind(handler, -1, -1, format1, tcp);
 
     for (i = 0; i < 102400; i++) {
         LOGV("this is a %s", "verbose");
@@ -227,7 +232,7 @@ test_simple()
     /* LOG_INIT("ihi", LOG_VERBOSE); */
 
     int ret;
-    log_format_t *format = log_format_create("%H %d %D %T %ms %us %c %C[%V]%R %.10F:%U:%L %p %t %% %.2m%n");
+    log_format_t *format = log_format_create("%E(a) %E(LOGNAME) %H %d %D %ms %us %c %C[%-7.7V]%R %.10F:%U:%L %p %t:%T %% %.2m%n");
     log_output_t *output =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
     log_handler_t *handler = log_handler_create(DEFAULT_IDENT);

@@ -47,9 +47,6 @@
 #define BUFFER_MIN 1024 * 4
 #define BUFFER_MAX 1024 * 1024 * 4
 
-/* pointer to environment */
-extern char **environ;
-
 const char *const LOGLEVELSTR[] = {
     "EMERG",  "ALERT", "FATAL", "ERROR",   "WARN",
     "NOTICE", "INFO",  "DEBUG", "VERBOSE",
@@ -77,38 +74,7 @@ static struct list_head handler_header = {
     &handler_header,
 };
 
-static log_handler_t *default_handler = NULL;
-
-/* dump the environment */
-static void
-dump_environment(log_handler_t *handler)
-{
-    static char buf[BUFSIZ];
-    int cnt = 0;
-
-    mlogi(handler,
-          "############################## LOG SYSTEM "
-          "##############################\n");
-    while (1) {
-        char *e = environ[cnt++];
-
-        if (!e || !*e) {
-            break;
-        }
-
-        snprintf(buf, sizeof(buf), "%s", e);
-        e = strchr(buf, '=');
-        if (!e) {
-            mloge(handler, "Can't parse environment variable %s", buf);
-            continue;
-        }
-
-        *e = 0;
-        ++e;
-        mlogi(handler, "Environment: [%s] = [%s]", buf, e);
-    }
-}
-
+static log_handler_t *default_log_handler = NULL;
 
 static size_t
 log_format(log_handler_t *handler, log_rule_t *r)
@@ -130,9 +96,12 @@ log_format(log_handler_t *handler, log_rule_t *r)
         if (ret < 0) {
             ERROR_LOG("spec %s failed\n", s->str);
             continue;
+        } else if (ret == 1) {
+            ERROR_LOG("spec %s truncated\n", s->str);
+            break;
         }
     }
-
+    buf_seal(event->msg_buf);
     return buf_len(event->msg_buf);
 }
 
@@ -395,7 +364,7 @@ log_handler_get(const char *ident)
 int
 log_handler_set_default(log_handler_t *handler)
 {
-    default_handler = handler;
+    default_log_handler = handler;
     return 0;
 }
 
@@ -431,7 +400,6 @@ log_bind(log_handler_t *handler, LOG_LEVEL_E level_begin, LOG_LEVEL_E level_end,
     list_add_tail(&r->rule_entry, &rule_header);
     list_add_tail(&r->rule, &handler->rules);
 
-    /* dump_environment(handler); */
     return 0;
 }
 
@@ -508,13 +476,15 @@ mlog_vprintf(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
 }
 
 void
-mlog_printf(log_handler_t *handle, LOG_LEVEL_E level, const char *file,
+mlog_printf(log_handler_t *handler, LOG_LEVEL_E level, const char *file,
             const char *function, long line, const char *fmt, ...)
 {
     va_list ap;
-    va_start(ap, fmt);
-    mlog_vprintf(handle, level, file, function, line, fmt, ap);
-    va_end(ap);
+    if (handler) {
+        va_start(ap, fmt);
+        mlog_vprintf(handler, level, file, function, line, fmt, ap);
+        va_end(ap);
+    }
     return;
 }
 
@@ -524,9 +494,9 @@ log_printf(LOG_LEVEL_E level, const char *file, const char *function, long line,
 {
     va_list ap;
 
-    if (default_handler) {
+    if (default_log_handler) {
         va_start(ap, fmt);
-        mlog_vprintf(default_handler, level, file, function, line, fmt, ap);
+        mlog_vprintf(default_log_handler, level, file, function, line, fmt, ap);
         va_end(ap);
     }
     return;

@@ -85,7 +85,12 @@ spec_write_line(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 static int
 spec_write_func(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
-    return buf_append(buf, e->func, e->func_len);
+    if (!e->func) {
+        return buf_append(buf, "(func=null)", strlen("(func=null)"));
+    } else {
+        return buf_append(buf, e->func, e->func_len);
+    }
+
 }
 
 static int
@@ -446,9 +451,14 @@ event_update(log_event_t *e, log_handler_t *handler, log_rule_t *rule,
 
     e->level    = level;
     e->file     = file;
-    e->file_len = strlen(file);
+    if (e->file) {
+        e->file_len = strlen(file);
+    }
+
     e->func     = func;
-    e->func_len = strlen(func);
+    if (e->func) {
+        e->func_len = strlen(func);
+    }
     e->line     = line;
 
     e->fmt = fmt;

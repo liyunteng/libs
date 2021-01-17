@@ -15,6 +15,44 @@
 #define DEFAULT_FILESIZE 4 * 1024 * 1024
 
 
+/* pointer to environment */
+extern char **environ;
+
+/* dump the environment */
+static void
+dump_environment(log_output_t *output)
+{
+    static char buf[BUFSIZ];
+    int cnt = 0;
+    file_output_ctx *ctx = (file_output_ctx *)output->ctx;
+
+    fprintf(ctx->fp, "########## LOG STARTED ##########\n\n");
+
+    while (1) {
+        char *e = environ[cnt++];
+
+        if (!e || !*e) {
+            break;
+        }
+
+        snprintf(buf, sizeof(buf), "%s", e);
+        e = strchr(buf, '=');
+        if (!e) {
+            ERROR_LOG("Can't parse environment variable %s", buf);
+            continue;
+        }
+
+        *e = 0;
+        ++e;
+
+        /* INFO("Environment: [%s] = [%s]", buf, e); */
+        fprintf(ctx->fp, "Environment: [%s] = [%s]\n", buf, e);
+    }
+    fprintf(ctx->fp, "\n");
+
+}
+
+
 static int
 file_getname(log_output_t *output, char *file_name, uint16_t len)
 {
@@ -302,6 +340,10 @@ file_ctx_init(log_output_t *output, va_list ap)
         ERROR_LOG("open file failed\n");
         return -1;
     }
+
+
+    /* dump_environment(output); */
+
     return 0;
 }
 

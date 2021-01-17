@@ -102,6 +102,12 @@ syslog_emit(log_output_t *output, log_handler_t *handler)
 
     len   = buf_len(buf);
     level = handler->event.level;
+    if (level > LOG_DEBUG) {
+        level = LOG_DEBUG;
+    }
+    if (level < LOG_EMERG) {
+        level = LOG_EMERG;
+    }
 
     syslog(level, "%s", buf->start);
     return len;

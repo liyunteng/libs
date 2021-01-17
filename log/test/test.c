@@ -26,27 +26,27 @@ test_mlog()
     log_bind(h, LOG_VERBOSE, -1, format, fileout);
     log_bind(h, LOG_VERBOSE, -1, format, std_out);
 
-    mlogv(h, "this is a verbose");
-    mlogd(h, "this is a debug");
+    MLOGV(h, "this is a verbose");
+    MLOGD(h, "this is a debug");
     log_unbind(h, format, fileout);
-    mlogi(h, "%s", "this is a info");
-    mlogn(h, "this is a notice");
-    mlogw(h, "this is a warning");
-    mloge(h, "this is a error");
+    MLOGI(h, "%s", "this is a info");
+    MLOGN(h, "this is a notice");
+    MLOGW(h, "this is a warning");
+    MLOGE(h, "this is a error");
     log_bind(h, LOG_VERBOSE, -1, format, fileout);
-    mlogf(h, "this is a fatal");
-    mloga(h, "this is a alert");
-    mlogx(h, "this is a emergency");
+    MLOGF(h, "this is a fatal");
+    MLOGA(h, "this is a alert");
+    MLOGX(h, "this is a emergency");
 
-    logv("this is a verbose");
-    logd("this is a debug");
-    logi("this is a info");
-    logn("this is a notice");
-    logw("this is a warning");
-    loge("this is a error");
-    logf("this is a fatal");
-    loga("this is a alert");
-    logx("this is a emergency");
+    LOGV("this is a verbose");
+    LOGD("this is a debug");
+    LOGI("this is a info");
+    LOGN("this is a notice");
+    LOGW("this is a warning");
+    LOGE("this is a error");
+    LOGF("this is a fatal");
+    LOGA("this is a alert");
+    LOGX("this is a emergency");
 
     log_dump();
 }
@@ -56,12 +56,12 @@ run(void *arg)
 {
     unsigned i;
     for (i = 0; i < 1024 * 10; i++) {
-        logv("this is a verbose", (unsigned long)pthread_self());
-        logd("this is a debug", (unsigned long)pthread_self());
-        logi("this is a info", (unsigned long)pthread_self());
-        logw("this is a warning", (unsigned long)pthread_self());
-        loge("this is a error", (unsigned long)pthread_self());
-        logf("this is a fatal", (unsigned long)pthread_self());
+        LOGV("this is a verbose", (unsigned long)pthread_self());
+        LOGD("this is a debug", (unsigned long)pthread_self());
+        LOGI("this is a info", (unsigned long)pthread_self());
+        LOGW("this is a warning", (unsigned long)pthread_self());
+        LOGE("this is a error", (unsigned long)pthread_self());
+        LOGF("this is a fatal", (unsigned long)pthread_self());
     }
     return (void *)0;
 }
@@ -102,23 +102,23 @@ test_mlog_benchmark()
 
     unsigned i;
     for (i = 0; i < 1024 * 1024 * 16; i++) {
-        mlogd(h1, "this is a debug");
-        mlogi(h1, "%s", "this is a info");
-        mlogw(h1, "this is a warning");
-        mloge(h1, "this is a error");
-        mlogf(h1, "this is a fatal");
+        MLOGD(h1, "this is a debug");
+        MLOGI(h1, "%s", "this is a info");
+        MLOGW(h1, "this is a warning");
+        MLOGE(h1, "this is a error");
+        MLOGF(h1, "this is a fatal");
 
-        mlogd(h2, "this is a debug");
-        mlogi(h2, "%s", "this is a info");
-        mlogw(h2, "this is a warning");
-        mloge(h2, "this is a error");
-        mlogf(h2, "this is a fatal");
+        MLOGD(h2, "this is a debug");
+        MLOGI(h2, "%s", "this is a info");
+        MLOGW(h2, "this is a warning");
+        MLOGE(h2, "this is a error");
+        MLOGF(h2, "this is a fatal");
 
-        mlogd(h3, "this is a debug");
-        mlogi(h3, "%s", "this is a info");
-        mlogw(h3, "this is a warning");
-        mloge(h3, "this is a error");
-        mlogf(h3, "this is a fatal");
+        MLOGD(h3, "this is a debug");
+        MLOGI(h3, "%s", "this is a info");
+        MLOGW(h3, "this is a warning");
+        MLOGE(h3, "this is a error");
+        MLOGF(h3, "this is a fatal");
     }
     log_dump();
 }
@@ -137,25 +137,25 @@ test_log_benchmark()
     unsigned i;
     for (i = 0; i < 1024 * 1024 * 16; i++) {
 #if 0
-        mlogv(handler, "this is a verbose");
-        mlogd(handler, "this is a debug");
-        mlogi(handler, "this is a info");
-        mlogn(handler, "this is a notice");
-        mlogw(handler, "this is a warning");
-        mloge(handler, "this is a error");
-        mlogf(handler, "this is a fatal");
-        mloga(handler, "this is a alert");
-        mlogx(handler, "this is a emerge");
+        MLOGV(handler, "this is a verbose");
+        MLOGD(handler, "this is a debug");
+        MLOGI(handler, "this is a info");
+        MLOGN(handler, "this is a notice");
+        MLOGW(handler, "this is a warning");
+        MLOGE(handler, "this is a error");
+        MLOGF(handler, "this is a fatal");
+        MLOGA(handler, "this is a alert");
+        MLOGX(handler, "this is a emerge");
 #else
-        logv("this is a verbose");
-        logd("this is a debug");
-        logi("this is a info");
-        logn("this is a notice");
-        logw("this is a warning");
-        loge("this is a error");
-        logf("this is a fatal");
-        loga("this is a alert");
-        logx("this is a emerge");
+        LOGV("this is a verbose");
+        LOGD("this is a debug");
+        LOGI("this is a info");
+        LOGN("this is a notice");
+        LOGW("this is a warning");
+        LOGE("this is a error");
+        LOGF("this is a fatal");
+        LOGA("this is a alert");
+        LOGX("this is a emerge");
 #endif
     }
     log_dump();
@@ -178,7 +178,7 @@ test_log_big_benchmark()
     }
 
     for (i = 0; i < 1024 * 1024; i++) {
-        logd("%s", b);
+        LOGD("%s", b);
     }
 
     log_dump();
@@ -223,17 +223,17 @@ test_multi_output()
     log_bind(handler, -1, -1, format, udp);
 
 
-    for (i = 0; i < 102400; i++) {
-        logv("this is a %s", "verbose");
-        logd("this is a %s", "debug");
-        logi("this is a info");
-        logn("this is a notice");
-        logw("this is a warnning");
-        loge("this is a error");
-        logf("this is a fatal");
-        loga("this is a alert");
-        logx("this is a emerge");
-        // logx("this is a long msg: %s", b);
+    for (i = 0; i < 1; i++) {
+        LOGV("this is a %s", "verbose");
+        LOGD("this is a %s", "debug");
+        LOGI("this is a info");
+        LOGN("this is a notice");
+        LOGW("this is a warnning");
+        LOGE("this is a error");
+        LOGF("this is a fatal");
+        LOGA("this is a alert");
+        LOGX("this is a emerge");
+        // LOGX("this is a long msg: %s", b);
     }
     log_dump();
 }
@@ -270,15 +270,15 @@ test_format()
 
 
     for (int i = 0; i < 10; i++) {
-        logv("this is a %s", "verbose");
-        logd("this is a %s", "debug");
-        logi("this is a info");
-        logn("this is a notice");
-        logw("this is a warnning");
-        loge("this is a error");
-        logf("this is a fatal");
-        loga("this is a alert");
-        logx("this is a emerge");
+        LOGV("this is a %s", "verbose");
+        LOGD("this is a %s", "debug");
+        LOGI("this is a info");
+        LOGN("this is a notice");
+        LOGW("this is a warnning");
+        LOGE("this is a error");
+        LOGF("this is a fatal");
+        LOGA("this is a alert");
+        LOGX("this is a emerge");
     }
     log_dump();
 
@@ -330,9 +330,9 @@ test_big_buf()
         buf[i] = 'a';
     }
 
-    logv("%s", buf);
-    /* logd("%s", buf); */
-    /* loge("%s", buf); */
+    LOGV("%s", buf);
+    /* LOGD("%s", buf); */
+    /* LOGE("%s", buf); */
 
     log_dump();
 }
@@ -342,15 +342,15 @@ test_simple()
 {
     LOG_INIT("ihi", LOG_VERBOSE);
 
-    logv("this is a %s", "verbose");
-    logd("this is a %s", "debug");
-    logi("this is a info");
-    logn("this is a notice");
-    logw("this is a warnning");
-    loge("this is a error");
-    logf("this is a fatal");
-    loga("this is a alert");
-    logx("this is a emerge");
+    LOGV("this is a %s", "verbose");
+    LOGD("this is a %s", "debug");
+    LOGI("this is a info");
+    LOGN("this is a notice");
+    LOGW("this is a warnning");
+    LOGE("this is a error");
+    LOGF("this is a fatal");
+    LOGA("this is a alert");
+    LOGX("this is a emerge");
 
     log_dump();
 }
@@ -362,9 +362,9 @@ main(int argc, char *argv[])
 
     /* test_mlog(); */
     /* test_log_thread(); */
-    /* test_multi_output(); */
+    test_multi_output();
 
-    test_format();
+    /* test_format(); */
     /* test_big_buf(); */
 
     /* test_mlog_benchmark(); */

@@ -105,7 +105,7 @@ int log_unbind(log_handler_t *handler, log_format_t *format,
                log_output_t *output);
 
 
-void mlog_printf(log_handler_t *handle, LOG_LEVEL_E level, const char *file,
+void mlog_printf(log_handler_t *handler, LOG_LEVEL_E level, const char *file,
                  const char *function, long line, const char *format, ...);
 
 void log_printf(LOG_LEVEL_E level, const char *file, const char *function,
@@ -114,34 +114,34 @@ void log_printf(LOG_LEVEL_E level, const char *file, const char *function,
 void log_dump();
 
 
-#define MLOG_PRINTF(handle, level, fmt...)                                     \
+#define MLOG_PRINTF(handler, level, fmt...)                                    \
     do {                                                                       \
-        mlog_printf(handle, level, __FILE__, __FUNCTION__, __LINE__, fmt);     \
+        mlog_printf(handler, level, __FILE__, __FUNCTION__, __LINE__, fmt);    \
     } while (0)
-#define mlogv(handle, fmt...) MLOG_PRINTF(handle, LOG_VERBOSE, fmt)
-#define mlogd(handle, fmt...) MLOG_PRINTF(handle, LOG_DEBUG, fmt)
-#define mlogi(handle, fmt...) MLOG_PRINTF(handle, LOG_INFO, fmt)
-#define mlogn(handle, fmt...) MLOG_PRINTF(handle, LOG_NOTICE, fmt)
-#define mlogw(handle, fmt...) MLOG_PRINTF(handle, LOG_WARNING, fmt)
-#define mloge(handle, fmt...) MLOG_PRINTF(handle, LOG_ERROR, fmt)
-#define mlogf(handle, fmt...) MLOG_PRINTF(handle, LOG_FATAL, fmt)
-#define mloga(handle, fmt...) MLOG_PRINTF(handle, LOG_ALERT, fmt)
-#define mlogx(handle, fmt...) MLOG_PRINTF(handle, LOG_EMERG, fmt)
+#define MLOGV(handler, fmt...) MLOG_PRINTF(handler, LOG_VERBOSE, fmt)
+#define MLOGD(handler, fmt...) MLOG_PRINTF(handler, LOG_DEBUG, fmt)
+#define MLOGI(handler, fmt...) MLOG_PRINTF(handler, LOG_INFO, fmt)
+#define MLOGN(handler, fmt...) MLOG_PRINTF(handler, LOG_NOTICE, fmt)
+#define MLOGW(handler, fmt...) MLOG_PRINTF(handler, LOG_WARNING, fmt)
+#define MLOGE(handler, fmt...) MLOG_PRINTF(handler, LOG_ERROR, fmt)
+#define MLOGF(handler, fmt...) MLOG_PRINTF(handler, LOG_FATAL, fmt)
+#define MLOGA(handler, fmt...) MLOG_PRINTF(handler, LOG_ALERT, fmt)
+#define MLOGX(handler, fmt...) MLOG_PRINTF(handler, LOG_EMERG, fmt)
 
 
 #define LOG_PRINTF(level, fmt...)                                              \
     do {                                                                       \
         log_printf(level, __FILE__, __FUNCTION__, __LINE__, fmt);              \
     } while (0)
-#define logv(fmt...) LOG_PRINTF(LOG_VERBOSE, fmt)
-#define logd(fmt...) LOG_PRINTF(LOG_DEBUG, fmt)
-#define logi(fmt...) LOG_PRINTF(LOG_INFO, fmt)
-#define logn(fmt...) LOG_PRINTF(LOG_NOTICE, fmt)
-#define logw(fmt...) LOG_PRINTF(LOG_WARNING, fmt)
-#define loge(fmt...) LOG_PRINTF(LOG_ERROR, fmt)
-#define logf(fmt...) LOG_PRINTF(LOG_FATAL, fmt)
-#define loga(fmt...) LOG_PRINTF(LOG_ALERT, fmt)
-#define logx(fmt...) LOG_PRINTF(LOG_EMERG, fmt)
+#define LOGV(fmt...) LOG_PRINTF(LOG_VERBOSE, fmt)
+#define LOGD(fmt...) LOG_PRINTF(LOG_DEBUG, fmt)
+#define LOGI(fmt...) LOG_PRINTF(LOG_INFO, fmt)
+#define LOGN(fmt...) LOG_PRINTF(LOG_NOTICE, fmt)
+#define LOGW(fmt...) LOG_PRINTF(LOG_WARNING, fmt)
+#define LOGE(fmt...) LOG_PRINTF(LOG_ERROR, fmt)
+#define LOGF(fmt...) LOG_PRINTF(LOG_FATAL, fmt)
+#define LOGA(fmt...) LOG_PRINTF(LOG_ALERT, fmt)
+#define LOGX(fmt...) LOG_PRINTF(LOG_EMERG, fmt)
 
 #define LOG_INIT(ident, level)                                                 \
     do {                                                                       \
@@ -151,8 +151,8 @@ void log_dump();
         log_handler_t *__handler = log_handler_create(ident);                  \
         if (__format && __output && __handler) {                               \
             log_bind(__handler, level, -1, __format, __output);                \
+            log_handler_set_default(__handler);                                \
         }                                                                      \
-        log_handler_set_default(__handler);                                    \
     } while (0)
 
 

@@ -14,7 +14,7 @@
 #include <unistd.h>
 
 #define DEFAULT_FILEPATH "."
-#define DEFAULT_FILENAME "test"
+#define DEFAULT_FILENAME "default"
 #define DEFAULT_BAKUP 0
 #define DEFAULT_FILESIZE 4 * 1024 * 1024
 #define DEFAULT_MAP_SIZE 4 * 1024 * 1024
@@ -56,9 +56,9 @@ mmap_msync_file(log_output_t *output)
 
     ret = msync(ctx->mmap_window.addr,
                 ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset,
-                MS_SYNC| MS_INVALIDATE);
+                MS_SYNC);
 
-    ERROR_LOG("msync\n");
+    /* DEBUG_LOG("msync\n"); */
     if (ret < 0) {
         ERROR_LOG(
             "msync failed(%s)  data_offset: %u  msync_offset: %u delta: "
@@ -77,11 +77,6 @@ static int
 mmap_unmap_file(log_output_t *output)
 {
     mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
-
-    if (ctx->fd < 0) {
-        ERROR_LOG("file not open\n");
-        return -1;
-    }
 
     if (ctx->mmap_window.addr) {
         /* mmap_msync_file(output); */
@@ -123,9 +118,11 @@ mmap_map_file(log_output_t *output)
                            & (~(page_size - 1));
     }
 
-    ERROR_LOG("mmap_window_size: %lu\n", mmap_window_size);
-    /* ctx->file_current_size += mmap_window_size; */
-    /* ftruncate(ctx->fd, ctx->file_current_size); */
+    if (mmap_window_size == 0) {
+        ERROR_LOG("mmap_window_size == 0\n");
+        return -1;
+    }
+    DEBUG_LOG("mmap_window_size: %lu\n", mmap_window_size);
 
     ctx->mmap_window.addr = mmap(NULL, mmap_window_size, PROT_READ | PROT_WRITE,
                                  MAP_SHARED, ctx->fd, ctx->data_offset);
@@ -173,8 +170,7 @@ file_open_logfile(log_output_t *output)
         return -1;
     }
 
-    ctx->data_offset       = 0;
-    /* ctx->file_current_size = 0; */
+    ctx->data_offset = 0;
     ftruncate(ctx->fd, ctx->file_size);
 
     if (mmap_map_file(output) != 0) {
@@ -426,6 +422,7 @@ mmap_ctx_init(log_output_t *output, va_list ap)
         ctx->file_size = DEFAULT_FILESIZE;
     }
 
+
     int num_files = va_arg(ap, int);
     if (num_files >= 0) {
         ctx->num_files = num_files;
@@ -456,7 +453,6 @@ mmap_ctx_init(log_output_t *output, va_list ap)
     }
 
     /* dump_environment(output); */
-
     return 0;
 
 failed:

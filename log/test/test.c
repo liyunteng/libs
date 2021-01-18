@@ -128,17 +128,17 @@ test_log_benchmark()
 {
     /* log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n"); */
     log_format_t *format = log_format_create("%D.%ms %c:%p [%V] %m%n");
-    log_output_t *output =
-        log_output_create(LOG_OUTTYPE_MMAP, ".", "ihi", 1024 * 1024 * 5, 4,
-                          128*1024, 1000);
     /* log_output_t *output =
-     *     log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4); */
+     *     log_output_create(LOG_OUTTYPE_MMAP, ".", "ihi", 1024*1024*1024, 4,
+     *                       512*1024*1024, 60*1000); */
+    log_output_t *output =
+        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 100);
     log_handler_t *handler = log_handler_create("ihi");
     log_bind(handler, -1, -1, format, output);
     log_handler_set_default(handler);
 
     unsigned i;
-    for (i = 0; i < 1024 * 16; i++) {
+    for (i = 0; i < 1024 * 1024 *16; i++) {
 #if 0
         MLOGV(handler, "this is a verbose");
         MLOGD(handler, "this is a debug");
@@ -172,7 +172,10 @@ test_log_big_benchmark()
 {
     log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
+        log_output_create(LOG_OUTTYPE_MMAP, ".", "ihi", 1024*1024*1024, 4,
+                          512*1024*1024, 60*1000);
+    /* log_output_t *output =
+     *     log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4); */
     log_handler_t *handler = log_handler_create("ihi");
     log_bind(handler, -1, -1, format, output);
     log_handler_set_default(handler);
@@ -374,11 +377,11 @@ main(int argc, char *argv[])
     /* test_log_thread(); */
     /* test_multi_output(); */
 
-    /* test_format(); */
+    test_format();
     /* test_big_buf(); */
 
     /* test_mlog_benchmark(); */
-    test_log_benchmark();
+    /* test_log_benchmark(); */
     /* test_log_big_benchmark(); */
     return 0;
 }

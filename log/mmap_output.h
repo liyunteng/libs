@@ -17,7 +17,6 @@ typedef struct {
 
     uint32_t map_size;
     uint32_t msync_interval;
-    uint32_t file_current_size;
 
     struct {
         void *addr;
@@ -30,7 +29,6 @@ typedef struct {
 
     int fd;
     uint32_t data_offset; /* data offset to file */
-
 } mmap_output_ctx;
 
 log_output_t *mmap_output_create(void);

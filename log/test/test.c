@@ -362,13 +362,13 @@ main(int argc, char *argv[])
 
     /* test_mlog(); */
     /* test_log_thread(); */
-    test_multi_output();
+    /* test_multi_output(); */
 
     /* test_format(); */
     /* test_big_buf(); */
 
     /* test_mlog_benchmark(); */
-    /* test_log_benchmark(); */
+    test_log_benchmark();
     /* test_log_big_benchmark(); */
     return 0;
 }

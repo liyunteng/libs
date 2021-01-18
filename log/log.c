@@ -90,8 +90,7 @@ log_format(log_handler_t *handler, log_rule_t *r)
     event = &handler->event;
 
     buf_restart(event->msg_buf);
-    list_for_each_entry(s, &r->format->callbacks, spec_entry)
-    {
+    list_for_each_entry (s, &r->format->callbacks, spec_entry) {
         ret = s->gen_msg(s, event);
         if (ret < 0) {
             ERROR_LOG("spec %s failed\n", s->str);
@@ -339,8 +338,7 @@ log_handler_destroy(log_handler_t *handler)
     }
 
     log_rule_t *r, *tmp;
-    list_for_each_entry_safe(r, tmp, &(handler->rules), rule)
-    {
+    list_for_each_entry_safe (r, tmp, &(handler->rules), rule) {
         list_del(&r->rule_entry);
         list_del(&r->rule);
         free(r);
@@ -352,8 +350,7 @@ log_handler_t *
 log_handler_get(const char *ident)
 {
     log_handler_t *handler = NULL;
-    list_for_each_entry(handler, &handler_header, handler_entry)
-    {
+    list_for_each_entry (handler, &handler_header, handler_entry) {
         if (strcmp(handler->ident, ident) == 0) {
             return handler;
         }
@@ -412,8 +409,7 @@ log_unbind(log_handler_t *handler, log_format_t *format, log_output_t *output)
     }
 
     log_rule_t *r;
-    list_for_each_entry(r, &(handler->rules), rule)
-    {
+    list_for_each_entry (r, &(handler->rules), rule) {
         if (r->output == output && r->format == format) {
             list_del(&r->rule);
             list_del(&r->rule_entry);
@@ -450,8 +446,7 @@ mlog_vprintf(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
 
     pthread_mutex_lock(&handler->mutex);
 
-    list_for_each_entry(r, &handler->rules, rule)
-    {
+    list_for_each_entry (r, &handler->rules, rule) {
         if (r->level_begin < level || r->level_end > level) {
             continue;
         }
@@ -493,12 +488,12 @@ log_printf(LOG_LEVEL_E level, const char *file, const char *function, long line,
            const char *fmt, ...)
 {
     va_list ap;
-
     if (default_log_handler) {
         va_start(ap, fmt);
         mlog_vprintf(default_log_handler, level, file, function, line, fmt, ap);
         va_end(ap);
     }
+
     return;
 }
 
@@ -526,31 +521,29 @@ log_dump(void)
     int rule_count = 0, format_count = 0, output_count = 0, handler_count = 0;
     printf("=====================log profile==============================\n");
     log_rule_t *rule;
-    list_for_each_entry(rule, &rule_header, rule_entry) { rule_count++; }
+    list_for_each_entry (rule, &rule_header, rule_entry) {
+        rule_count++;
+    }
 
     log_format_t *format;
-    list_for_each_entry(format, &format_header, format_entry)
-    {
+    list_for_each_entry (format, &format_header, format_entry) {
         format_count++;
     }
 
     log_output_t *output;
-    list_for_each_entry(output, &output_header, output_entry)
-    {
+    list_for_each_entry (output, &output_header, output_entry) {
         output_count++;
     }
 
     log_handler_t *handler;
-    list_for_each_entry(handler, &handler_header, handler_entry)
-    {
+    list_for_each_entry (handler, &handler_header, handler_entry) {
         handler_count++;
     }
 
     printf("handler: %d output: %d format: %d rule: %d\n", handler_count,
            output_count, format_count, rule_count);
 
-    list_for_each_entry(handler, &handler_header, handler_entry)
-    {
+    list_for_each_entry (handler, &handler_header, handler_entry) {
         i++;
         j = 0;
         printf("------------------------\n");
@@ -561,8 +554,7 @@ log_dump(void)
                (unsigned)handler->event.msg_buf->size_real);
         printf("buffer_max: %u\n", (unsigned)handler->event.msg_buf->size_max);
         printf("\n");
-        list_for_each_entry(rule, &handler->rules, rule)
-        {
+        list_for_each_entry (rule, &handler->rules, rule) {
             j++;
 
             printf("rule: %d\n", j);

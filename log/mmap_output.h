@@ -29,6 +29,7 @@ typedef struct {
 
     int fd;
     uint32_t data_offset; /* data offset to file */
+    uint32_t file_current_size;
 } mmap_output_ctx;
 
 log_output_t *mmap_output_create(void);

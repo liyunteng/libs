@@ -123,6 +123,8 @@ mmap_map_file(log_output_t *output)
         return -1;
     }
     DEBUG_LOG("mmap_window_size: %lu\n", mmap_window_size);
+    ctx->file_current_size += mmap_window_size;
+    ftruncate(ctx->fd, ctx->file_current_size);
 
     ctx->mmap_window.addr = mmap(NULL, mmap_window_size, PROT_READ | PROT_WRITE,
                                  MAP_SHARED, ctx->fd, ctx->data_offset);
@@ -171,7 +173,8 @@ file_open_logfile(log_output_t *output)
     }
 
     ctx->data_offset = 0;
-    ftruncate(ctx->fd, ctx->file_size);
+    ctx->file_current_size = 0;
+    /* ftruncate(ctx->fd, ctx->file_size); */
 
     if (mmap_map_file(output) != 0) {
         return -1;
@@ -335,7 +338,8 @@ mmap_ctx_dump(log_output_t *output)
         if (ctx) {
             printf("filepath:       %s\n", ctx->file_path);
             printf("logname:        %s\n", ctx->log_name);
-            printf("filesize:       %d\n", ctx->file_size);
+            printf("filesize:       %u\n", ctx->file_size);
+            printf("currentsize:    %u\n", ctx->file_current_size);
             printf("bakup:          %d\n", ctx->num_files);
             printf("idx:            %d\n", ctx->file_idx);
             printf("map_size:       %u\n", ctx->map_size);

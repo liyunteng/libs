@@ -126,10 +126,12 @@ test_mlog_benchmark()
 void
 test_log_benchmark()
 {
-    log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
-    /* log_format_t *format = log_format_create("%m%n"); */
+    /* log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n"); */
+    log_format_t *format = log_format_create("%D.%ms %c:%p [%V] %m%n");
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
+        log_output_create(LOG_OUTTYPE_MMAP, ".", "ihi", 1024 * 1024 * 1024, 4);
+    /* log_output_t *output =
+     *     log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4); */
     log_handler_t *handler = log_handler_create("ihi");
     log_bind(handler, -1, -1, format, output);
     log_handler_set_default(handler);
@@ -368,11 +370,11 @@ main(int argc, char *argv[])
     /* test_log_thread(); */
     /* test_multi_output(); */
 
-    /* test_format(); */
+    test_format();
     /* test_big_buf(); */
 
     /* test_mlog_benchmark(); */
-    test_log_benchmark();
+    /* test_log_benchmark(); */
     /* test_log_big_benchmark(); */
     return 0;
 }

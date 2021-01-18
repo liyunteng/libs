@@ -23,7 +23,7 @@ static void
 dump_environment(log_output_t *output)
 {
     static char buf[BUFSIZ];
-    int cnt = 0;
+    int cnt              = 0;
     file_output_ctx *ctx = (file_output_ctx *)output->ctx;
 
     fprintf(ctx->fp, "########## LOG STARTED ##########\n\n");
@@ -49,27 +49,13 @@ dump_environment(log_output_t *output)
         fprintf(ctx->fp, "Environment: [%s] = [%s]\n", buf, e);
     }
     fprintf(ctx->fp, "\n");
-
 }
 
 
 static int
 file_getname(log_output_t *output, char *file_name, uint16_t len)
 {
-    if (!output) {
-        ERROR_LOG("output is NULL\n");
-        return -1;
-    }
-    if (output->type != LOG_OUTTYPE_FILE) {
-        ERROR_LOG("type invalid\n");
-        return -1;
-    }
     file_output_ctx *ctx = (file_output_ctx *)output->ctx;
-    if (!ctx) {
-        ERROR_LOG("ctx is NULL\n");
-        return -1;
-    }
-
     snprintf(file_name, len, "%s/%s.log", ctx->file_path, ctx->log_name);
     return 0;
 }
@@ -80,26 +66,13 @@ file_open_logfile(log_output_t *output)
     char *file_name;
     uint32_t len;
 
-    if (!output) {
-        ERROR_LOG("output is NULL\n");
-        return -1;
-    }
-    if (output->type != LOG_OUTTYPE_FILE) {
-        ERROR_LOG("type invalid\n");
-        return -1;
-    }
 
     file_output_ctx *ctx = (file_output_ctx *)output->ctx;
-    if (!ctx) {
-        ERROR_LOG("ctx is NULL\n");
-        return -1;
-    }
 
     if (ctx->fp != NULL) {
         fclose(ctx->fp);
         ctx->fp = NULL;
     }
-
     len = strlen(ctx->file_path);
     len += 1; /* "/" */
     len += strlen(ctx->log_name);
@@ -121,7 +94,6 @@ file_open_logfile(log_output_t *output)
     }
 
     ctx->data_offset = 0;
-    // ftruncate(fileno(output->u.file.fp), output->u.file.file_size);
 
     free(file_name);
     return 0;
@@ -132,22 +104,7 @@ file_rename_logfile(log_output_t *output)
 {
     uint32_t num, num_files, len;
     char *old_file_name, *new_file_name;
-
-    if (!output) {
-        ERROR_LOG("output is NULL\n");
-        return -1;
-    }
-
-    if (output->type != LOG_OUTTYPE_FILE) {
-        ERROR_LOG("type invalid\n");
-        return -1;
-    }
-
     file_output_ctx *ctx = (file_output_ctx *)output->ctx;
-    if (!ctx) {
-        ERROR_LOG("ctx is NULL\n");
-        return -1;
-    }
 
     if (ctx->num_files > 0) {
         for (num = 0, num_files = ctx->num_files; num_files; num_files /= 10) {
@@ -214,7 +171,7 @@ file_emit(log_output_t *output, log_handler_t *handler)
         return -1;
     }
 
-    if (ctx->fp == NULL) {
+    if (!ctx->fp) {
         ret = file_open_logfile(output);
         if (ret < 0) {
             ERROR_LOG("open logfile failed\n");
@@ -287,6 +244,36 @@ file_ctx_dump(log_output_t *output)
     }
 }
 
+static void
+file_ctx_uninit(log_output_t *output)
+{
+    file_output_ctx *ctx = NULL;
+    if (!output) {
+        ERROR_LOG("output is NULL\n");
+        return;
+    }
+    ctx = (file_output_ctx *)output->ctx;
+    if (!ctx) {
+        return;
+    }
+
+    if (ctx->file_path) {
+        free(ctx->file_path);
+        ctx->file_path = NULL;
+    }
+    if (ctx->log_name) {
+        free(ctx->log_name);
+        ctx->log_name = NULL;
+    }
+    if (ctx->fp) {
+        fclose(ctx->fp);
+        ctx->fp = NULL;
+    }
+    free(ctx);
+    ctx         = NULL;
+    output->ctx = NULL;
+}
+
 static int
 file_ctx_init(log_output_t *output, va_list ap)
 {
@@ -296,11 +283,11 @@ file_ctx_init(log_output_t *output, va_list ap)
         return -1;
     }
 
-    if (output->ctx == NULL) {
+    if (!output->ctx) {
         output->ctx = (file_output_ctx *)calloc(1, sizeof(file_output_ctx));
-        if (output->ctx == NULL) {
+        if (!output->ctx) {
             ERROR_LOG("calloc failed(%s)\n", strerror(errno));
-            return -1;
+            goto failed;
         }
     }
     ctx = (file_output_ctx *)output->ctx;
@@ -338,44 +325,19 @@ file_ctx_init(log_output_t *output, va_list ap)
 
     if (file_open_logfile(output) != 0) {
         ERROR_LOG("open file failed\n");
-        return -1;
+        goto failed;
     }
-
 
     /* dump_environment(output); */
-
     return 0;
+
+failed:
+    if (ctx) {
+        file_ctx_uninit(output);
+    }
+    return -1;
 }
 
-static void
-file_ctx_uninit(log_output_t *output)
-{
-    file_output_ctx *ctx = NULL;
-    if (!output) {
-        ERROR_LOG("output is NULL\n");
-        return;
-    }
-    ctx = (file_output_ctx *)output->ctx;
-    if (ctx == NULL) {
-        return;
-    }
-
-    if (ctx->file_path) {
-        free(ctx->file_path);
-        ctx->file_path = NULL;
-    }
-    if (ctx->log_name) {
-        free(ctx->log_name);
-        ctx->log_name = NULL;
-    }
-    if (ctx->fp) {
-        fclose(ctx->fp);
-        ctx->fp = NULL;
-    }
-    free(ctx);
-    ctx         = NULL;
-    output->ctx = NULL;
-}
 
 log_output_t *
 file_output_create(void)

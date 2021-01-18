@@ -25,7 +25,7 @@ static int
 spec_write_time(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
     time_t now_sec = e->timestamp.tv_sec;
-    struct tm *tm  = &(e->tm);
+    struct tm tm;
 
     if (!now_sec) {
         gettimeofday(&(e->timestamp), NULL);
@@ -33,13 +33,17 @@ spec_write_time(log_spec_t *s, log_event_t *e, log_buf_t *buf)
     }
 
     if (e->ts != now_sec) {
-        localtime_r(&(now_sec), tm);
+        localtime_r(&(now_sec), &tm);
         e->ts = now_sec;
+        e->time_str_len =
+            strftime(e->time_str, sizeof(e->time_str) - 1, s->time_fmt, &tm);
     }
-    char time_buf[64];
-    size_t len = strftime(time_buf, sizeof(time_buf) - 1, s->time_fmt, tm);
 
-    return buf_append(buf, time_buf, len);
+    if (e->time_str_len > 0) {
+        return buf_append(buf, e->time_str, e->time_str_len);
+    } else {
+        return buf_append(buf, "(time=null)", strlen("(time=null)"));
+    }
 }
 
 static int
@@ -90,7 +94,6 @@ spec_write_func(log_spec_t *s, log_event_t *e, log_buf_t *buf)
     } else {
         return buf_append(buf, e->func, e->func_len);
     }
-
 }
 
 static int
@@ -449,17 +452,17 @@ event_update(log_event_t *e, log_handler_t *handler, log_rule_t *rule,
     e->ident     = handler->ident;
     e->ident_len = strlen(handler->ident);
 
-    e->level    = level;
-    e->file     = file;
+    e->level = level;
+    e->file  = file;
     if (e->file) {
         e->file_len = strlen(file);
     }
 
-    e->func     = func;
+    e->func = func;
     if (e->func) {
         e->func_len = strlen(func);
     }
-    e->line     = line;
+    e->line = line;
 
     e->fmt = fmt;
     va_copy(e->ap, ap);

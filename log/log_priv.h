@@ -91,8 +91,9 @@ typedef struct {
     va_list ap;
 
     time_t ts;
-    struct tm tm;
     struct timeval timestamp;
+    char time_str[64];
+    size_t time_str_len;
 
     pid_t pid;
     pid_t last_pid;

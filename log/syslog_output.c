@@ -60,6 +60,8 @@ syslog_ctx_init(log_output_t *output, va_list ap)
     ctx->facility = facility;
 
     openlog(ctx->ident, ctx->options, ctx->facility);
+
+    return 0;
 }
 
 static void

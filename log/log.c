@@ -11,6 +11,7 @@
 #endif
 
 #include "file_output.h"
+#include "mmap_output.h"
 #include "other_outputs.h"
 #include "sock_output.h"
 #include "syslog_output.h"
@@ -221,6 +222,9 @@ log_output_create_v(enum LOG_OUTTYPE type, va_list ap)
         break;
     case LOG_OUTTYPE_FILE:
         output = file_output_create();
+        break;
+    case LOG_OUTTYPE_MMAP:
+        output = mmap_output_create();
         break;
     case LOG_OUTTYPE_TCP:
         output = tcp_output_create();

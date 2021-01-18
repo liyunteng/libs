@@ -27,7 +27,7 @@ struct log_spec {
     size_t max_width;
     int left_fill_zeros;
     int left_adjust;
-    char print_fmt[64];
+    char print_fmt[16];
 };
 
 void event_update(log_event_t *e, log_handler_t *handler, log_rule_t *rule,

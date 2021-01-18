@@ -9,20 +9,67 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-#define DEFAULT_MAP_SIZE 4 * 1024 * 1024
 #define DEFAULT_FILEPATH "."
 #define DEFAULT_FILENAME "test"
 #define DEFAULT_BAKUP 0
 #define DEFAULT_FILESIZE 4 * 1024 * 1024
+#define DEFAULT_MAP_SIZE 4 * 1024 * 1024
+#define DEFAULT_MSYNC_INTERVAL 1 * 1000
 
 static int
 file_getname(log_output_t *output, char *file_name, uint16_t len)
 {
     mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
     snprintf(file_name, len, "%s/%s.log", ctx->file_path, ctx->log_name);
+    return 0;
+}
+
+static uint32_t
+mmap_get_ms(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
+}
+
+inline static int
+mmap_msync_file(log_output_t *output)
+{
+    uint32_t cur;
+    mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
+    int ret;
+    cur = mmap_get_ms();
+
+
+    if (cur - ctx->mmap_window.msync_time < ctx->msync_interval) {
+        return 0;
+    }
+
+
+    if (ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset == 0) {
+        return 0;
+    }
+
+    ret = msync(ctx->mmap_window.addr,
+                ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset,
+                MS_SYNC| MS_INVALIDATE);
+
+    ERROR_LOG("msync\n");
+    if (ret < 0) {
+        ERROR_LOG(
+            "msync failed(%s)  data_offset: %u  msync_offset: %u delta: "
+            "%d\n",
+            strerror(errno), ctx->mmap_window.data_offset,
+            ctx->mmap_window.msync_offset,
+            ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset);
+    }
+    ctx->mmap_window.msync_time   = cur;
+    ctx->mmap_window.msync_offset = ctx->mmap_window.data_offset;
+
     return 0;
 }
 
@@ -37,10 +84,12 @@ mmap_unmap_file(log_output_t *output)
     }
 
     if (ctx->mmap_window.addr) {
-        msync(ctx->mmap_window.addr, ctx->mmap_window.data_offset, MS_SYNC);
+        /* mmap_msync_file(output); */
         munmap(ctx->mmap_window.addr, ctx->mmap_window.window_size);
-        ctx->mmap_window.addr        = NULL;
-        ctx->mmap_window.window_size = 0;
+        ctx->mmap_window.addr         = NULL;
+        ctx->mmap_window.window_size  = 0;
+        ctx->mmap_window.msync_time   = 0;
+        ctx->mmap_window.msync_offset = 0;
         return 0;
     }
     return -1;
@@ -67,10 +116,19 @@ mmap_map_file(log_output_t *output)
     }
 
     page_size        = getpagesize();
-    mmap_window_size = (DEFAULT_MAP_SIZE + page_size - 1) & (~(page_size - 1));
+    mmap_window_size = (ctx->map_size + page_size - 1) & (~(page_size - 1));
+
+    if (mmap_window_size > ctx->file_size - ctx->data_offset) {
+        mmap_window_size = (ctx->file_size - ctx->data_offset + page_size - 1)
+                           & (~(page_size - 1));
+    }
+
+    ERROR_LOG("mmap_window_size: %lu\n", mmap_window_size);
+    /* ctx->file_current_size += mmap_window_size; */
+    /* ftruncate(ctx->fd, ctx->file_current_size); */
 
     ctx->mmap_window.addr = mmap(NULL, mmap_window_size, PROT_READ | PROT_WRITE,
-                                 MAP_SHARED, ctx->fd, ctx->mmap_window.offset);
+                                 MAP_SHARED, ctx->fd, ctx->data_offset);
     if (ctx->mmap_window.addr == MAP_FAILED) {
         ERROR_LOG("mmap failed(%s)\n", strerror(errno));
         return -1;
@@ -79,7 +137,6 @@ mmap_map_file(log_output_t *output)
     ctx->mmap_window.window_size = mmap_window_size;
     ctx->mmap_window.offset += mmap_window_size;
     ctx->mmap_window.data_offset = 0;
-
     return 0;
 }
 
@@ -116,8 +173,9 @@ file_open_logfile(log_output_t *output)
         return -1;
     }
 
+    ctx->data_offset       = 0;
+    /* ctx->file_current_size = 0; */
     ftruncate(ctx->fd, ctx->file_size);
-    ctx->data_offset = 0;
 
     if (mmap_map_file(output) != 0) {
         return -1;
@@ -175,7 +233,8 @@ mmap_emit(log_output_t *output, log_handler_t *handler)
     int ret;
     mmap_output_ctx *ctx = NULL;
     log_buf_t *buf       = NULL;
-    size_t len;
+    size_t len, file_left, mmap_left;
+    uint32_t cur;
 
     if (!output) {
         ERROR_LOG("output is NULL\n");
@@ -207,14 +266,14 @@ mmap_emit(log_output_t *output, log_handler_t *handler)
         }
     }
 
-    len              = buf_len(buf);
-    size_t file_left = ctx->file_size - ctx->data_offset;
-    size_t mmap_left =
-        ctx->mmap_window.window_size - ctx->mmap_window.data_offset;
+    len       = buf_len(buf);
+    file_left = ctx->file_size - ctx->data_offset;
+    mmap_left = ctx->mmap_window.window_size - ctx->mmap_window.data_offset;
     if (file_left >= len && mmap_left >= len) {
         memcpy(ctx->mmap_window.addr + ctx->mmap_window.data_offset, buf->start,
                len);
 
+        mmap_msync_file(output);
         ctx->mmap_window.data_offset += len;
         ctx->data_offset += len;
         return len;
@@ -223,8 +282,6 @@ mmap_emit(log_output_t *output, log_handler_t *handler)
     int nwrite   = 0;
     size_t total = 0;
     int left     = 0;
-    BOOL remap   = FALSE;
-    BOOL reopen  = FALSE;
     while (total < len) {
         if (mmap_left > file_left) {
             left = file_left;
@@ -240,6 +297,8 @@ mmap_emit(log_output_t *output, log_handler_t *handler)
         if (nwrite > 0) {
             memcpy(ctx->mmap_window.addr + ctx->mmap_window.data_offset,
                    buf->start + total, nwrite);
+
+            mmap_msync_file(output);
 
             ctx->mmap_window.data_offset += nwrite;
             ctx->data_offset += nwrite;
@@ -278,16 +337,18 @@ mmap_ctx_dump(log_output_t *output)
         printf("type: %s\n", output->type_name);
         mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
         if (ctx) {
-            printf("filepath:      %s\n", ctx->file_path);
-            printf("logname:       %s\n", ctx->log_name);
-            printf("filesize:      %d\n", ctx->file_size);
-            printf("bakup:         %d\n", ctx->num_files);
-            printf("idx:           %d\n", ctx->file_idx);
-            printf("mmap.addr:     %p\n", ctx->mmap_window.addr);
-            printf("mmap.size:     %u\n", ctx->mmap_window.window_size);
-            printf("mmap.offset:   %u\n", ctx->mmap_window.offset);
-            printf("mmap.doffset:  %u\n", ctx->mmap_window.data_offset);
-            printf("data_offset:   %u\n", ctx->data_offset);
+            printf("filepath:       %s\n", ctx->file_path);
+            printf("logname:        %s\n", ctx->log_name);
+            printf("filesize:       %d\n", ctx->file_size);
+            printf("bakup:          %d\n", ctx->num_files);
+            printf("idx:            %d\n", ctx->file_idx);
+            printf("map_size:       %u\n", ctx->map_size);
+            printf("msync_interval: %u\n", ctx->msync_interval);
+            printf("data_offset:    %u\n", ctx->data_offset);
+            printf("mmap.addr:      %p\n", ctx->mmap_window.addr);
+            printf("mmap.size:      %u\n", ctx->mmap_window.window_size);
+            printf("mmap.offset:    %u\n", ctx->mmap_window.offset);
+            printf("mmap.doffset:   %u\n", ctx->mmap_window.data_offset);
         }
         dump_statstic(output);
     }
@@ -358,7 +419,7 @@ mmap_ctx_init(log_output_t *output, va_list ap)
         ctx->log_name = strdup(DEFAULT_FILENAME);
     }
 
-    unsigned long file_size = va_arg(ap, unsigned long);
+    size_t file_size = va_arg(ap, size_t);
     if (file_size > 0) {
         ctx->file_size = file_size;
     } else {
@@ -370,6 +431,20 @@ mmap_ctx_init(log_output_t *output, va_list ap)
         ctx->num_files = num_files;
     } else {
         ctx->num_files = DEFAULT_BAKUP;
+    }
+
+    size_t map_size = va_arg(ap, size_t);
+    if (map_size > 0) {
+        ctx->map_size = map_size;
+    } else {
+        ctx->map_size = DEFAULT_MAP_SIZE;
+    }
+
+    size_t msync_interval = va_arg(ap, size_t);
+    if (msync_interval > 0) {
+        ctx->msync_interval = msync_interval;
+    } else {
+        ctx->msync_interval = DEFAULT_MSYNC_INTERVAL;
     }
 
     ctx->fd       = -1;

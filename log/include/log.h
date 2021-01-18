@@ -85,8 +85,15 @@ void log_format_destroy(log_format_t *format);
 //
 // LOG_OUTTYPE_FILE    char *file_path
 //                     char *log_name
-//                     unsigned long filesize
-//                     int bakupnum
+//                     size_t file_size
+//                     int bakup_num
+//
+// LOG_OUTTYPE_MMAP    char *file_path
+//                     char *log_name
+//                     size_t file_size
+//                     int bakup_num
+//                     size_t map_size
+//                     size_t msync_interval
 //
 // LOG_OUTTYPE_UDP
 // LOG_OUTTYPE_TCP     char *addr

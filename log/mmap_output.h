@@ -14,16 +14,23 @@ typedef struct {
     uint16_t num_files;
     uint32_t file_size;
     uint16_t file_idx;
-    int32_t data_offset; /* data offset to file */
+
+    uint32_t map_size;
+    uint32_t msync_interval;
+    uint32_t file_current_size;
 
     struct {
         void *addr;
-        int32_t offset;       /* addr offset to file  */
-        int32_t data_offset;  /* data offset to addr */
+        uint32_t offset;      /* addr offset to file  */
+        uint32_t data_offset; /* data offset to addr */
         uint32_t window_size; /* mmap size */
+        uint32_t msync_time;
+        uint32_t msync_offset;
     } mmap_window;
 
     int fd;
+    uint32_t data_offset; /* data offset to file */
+
 } mmap_output_ctx;
 
 log_output_t *mmap_output_create(void);

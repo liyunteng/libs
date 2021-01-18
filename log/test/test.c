@@ -242,6 +242,8 @@ void
 test_format()
 {
     int ret;
+    int i;
+
     log_format_t *format = log_format_create(
         "%E(a) %E(LOGNAME) %H %d %D %ms %us %c %C[%-7.7V]%R %.10F:%U:%L %p %t:%T %% %m%n");
     log_output_t *output =
@@ -269,7 +271,7 @@ test_format()
     }
 
 
-    for (int i = 0; i < 10; i++) {
+    for (i = 0; i < 10; i++) {
         LOGV("this is a %s", "verbose");
         LOGD("this is a %s", "debug");
         LOGI("this is a info");
@@ -296,6 +298,8 @@ test_big_buf()
     char *buf   = NULL;
     size_t size = 1024 * 1024 * 7;
     int ret;
+    int i;
+
     log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
     log_output_t *output =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 3, 5);
@@ -326,7 +330,7 @@ test_big_buf()
         printf("malloc failed\n");
         return;
     }
-    for (int i = 0; i < size - 2; i++) {
+    for (i = 0; i < size - 2; i++) {
         buf[i] = 'a';
     }
 

@@ -42,33 +42,51 @@ mmap_msync_file(log_output_t *output)
     uint32_t cur;
     mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
     int ret;
+    int page_size;
+    int len;
     cur = mmap_get_ms();
-
-
-    if (cur - ctx->mmap_window.msync_time < ctx->msync_interval) {
-        return 0;
-    }
-
 
     if (ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset == 0) {
         return 0;
     }
 
-    ret = msync(ctx->mmap_window.addr,
-                ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset,
-                MS_SYNC);
+    page_size = getpagesize();
+    if (ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset
+        >= page_size) {
+        if ((ctx->mmap_window.data_offset == ctx->mmap_window.window_size)
+            || (cur - ctx->mmap_window.msync_time > ctx->msync_interval)) {
+            len =
+                ((ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset)
+                 / page_size)
+                * page_size;
+            ret = msync(ctx->mmap_window.addr + ctx->mmap_window.msync_offset,
+                        len,
+                        MS_ASYNC);
+            if (ret < 0) {
+                ERROR_LOG("msync failed(%s)\n", strerror(errno));
+            }
 
-    /* DEBUG_LOG("msync\n"); */
-    if (ret < 0) {
-        ERROR_LOG(
-            "msync failed(%s)  data_offset: %u  msync_offset: %u delta: "
-            "%d\n",
-            strerror(errno), ctx->mmap_window.data_offset,
-            ctx->mmap_window.msync_offset,
-            ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset);
+            ctx->mmap_window.msync_time = cur;
+            ctx->mmap_window.msync_offset += len;
+            if (ctx->mmap_window.data_offset == ctx->mmap_window.window_size) {
+                DEBUG_LOG(
+                    "msync full: window_size: %u data_offset: %u "
+                    "msync_offset: %u len: %d\n",
+                    ctx->mmap_window.window_size,
+                    ctx->mmap_window.data_offset,
+                    ctx->mmap_window.msync_offset,
+                    len);
+            } else {
+                DEBUG_LOG(
+                    "msync timeout: window_size: %u data_offset: %u "
+                    "mmap_window.msync_offset: %u len: %d\n",
+                    ctx->mmap_window.window_size,
+                    ctx->mmap_window.data_offset,
+                    ctx->mmap_window.msync_offset,
+                    len);
+            }
+        }
     }
-    ctx->mmap_window.msync_time   = cur;
-    ctx->mmap_window.msync_offset = ctx->mmap_window.data_offset;
 
     return 0;
 }
@@ -79,12 +97,13 @@ mmap_unmap_file(log_output_t *output)
     mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
 
     if (ctx->mmap_window.addr) {
-        /* mmap_msync_file(output); */
+        mmap_msync_file(output);
         munmap(ctx->mmap_window.addr, ctx->mmap_window.window_size);
         ctx->mmap_window.addr         = NULL;
+        ctx->mmap_window.data_offset  = 0;
         ctx->mmap_window.window_size  = 0;
-        ctx->mmap_window.msync_time   = 0;
         ctx->mmap_window.msync_offset = 0;
+        ctx->mmap_window.msync_time   = mmap_get_ms();
         return 0;
     }
     return -1;
@@ -102,7 +121,7 @@ mmap_map_file(log_output_t *output)
         return -1;
     }
 
-    if (ctx->data_offset == 0) {
+    if (ctx->mmap_window.offset == 0) {
         memset(&ctx->mmap_window, 0, sizeof(ctx->mmap_window));
     }
 
@@ -122,20 +141,22 @@ mmap_map_file(log_output_t *output)
         ERROR_LOG("mmap_window_size == 0\n");
         return -1;
     }
-    DEBUG_LOG("mmap_window_size: %lu\n", mmap_window_size);
+
     ctx->file_current_size += mmap_window_size;
+    lseek(ctx->fd, ctx->file_current_size, SEEK_SET);
     ftruncate(ctx->fd, ctx->file_current_size);
 
     ctx->mmap_window.addr = mmap(NULL, mmap_window_size, PROT_READ | PROT_WRITE,
-                                 MAP_SHARED, ctx->fd, ctx->data_offset);
+                                 MAP_SHARED, ctx->fd, ctx->mmap_window.offset);
     if (ctx->mmap_window.addr == MAP_FAILED) {
         ERROR_LOG("mmap failed(%s)\n", strerror(errno));
         return -1;
     }
 
-    ctx->mmap_window.window_size = mmap_window_size;
     ctx->mmap_window.offset += mmap_window_size;
-    ctx->mmap_window.data_offset = 0;
+    ctx->mmap_window.window_size  = mmap_window_size;
+    ctx->mmap_window.data_offset  = 0;
+    ctx->mmap_window.msync_offset = 0;
     return 0;
 }
 
@@ -172,9 +193,9 @@ file_open_logfile(log_output_t *output)
         return -1;
     }
 
-    ctx->data_offset = 0;
-    ctx->file_current_size = 0;
-    /* ftruncate(ctx->fd, ctx->file_size); */
+    ctx->data_offset        = 0;
+    ctx->file_current_size  = 0;
+    ctx->mmap_window.offset = 0;
 
     if (mmap_map_file(output) != 0) {
         return -1;
@@ -273,6 +294,7 @@ mmap_emit(log_output_t *output, log_handler_t *handler)
                len);
 
         mmap_msync_file(output);
+
         ctx->mmap_window.data_offset += len;
         ctx->data_offset += len;
         return len;

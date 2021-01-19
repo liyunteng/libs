@@ -14,6 +14,7 @@
 
 extern char *LOGLEVELSTR[];
 extern char *COLORSTR[];
+extern char *loglevelstr[];
 
 static int
 spec_write_str(log_spec_t *s, log_event_t *e, log_buf_t *buf)
@@ -148,12 +149,18 @@ spec_write_tid_hex(log_spec_t *s, log_event_t *e, log_buf_t *buf)
     return buf_append(buf, e->tid_str, e->tid_str_len);
 }
 
-
 static int
 spec_write_level(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
     return buf_append(buf, LOGLEVELSTR[e->level],
                       strlen(LOGLEVELSTR[e->level]));
+}
+
+static int
+spec_write_level_lower(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+{
+    return buf_append(buf, loglevelstr[e->level],
+                      strlen(loglevelstr[e->level]));
 }
 
 static int
@@ -373,10 +380,6 @@ spec_create(char *pstart, char **pnext)
         case 'c': /* ident */
             s->write_buf = spec_write_ident;
             break;
-        case 'D': /* datetime 21/01/01 12:00:00 */
-            strcpy(s->time_fmt, "%Y/%m/%d %H:%M:%S");
-            s->write_buf = spec_write_time;
-            break;
         case 'H': /* hostname */
             s->write_buf = spec_write_hostname;
             break;
@@ -398,8 +401,11 @@ spec_create(char *pstart, char **pnext)
         case 'T': /* tid hex */
             s->write_buf = spec_write_tid_hex;
             break;
-        case 'V': /* level */
+        case 'V': /* LEVEL */
             s->write_buf = spec_write_level;
+            break;
+        case 'v': /* level */
+            s->write_buf = spec_write_level_lower;
             break;
         case 'm': /* message */
             s->write_buf = spec_write_message;

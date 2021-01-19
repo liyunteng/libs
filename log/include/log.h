@@ -12,9 +12,9 @@ extern "C" {
 
 #include <stdint.h>
 
-
 typedef enum {
     LOG_EMERG,              /* 0 */
+    LOG_PANIC = LOG_EMERG,  /* 0 */
     LOG_ALERT,              /* 1 */
     LOG_CRIT,               /* 2 */
     LOG_FATAL = LOG_CRIT,   /* 2 */
@@ -53,17 +53,17 @@ int log_handler_set_default(log_handler_t *handler);
 
 
 //%d  YYYY-MM-DD HH:MM:SS
-//%D  YYYY/MM/DD HH:MM:SS  == %d(%Y/%m/%d %H:%M:%S)
-//%E(LOGNAME)  environment
+//%d(%Y/%m/%d %H:%M:%S)  YYYY/MM/DD HH:MM:SS
+//%E(LOGNAME)  environment $LOGNAME
 //%ms ms
 //%us us
 //%H hostname
 //%c ident
 //%V LEVEL
-//%F file
-//%U func
-//%L line
-//%m message
+//%v level
+//%F __FILE__
+//%U __FUNC__
+//%L __LINE__
 //%p pid
 //%t tid
 //%T tid hex
@@ -72,6 +72,7 @@ int log_handler_set_default(log_handler_t *handler);
 //%n '\n'
 //%r '\r'
 //%% '%'
+//%m user message
 log_format_t *log_format_create(const char *format);
 void log_format_destroy(log_format_t *format);
 
@@ -134,7 +135,7 @@ void log_dump();
 #define MLOGE(handler, fmt...) MLOG_PRINTF(handler, LOG_ERROR, fmt)
 #define MLOGF(handler, fmt...) MLOG_PRINTF(handler, LOG_FATAL, fmt)
 #define MLOGA(handler, fmt...) MLOG_PRINTF(handler, LOG_ALERT, fmt)
-#define MLOGX(handler, fmt...) MLOG_PRINTF(handler, LOG_EMERG, fmt)
+#define MLOGP(handler, fmt...) MLOG_PRINTF(handler, LOG_PANIC, fmt)
 
 
 #define LOG_PRINTF(level, fmt...)                                              \
@@ -149,7 +150,7 @@ void log_dump();
 #define LOGE(fmt...) LOG_PRINTF(LOG_ERROR, fmt)
 #define LOGF(fmt...) LOG_PRINTF(LOG_FATAL, fmt)
 #define LOGA(fmt...) LOG_PRINTF(LOG_ALERT, fmt)
-#define LOGX(fmt...) LOG_PRINTF(LOG_EMERG, fmt)
+#define LOGP(fmt...) LOG_PRINTF(LOG_PANIC, fmt)
 
 #define LOG_INIT(ident, level)                                                 \
     do {                                                                       \

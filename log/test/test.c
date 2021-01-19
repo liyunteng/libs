@@ -34,7 +34,7 @@ test_mlog()
     log_bind(h, LOG_VERBOSE, -1, format, fileout);
     MLOGF(h, "this is a fatal");
     MLOGA(h, "this is a alert");
-    MLOGX(h, "this is a emergency");
+    MLOGP(h, "this is a emergency");
 
     LOGV("this is a verbose");
     LOGD("this is a debug");
@@ -44,7 +44,7 @@ test_mlog()
     LOGE("this is a error");
     LOGF("this is a fatal");
     LOGA("this is a alert");
-    LOGX("this is a emergency");
+    LOGP("this is a emergency");
 
     log_dump();
 }
@@ -149,7 +149,7 @@ test_log_benchmark()
         MLOGE(handler, "this is a error");
         MLOGF(handler, "this is a fatal");
         MLOGA(handler, "this is a alert");
-        MLOGX(handler, "this is a emerge");
+        MLOGP(handler, "this is a emerge");
 #else
         LOGV("this is a verbose");
         LOGD("this is a debug");
@@ -159,11 +159,11 @@ test_log_benchmark()
         LOGE("this is a error");
         LOGF("this is a fatal");
         LOGA("this is a alert");
-        LOGX("this is a emerge");
+        LOGP("this is a emerge");
 #endif
         usleep(10*1000);
     }
-    LOGX("this end");
+    LOGP("this end");
 
     log_dump();
 }
@@ -242,8 +242,8 @@ test_multi_output()
         LOGE("this is a error");
         LOGF("this is a fatal");
         LOGA("this is a alert");
-        LOGX("this is a emerge");
-        // LOGX("this is a long msg: %s", b);
+        LOGP("this is a emerge");
+        // LOGP("this is a long msg: %s", b);
     }
     log_dump();
 }
@@ -255,7 +255,7 @@ test_format()
     int i;
 
     log_format_t *format = log_format_create(
-        "%d.%ms.%us %D %E(LOGNAME)@%H %c %p:%t:%T %C[%-7.7V]%R %.10F:%.5U:%L %m%n");
+        "%d(%y/%m/%d %H:%M:%S).%ms.%us %E(LOGNAME)@%H %c %p:%t:%T %C[%-5.5V]%R[%-5.5v] %.10F:%.5U:%L %m%n");
     log_output_t *output =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
     log_handler_t *handler = log_handler_create("default");
@@ -288,7 +288,7 @@ test_format()
         LOGE("this is a error");
         LOGF("this is a fatal");
         LOGA("this is a alert");
-        LOGX("this is a emerge");
+        LOGP("this is a emerge");
     }
     log_dump();
 
@@ -362,7 +362,7 @@ test_simple()
     LOGE("this is a error");
     LOGF("this is a fatal");
     LOGA("this is a alert");
-    LOGX("this is a emerge");
+    LOGP("this is a emerge");
 
     log_dump();
 }

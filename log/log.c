@@ -49,8 +49,13 @@
 #define BUFFER_MAX 1024 * 1024 * 4
 
 const char *const LOGLEVELSTR[] = {
-    "EMERG",  "ALERT", "FATAL", "ERROR",   "WARN",
+    "PANIC",  "ALERT", "FATAL", "ERROR",   "WARNING",
     "NOTICE", "INFO",  "DEBUG", "VERBOSE",
+};
+
+const char *const loglevelstr[] = {
+    "panic", "alert", "fatal", "error", "warning",
+    "notice", "info", "debug", "verbose",
 };
 
 const char *const COLORSTR[] = {

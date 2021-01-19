@@ -3,14 +3,12 @@
  *
  * Date   : 2021/01/17
  */
-
 #include "log.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/syslog.h>
 #include <unistd.h>
-#define TAG "abc"
 
 void
 test_mlog()
@@ -56,12 +54,12 @@ run(void *arg)
 {
     unsigned i;
     for (i = 0; i < 1024 * 10; i++) {
-        LOGV("this is a verbose", (unsigned long)pthread_self());
-        LOGD("this is a debug", (unsigned long)pthread_self());
-        LOGI("this is a info", (unsigned long)pthread_self());
-        LOGW("this is a warning", (unsigned long)pthread_self());
-        LOGE("this is a error", (unsigned long)pthread_self());
-        LOGF("this is a fatal", (unsigned long)pthread_self());
+        LOGV("this is a verbose");
+        LOGD("this is a debug");
+        LOGI("this is a info");
+        LOGW("this is a warning");
+        LOGE("this is a error");
+        LOGF("this is a fatal");
     }
     return (void *)0;
 }
@@ -71,9 +69,12 @@ test_log_thread()
 {
     pthread_t tid1, tid2, tid3;
     log_handler_t *h = log_handler_create("ihi");
-    log_format_t *f  = log_format_create("%D.%ms %c:%10.10T [%-5.5V] %m%n");
+    log_format_t *f  = log_format_create("%D.%ms %c:%T [%-5.5V] %m%n");
+    // log_output_t *o =
+    // log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
     log_output_t *o =
-        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
+        log_output_create(LOG_OUTTYPE_MMAP, ".", "ihi", 1024*1024*4, 4,
+                          4*1024*1024, 1000);
     log_bind(h, -1, -1, f, o);
     log_handler_set_default(h);
 
@@ -128,17 +129,17 @@ test_log_benchmark()
 {
     /* log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n"); */
     log_format_t *format = log_format_create("%D.%ms %c:%p [%V] %m%n");
-    /* log_output_t *output =
-     *     log_output_create(LOG_OUTTYPE_MMAP, ".", "ihi", 1024*1024*1024, 4,
-     *                       512*1024*1024, 60*1000); */
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 100);
+        log_output_create(LOG_OUTTYPE_MMAP, ".", "ihi", 1024*1024*2, 4,
+                          1*1024*1024, 1000);
+    /* log_output_t *output =
+     *     log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 100); */
     log_handler_t *handler = log_handler_create("ihi");
     log_bind(handler, -1, -1, format, output);
     log_handler_set_default(handler);
 
     unsigned i;
-    for (i = 0; i < 1024 * 1024 *16; i++) {
+    for (i = 0; i < 1024 * 16; i++) {
 #if 0
         MLOGV(handler, "this is a verbose");
         MLOGD(handler, "this is a debug");
@@ -160,9 +161,9 @@ test_log_benchmark()
         LOGA("this is a alert");
         LOGX("this is a emerge");
 #endif
-        /* usleep(10*1000); */
+        usleep(10*1000);
     }
-    LOGX("this a a");
+    LOGX("this end");
 
     log_dump();
 }
@@ -227,7 +228,7 @@ test_multi_output()
     log_bind(handler, LOG_ERROR, -1, format1, file2);
     log_bind(handler, -1, -1, format, sout);
     /* log_bind(handler, -1, -1, format, serr); */
-    log_bind(handler, LOG_DEBUG, LOG_INFO, format2, syslog);
+    log_bind(handler, LOG_DEBUG, LOG_FATAL, format2, syslog);
     log_bind(handler, -1, -1, format1, tcp);
     log_bind(handler, -1, -1, format, udp);
 
@@ -254,12 +255,10 @@ test_format()
     int i;
 
     log_format_t *format = log_format_create(
-        "%E(a) %E(LOGNAME) %H %d %D %ms %us %c %C[%-7.7V]%R %.10F:%U:%L %p %t:%T %% %m%n");
+        "%d.%ms.%us %D %E(LOGNAME)@%H %c %p:%t:%T %C[%-7.7V]%R %.10F:%.5U:%L %m%n");
     log_output_t *output =
         log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
-    log_handler_t *handler = log_handler_create("ihi");
-    log_handler_set_default(handler);
-
+    log_handler_t *handler = log_handler_create("default");
     if (!format) {
         printf("format create failed\n");
         return;
@@ -278,7 +277,7 @@ test_format()
         printf("bind failed\n");
         return;
     }
-
+    log_handler_set_default(handler);
 
     for (i = 0; i < 10; i++) {
         LOGV("this is a %s", "verbose");
@@ -381,7 +380,7 @@ main(int argc, char *argv[])
     /* test_big_buf(); */
 
     /* test_mlog_benchmark(); */
-    /* test_log_benchmark(); */
+    // test_log_benchmark();
     /* test_log_big_benchmark(); */
     return 0;
 }

@@ -20,7 +20,7 @@
 #define DEFAULT_MAP_SIZE 4 * 1024 * 1024
 #define DEFAULT_MSYNC_INTERVAL 1 * 1000
 
-static int
+inline static int
 file_getname(log_output_t *output, char *file_name, uint16_t len)
 {
     mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
@@ -28,7 +28,7 @@ file_getname(log_output_t *output, char *file_name, uint16_t len)
     return 0;
 }
 
-static uint32_t
+inline static uint32_t
 mmap_get_ms(void)
 {
     struct timeval tv;
@@ -46,13 +46,8 @@ mmap_msync_file(log_output_t *output)
     int len;
     cur = mmap_get_ms();
 
-    if (ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset == 0) {
-        return 0;
-    }
-
     page_size = getpagesize();
-    if (ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset
-        >= page_size) {
+    if (ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset >= page_size) {
         if ((ctx->mmap_window.data_offset == ctx->mmap_window.window_size)
             || (cur - ctx->mmap_window.msync_time > ctx->msync_interval)) {
             len =
@@ -293,10 +288,10 @@ mmap_emit(log_output_t *output, log_handler_t *handler)
         memcpy(ctx->mmap_window.addr + ctx->mmap_window.data_offset, buf->start,
                len);
 
-        mmap_msync_file(output);
-
         ctx->mmap_window.data_offset += len;
         ctx->data_offset += len;
+
+        mmap_msync_file(output);
         return len;
     }
 
@@ -319,11 +314,11 @@ mmap_emit(log_output_t *output, log_handler_t *handler)
             memcpy(ctx->mmap_window.addr + ctx->mmap_window.data_offset,
                    buf->start + total, nwrite);
 
-            mmap_msync_file(output);
-
             ctx->mmap_window.data_offset += nwrite;
             ctx->data_offset += nwrite;
             total += nwrite;
+
+            mmap_msync_file(output);
         }
 
         if (total >= len) {
@@ -499,7 +494,7 @@ mmap_output_create(void)
     }
 
     output->type       = LOG_OUTTYPE_MMAP;
-    output->type_name  = "mmap";
+    output->type_name  = "file mmap";
     output->emit       = mmap_emit;
     output->ctx_init   = mmap_ctx_init;
     output->ctx_uninit = mmap_ctx_uninit;

@@ -4,6 +4,7 @@
  * Date   : 2021/01/14
  */
 
+#include "list.h"
 #ifdef __cplusplus
 #ifndef __STDC_FORMAT_MARCOS
 #define __STDC_FORMAT_MARCOS
@@ -54,8 +55,8 @@ const char *const LOGLEVELSTR[] = {
 };
 
 const char *const loglevelstr[] = {
-    "panic", "alert", "fatal", "error", "warning",
-    "notice", "info", "debug", "verbose",
+    "panic",  "alert", "fatal", "error",   "warning",
+    "notice", "info",  "debug", "verbose",
 };
 
 const char *const COLORSTR[] = {
@@ -504,6 +505,32 @@ log_printf(LOG_LEVEL_E level, const char *file, const char *function, long line,
     }
 
     return;
+}
+
+void
+log_cleanup(void)
+{
+
+    log_handler_t *handler, *htmp;
+    list_for_each_entry_safe (handler, htmp, &handler_header, handler_entry) {
+        log_handler_destroy(handler);
+    }
+
+    log_format_t *format, *ftmp;
+    list_for_each_entry_safe (format, ftmp, &format_header, format_entry) {
+        log_format_destroy(format);
+    }
+
+    log_output_t *output, *otmp;
+    list_for_each_entry_safe (output, otmp, &output_header, output_entry) {
+        log_output_destroy(output);
+    }
+
+    log_rule_t *rule, *rtmp;
+    list_for_each_entry_safe (rule, rtmp, &rule_header, rule_entry) {
+        list_del(&rule->rule_entry);
+        free(rule);
+    }
 }
 
 void

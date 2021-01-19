@@ -120,6 +120,7 @@ void mlog_printf(log_handler_t *handler, LOG_LEVEL_E level, const char *file,
 void log_printf(LOG_LEVEL_E level, const char *file, const char *function,
                 long line, const char *format, ...);
 
+void log_cleanup();
 void log_dump();
 
 
@@ -154,7 +155,7 @@ void log_dump();
 
 #define LOG_INIT(ident, level)                                                 \
     do {                                                                       \
-        log_format_t *__format = log_format_create("%D.%ms [%5.5V] %m%n");     \
+        log_format_t *__format = log_format_create("%d.%ms [%5.5V] %m%n");     \
         log_output_t *__output = log_output_create(                            \
             LOG_OUTTYPE_FILE, ".", (ident), 4 * 1024 * 1024, 4);               \
         log_handler_t *__handler = log_handler_create(ident);                  \

@@ -60,7 +60,11 @@ sock_emit(log_output_t *output, log_handler_t *handler)
             if (errno == EAGAIN || errno == EINTR) {
                 continue;
             } else {
-                ERROR_LOG("send failed(%s)\n", strerror(errno));
+                ERROR_LOG("%s://%s:%d send failed(%s)\n",
+                          output->type_name,
+                          ctx->addr,
+                          ctx->port,
+                          strerror(errno));
                 close(ctx->sockfd);
                 ctx->sockfd = -1;
                 break;
@@ -130,7 +134,7 @@ sock_ctx_init(log_output_t *output, va_list ap)
 
     struct hostent *host = gethostbyname(ctx->addr);
     if (host == NULL) {
-        ERROR_LOG("gethostbyname failed(%s)\n", strerror(errno));
+        ERROR_LOG("%s gethostbyname failed(%s)\n", ctx->addr, strerror(errno));
         goto failed;
     }
 
@@ -150,7 +154,11 @@ sock_ctx_init(log_output_t *output, va_list ap)
     addr.sin_port   = htons(ctx->port);
     addr.sin_addr   = *(struct in_addr *)(host->h_addr_list[0]);
     if (connect(ctx->sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        ERROR_LOG("connect(%s)\n", strerror(errno));
+        ERROR_LOG("%s://%s:%d connect(%s)\n",
+                  output->type_name,
+                  ctx->addr,
+                  ctx->port,
+                  strerror(errno));
         goto failed;
     }
 

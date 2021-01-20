@@ -129,7 +129,7 @@ test_log_thread()
     pthread_join(tid2, NULL);
     pthread_join(tid3, NULL);
 
-    /* log_dump(); */
+    log_dump();
     log_cleanup();
 }
 
@@ -168,7 +168,7 @@ test_mlog_benchmark()
         MLOGF(h3, "this is a fatal");
     }
 
-    /* log_dump(); */
+    log_dump();
     log_cleanup();
 }
 
@@ -215,7 +215,7 @@ test_log_benchmark()
     }
     LOGP("this end");
 
-    /* log_dump(); */
+    log_dump();
     log_cleanup();
 }
 
@@ -245,7 +245,7 @@ test_log_big_benchmark()
         LOGD("%s", b);
     }
 
-    /* log_dump(); */
+    log_dump();
     log_cleanup();
 }
 
@@ -259,11 +259,12 @@ test_multi_output()
     log_format_t *format1 = log_format_create("%m%n");
     log_format_t *format2 = log_format_create("%m");
     log_output_t *file1 =
-        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 8 * 1024 * 1024, 50);
+        log_output_create(LOG_OUTTYPE_MMAP, ".", "ihi", 8 * 1024 * 1024, 50,
+                          4 * 1024, 100);
     log_output_t *file2 =
         log_output_create(LOG_OUTTYPE_FILE, ".", "test", 8 * 1024 * 1024, 50);
     log_output_t *sout = log_output_create(LOG_OUTTYPE_STDOUT);
-    log_output_t *serr = log_output_create(LOG_OUTTYPE_STDOUT);
+    log_output_t *serr = log_output_create(LOG_OUTTYPE_STDERR);
 
     log_output_t *syslog = log_output_create(
         LOG_OUTTYPE_SYSLOG, "ihi", LOG_NDELAY | LOG_NOWAIT | LOG_PID, LOG_USER);
@@ -274,14 +275,10 @@ test_multi_output()
     log_handler_t *handler = log_handler_create("ihi");
     log_handler_set_default(handler);
 
-    for (i = 0; i < sizeof(b) / sizeof(b[0]) - 1; i++) {
-        b[i] = 'b';
-    }
-    b[i] = '\0';
     log_bind(handler, -1, -1, format, file1);
     log_bind(handler, LOG_ERROR, -1, format1, file2);
-    /* log_bind(handler, -1, -1, format, sout); */
-    /* log_bind(handler, -1, -1, format, serr); */
+    log_bind(handler, -1, -1, format, sout);
+    log_bind(handler, -1, -1, format1, serr);
     log_bind(handler, LOG_DEBUG, LOG_FATAL, format2, syslog);
     log_bind(handler, -1, -1, format1, tcp);
     log_bind(handler, -1, -1, format, udp);
@@ -297,10 +294,9 @@ test_multi_output()
         LOGF("this is a fatal");
         LOGA("this is a alert");
         LOGP("this is a emerge");
-        // LOGP("this is a long msg: %s", b);
     }
 
-    /* log_dump(); */
+    log_dump();
     log_cleanup();
 }
 
@@ -347,14 +343,14 @@ test_format()
         LOGA("this is a alert");
         LOGP("this is a emerge");
     }
-    /* log_dump(); */
+    log_dump();
 
     log_unbind(handler, format, output);
     log_handler_destroy(handler);
     log_format_destroy(format);
     log_output_destroy(output);
 
-    /* log_dump(); */
+    log_dump();
     log_cleanup();
 }
 
@@ -403,7 +399,7 @@ test_big_buf()
     /* LOGD("%s", buf); */
     /* LOGE("%s", buf); */
 
-    /* log_dump(); */
+    log_dump();
     log_cleanup();
 }
 
@@ -415,13 +411,13 @@ main(int argc, char *argv[])
     /* test_mlog(); */
 
     /* test_log_thread(); */
-    // test_multi_output();
+    /* test_multi_output(); */
 
-    /* test_format(); */
+    test_format();
     /* test_big_buf(); */
 
     /* test_mlog_benchmark(); */
-    test_log_benchmark();
+    /* test_log_benchmark(); */
     /* test_log_big_benchmark(); */
 
     return 0;

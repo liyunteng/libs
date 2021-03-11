@@ -22,14 +22,16 @@ main(void)
     for (i = 0; i < ARRAY_SIZE(array); i++) {
         array[i] = i;
     }
-    int key = 1;
-    int *ret = NULL;
+    int keys[] = {1, 64, 27, 126, 128};
+    int *ret   = NULL;
 
-    ret = bsearch(&key,  array, ARRAY_SIZE(array), sizeof(int), cmp);
-    if (ret != NULL) {
-        printf("found\n");
-    } else {
-        printf("not found\n");
+    for (i = 0; i < sizeof(keys) / sizeof(keys[0]); i++) {
+        ret = bsearch(&keys[i], array, ARRAY_SIZE(array), sizeof(int), cmp);
+        if (ret != NULL) {
+            printf("%d found\n", keys[i]);
+        } else {
+            printf("%d not found\n", keys[i]);
+        }
     }
 
     return 0;

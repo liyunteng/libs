@@ -121,8 +121,8 @@ void test_rbtree_dump()
 }
 int main(void)
 {
-    /* int array[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9}; */
-    int array[] = {35, 18, 69, 9, 21, 60, 90, 4, 30, 45, 64, 85, 96, 50};
+    int array[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
+    /* int array[] = {35, 18, 69, 9, 21, 60, 90, 4, 30, 45, 64, 85, 96, 50}; */
     test_rbtree_init();
     for (int i = 0; i < sizeof(array)/sizeof(array[0]); i++) {
         struct test_rb_node *node = test_rb_node_create();

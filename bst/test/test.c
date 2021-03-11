@@ -29,15 +29,19 @@ int
 main(void)
 {
 
-    /* datatype a[] = {2, 2, 1, 0, 7, 4, 3, 3, 6, 8, 5, 9}; */
     int i;
     Node *root = NULL;
     int ret    = 0;
+
+#if 1
+    datatype a[] = {2, 2, 1, 0, 7, 4, 3, 3, 6, 8, 5, 9};
+#else
     datatype a[4096];
     srandom(time(NULL));
     for (i = 0; i < (int)ARRAY_SIZE(a); i++) {
         a[i] = random() % 100;
     }
+#endif
 
     bst_create(&root, a, ARRAY_SIZE(a));
     printf("datas:\n");

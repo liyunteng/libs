@@ -25,6 +25,7 @@ static md5_test_pair data[] = {
     {"12345678901234567890123456789012345678901234567890123456789012345678901234567890", "57edf4a22be3c955ac49da2e2107b67a"},
     {"/data/mod_list.jsp?title=10002&page=1", "4d101056476ecc313fe9375ac6683ba2"},
     {"/data/mod_list.jsp?title=10004&page=1", "f1624fad3f1e7bc6f0e594e2194c4f43"},
+    {"this will be fail", "f1624fad3f1e7bc6f0e594e2194c4f43"},
     {NULL, NULL}
 };
 

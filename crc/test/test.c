@@ -14,6 +14,9 @@ typedef struct {
 int
 main(void)
 {
+    unsigned char d0[] = {0x00};
+    // 0x4e, 0x08, 0xbf, 0xb4
+
     unsigned char d1[] = {0x00, 0xb0, 0x0d, 0x59, 0x81, 0xeb, 0x00, 0x00, 0x00, 0x01, 0xe0, 0x42};
     //0x5e, 0x44, 0x05, 0x9a
 
@@ -36,17 +39,26 @@ main(void)
         0x61, 0x62, 0x63, 0x64, 0x65, 0x66
     };
 
+    unsigned char d5[] = {
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        'a', 'b', 'c', 'd', 'e', 'f', '\n',
+    };
+
     crc_test_pair t[] = {
+        {d0, sizeof(d0)/sizeof(d0[0]), 0x4E08BFB4},
         {d1, sizeof(d1)/sizeof(d1[0]), 0x5E44059A},
         {d2, sizeof(d2)/sizeof(d2[0]), 0x5C45FC3D},
         {d3, sizeof(d3)/sizeof(d3[0]), 0x8C2E11FD},
         {d4, sizeof(d4)/sizeof(d4[0]), 0xDBD233B1},
+        {d5, sizeof(d5)/sizeof(d5[0]), 0xC769E75E},
     };
     crc_test_pair t1[] = {
+        {d0, sizeof(d0)/sizeof(d0[0]), 0xD202EF8D},
         {d1, sizeof(d1)/sizeof(d1[0]), 0x56090ABF},
         {d2, sizeof(d2)/sizeof(d2[0]), 0x2369A5E5},
         {d3, sizeof(d3)/sizeof(d3[0]), 0x92007194},
         {d4, sizeof(d4)/sizeof(d4[0]), 0x68C4F033},
+        {d5, sizeof(d5)/sizeof(d5[0]), 0x8D6FA375},
     };
 
 
@@ -60,6 +72,7 @@ main(void)
             printf("success crc: 0x%X\n", crc);
         }
     }
+
     printf("CRC32:\n");
     for (size_t i = 0; i < sizeof(t1)/sizeof(t1[0]); i++) {
         unsigned int crc = 0;

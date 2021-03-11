@@ -20,10 +20,25 @@ int main(void)
     cfg_prop_open_from_file(filename, &cfg_obj);
     cfg_prop_iter(cfg_obj, print, NULL);
 
+
     char *url = cfg_prop_get(cfg_obj, "url");
-    printf("%s\n", url);
-    cfg_prop_set(cfg_obj, "abc", "1234");
-    cfg_prop_remove(cfg_obj, "a");
+    if (url) {
+        printf("url: %s\n", url);
+    }
+
+    char *abc = cfg_prop_get(cfg_obj, "abc");
+    if (abc) {
+        printf("abc: %s\n", abc);
+    } else {
+        cfg_prop_set(cfg_obj, "abc", "1234");
+    }
+
+    char *cde = cfg_prop_get(cfg_obj, "cde");
+    if (cde) {
+        cfg_prop_remove(cfg_obj, "cde");
+    } else {
+        cfg_prop_set(cfg_obj, "cde", "3333");
+    }
 
     cfg_prop_write_to_file(filename, cfg_obj);
 

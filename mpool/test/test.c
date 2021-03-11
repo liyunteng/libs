@@ -36,14 +36,12 @@ int main(int argc, char* argv[])
 {
     mpool_ctx_t *ctx;
     item_t *p;
-    item_t* queue[4096];
+    item_t* queue[32] = {0};
     int i;
-    ctx = mpool_calloc(128, sizeof(item_t));
-
-    memset(queue, 0, sizeof(queue));
+    ctx = mpool_calloc(16, sizeof(item_t));
 
     printf("================================GET================================\n");
-    for(i = 0; i < 128; i++) {
+    for(i = 0; i < 16; i++) {
         p = (item_t *)mpool_get(ctx);
         if(!p) break;
         queue[i] = p;
@@ -51,7 +49,7 @@ int main(int argc, char* argv[])
     }
 
     printf("================================PUT================================\n");
-    for(i = 0; i < 128; i++) {
+    for(i = 0; i < 16; i++) {
         p = queue[i];
         if(!p) break;
         p->id = i;
@@ -60,7 +58,7 @@ int main(int argc, char* argv[])
     }
 
     mpool_put(p);
-    for (i = 0; i < 128; i++) {
+    for (i = 0; i < 16; i++) {
         p = mpool_get_by_idx(ctx, i);
         printf("%d\n", p->id);
     }

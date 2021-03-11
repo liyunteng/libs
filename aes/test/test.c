@@ -11,16 +11,11 @@
 #include <stdio.h>
 #include <string.h>
 
-#if 0
 int test0()
 {
-    int rc = aes_self_test(1);
-    if (rc) {
-        printf("failed");
-    }
-    return rc;
+    aes_self_test(1);
+    return 0;
 }
-#endif
 
 int
 test1()
@@ -32,7 +27,7 @@ test1()
     printf("key: ");
     for (i = 0; i < sizeof(key); i++) {
         key[i] = i;
-        printf("%d", key[i]);
+        printf("%02x", key[i]);
     }
     printf("\n");
     aes_setkey_enc(&ctx, key, sizeof(key));
@@ -69,7 +64,7 @@ test2()
     printf("key: ");
     for (i = 0; i < sizeof(key); i++) {
         key[i] = i;
-        printf("%d", key[i]);
+        printf("%02x", key[i]);
     }
     printf("\n");
     aes_setkey_enc(&ctx, key, sizeof(key));
@@ -115,7 +110,7 @@ test3()
     printf("key: ");
     for (i = 0; i < sizeof(key); i++) {
         key[i] = i;
-        printf("%d", key[i]);
+        printf("%02x", key[i]);
     }
     printf("\n");
     aes_setkey_enc(&ctx, key, sizeof(key));
@@ -168,7 +163,7 @@ test3()
 int
 main(void)
 {
-    /* test0(); */
+    test0();
     test1();
     test2();
     test3();

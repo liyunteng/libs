@@ -10,29 +10,28 @@
 #include "aes.h"
 #include <string.h>
 
-/* #define  POLARSSL_SELF_TEST 1 */
+#define POLARSSL_SELF_TEST 1
 
 /*
  * 32-bit integer manipulation macros (little endian)
  */
 #ifndef GET_ULONG_LE
-#    define GET_ULONG_LE(n, b, i)                                              \
-        {                                                                      \
-            (n) = ((unsigned long)(b)[(i)])                                    \
-                  | ((unsigned long)(b)[(i) + 1] << 8)                         \
-                  | ((unsigned long)(b)[(i) + 2] << 16)                        \
-                  | ((unsigned long)(b)[(i) + 3] << 24);                       \
-        }
+#define GET_ULONG_LE(n, b, i)                                                  \
+    {                                                                          \
+        (n) = ((unsigned long)(b)[(i)]) | ((unsigned long)(b)[(i) + 1] << 8)   \
+              | ((unsigned long)(b)[(i) + 2] << 16)                            \
+              | ((unsigned long)(b)[(i) + 3] << 24);                           \
+    }
 #endif
 
 #ifndef PUT_ULONG_LE
-#    define PUT_ULONG_LE(n, b, i)                                              \
-        {                                                                      \
-            (b)[(i)]     = (unsigned char)((n));                               \
-            (b)[(i) + 1] = (unsigned char)((n) >> 8);                          \
-            (b)[(i) + 2] = (unsigned char)((n) >> 16);                         \
-            (b)[(i) + 3] = (unsigned char)((n) >> 24);                         \
-        }
+#define PUT_ULONG_LE(n, b, i)                                                  \
+    {                                                                          \
+        (b)[(i)]     = (unsigned char)((n));                                   \
+        (b)[(i) + 1] = (unsigned char)((n) >> 8);                              \
+        (b)[(i) + 2] = (unsigned char)((n) >> 16);                             \
+        (b)[(i) + 3] = (unsigned char)((n) >> 24);                             \
+    }
 #endif
 
 #if defined(POLARSSL_AES_ROM_TABLES)
@@ -67,9 +66,9 @@ static unsigned long RCON[10];
 /*
  * Tables generation code
  */
-#    define ROTL8(x) ((x << 8) & 0xFFFFFFFF) | (x >> 24)
-#    define XTIME(x) ((x << 1) ^ ((x & 0x80) ? 0x1B : 0x00))
-#    define MUL(x, y) ((x && y) ? pow[(log[x] + log[y]) % 255] : 0)
+#define ROTL8(x) ((x << 8) & 0xFFFFFFFF) | (x >> 24)
+#define XTIME(x) ((x << 1) ^ ((x & 0x80) ? 0x1B : 0x00))
+#define MUL(x, y) ((x && y) ? pow[(log[x] + log[y]) % 255] : 0)
 
 static int aes_init_done = 0;
 
@@ -507,9 +506,8 @@ aes_crypt_cfb128(aes_context *ctx, int mode, int length, int *iv_off,
     *iv_off = n;
 }
 
-#if defined(POLARSSL_SELF_TEST)
-
-#    include <stdio.h>
+#ifdef POLARSSL_SELF_TEST
+#include <stdio.h>
 
 /*
  * AES test vectors from:
@@ -759,4 +757,4 @@ aes_self_test(int verbose)
     return (0);
 }
 
-#endif
+#endif  // POLARSSL_SELF_TEST

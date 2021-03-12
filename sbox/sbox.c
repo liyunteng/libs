@@ -127,6 +127,7 @@ sbox_ptr sbox_hold(sbox_ptr box)
         /* FIXME: should inc only if not zero */
         atomic_inc(&box->count);
     }
+    return box;
 }
 
 static sbox_kv_pair *__dict_get(sbox_ptr dict, sbox_ptr key)
@@ -408,7 +409,7 @@ int sbox_tostr(sbox_ptr box, char *buf)
     if (box) {
         switch(box->type) {
         case so_int:
-            return sprintf(buf, "%ld", box->d.i);
+            return sprintf(buf, "%lld", box->d.i);
 
         case so_float:
             return sprintf(buf, "%lf", box->d.f);

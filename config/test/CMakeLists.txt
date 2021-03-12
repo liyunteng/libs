@@ -1,3 +1,5 @@
+link_directories(/usr/local/lib)
+
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} OBJ_SRC)
 # add_compile_options(-std=c99 -Wall)
 get_filename_component(name ${CMAKE_CURRENT_SOURCE_DIR} PATH)

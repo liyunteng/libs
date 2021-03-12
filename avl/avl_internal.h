@@ -26,6 +26,7 @@
 #include "avl.h"
 #include "types.h"
 #include <stdint.h>
+#include <pthread.h>
 
 #define AVL_MAGIC_NUM 0xBE3A41C6
 

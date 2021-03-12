@@ -3,6 +3,7 @@
  *
  * Date   : 2020/04/25
  */
+#include "daemon.h"
 #include <signal.h>
 #include <stdio.h>
 #include <semaphore.h>

@@ -3,12 +3,13 @@
  *
  * Date   : 2020/04/28
  */
-#ifndef DICT_H
-#define DICT_H
-#include <stdint.h>
-#include "rbtree.h"
-#include "atomic_x86_64.h"
+#ifndef __SBOX_H__
+#define __SBOX_H__
 
+#include "atomic_x86_64.h"
+#include "rbtree.h"
+#include <stdint.h>
+#include <string.h>
 
 #define FACCURACY 0.000001
 

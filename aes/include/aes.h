@@ -85,12 +85,6 @@ void aes_crypt_cfb128(aes_context *ctx, int mode, int length, int *iv_off,
                       unsigned char iv[16], unsigned char *input,
                       unsigned char *output);
 
-/**
- * \brief          Checkup routine
- *
- * \return         0 if successful, or 1 if the test failed
- */
-int aes_self_test(int verbose);
 
 #ifdef __cplusplus
 }

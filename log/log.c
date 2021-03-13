@@ -127,7 +127,7 @@ log_ctl_v(enum LOG_OPTS opt, va_list ap)
             ERROR_LOG("ident pointer is NULL\n");
             return -1;
         }
-        strncpy(handler->ident, ident, strlen(ident) + 1);
+        strncpy(handler->ident, ident, sizeof(handler->ident));
         break;
     }
     case LOG_OPT_GET_HANDLER_IDENT: {
@@ -177,7 +177,7 @@ log_format_create(const char *fmt)
         return NULL;
     }
 
-    strncpy(fp->format, fmt, strlen(fmt) + 1);
+    strncpy(fp->format, fmt, sizeof(fp->format));
 
     INIT_LIST_HEAD(&fp->callbacks);
     for (p = fp->format; *p != '\0'; p = q) {
@@ -306,7 +306,7 @@ log_handler_create(const char *ident)
         return NULL;
     }
     pthread_mutex_init(&handler->mutex, NULL);
-    strncpy(handler->ident, ident, strlen(ident) + 1);
+    strncpy(handler->ident, ident, sizeof(handler->ident));
     handler->event.msg_buf = buf_create(BUFFER_MIN, BUFFER_MAX);
     if (!handler->event.msg_buf) {
         ERROR_LOG("buf_create failed\n");

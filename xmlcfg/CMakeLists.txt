@@ -1,4 +1,5 @@
 include_directories(include)
+include_directories(/usr/include/libxml2)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} SRC_LIST)
 
 get_filename_component(name ${CMAKE_CURRENT_SOURCE_DIR} NAME_WLE)

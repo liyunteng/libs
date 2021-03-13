@@ -115,9 +115,9 @@ sock_ctx_init(log_output_t *output, va_list ap)
 
     char *addr_str = va_arg(ap, char *);
     if (addr_str && strlen(addr_str) > 0) {
-        strncpy(ctx->addr, addr_str, strlen(addr_str) + 1);
+        strncpy(ctx->addr, addr_str, sizeof(ctx->addr));
     } else {
-        strncpy(ctx->addr, DEFAULT_SOCKADDR, strlen(DEFAULT_SOCKADDR) + 1);
+        strncpy(ctx->addr, DEFAULT_SOCKADDR, sizeof(ctx->addr));
     }
 
     unsigned port = va_arg(ap, unsigned);

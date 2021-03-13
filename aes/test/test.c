@@ -262,8 +262,8 @@ aes_self_test(int verbose)
 
 
 int aes_test(const char *name,
-             const uint8_t *input, const size_t input_len,
-             uint8_t *key, size_t key_len,
+             unsigned char *input, const size_t input_len,
+             unsigned char *key, size_t key_len,
              uint8_t iv[16])
 {
     aes_context ctx;
@@ -352,7 +352,7 @@ int aes_test(const char *name,
 }
 
 int aes_test_compat_with_openssl(const char *name,
-                                 const uint8_t *input, const size_t input_len,
+                                 unsigned char *input, const size_t input_len,
                                  uint8_t *key, size_t key_len,
                                  uint8_t iv[16])
 {
@@ -437,7 +437,7 @@ main(void)
 {
     aes_self_test(1);
     int i;
-    const unsigned char *input[] = {
+    unsigned char *input[] = {
         "abc",
         "0123456789",
         "0123456789abcdef",

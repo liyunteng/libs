@@ -324,7 +324,7 @@ int aes_test(const char *name,
     printf("\n");
 
     printf("AES-%3ld-%s (dec):\n", 128+key_len*64, name);
-    if (strcmp(name, "CFB") != 0) {
+    if (strcmp(name, "ECB") == 0 || strcmp(name, "CBC") == 0) {
         aes_setkey_dec(&ctx, key, 128+key_len*64);
     }
 
@@ -443,11 +443,6 @@ main(void)
         "0123456789abcdef",
         "abcdefghijklmnopqrstuvwxyz"
     };
-    /* unsigned char key[32] = "abcd"; */
-    /* unsigned char key[32] = {
-     *     0x88, 0xD4, 0x26, 0x6F, 0xD4, 0xE6, 0x33, 0x8D,
-     *     0x13, 0xB8, 0x45, 0xFC, 0xF2, 0x89, 0x57, 0x9D
-     * }; */
 
     unsigned char key[32] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -463,6 +458,10 @@ main(void)
         aes_test_compat_with_openssl("ECB", input[i], strlen(input[i]), key, 0, iv);
         aes_test_compat_with_openssl("CBC", input[i], strlen(input[i]), key, 0, iv);
         aes_test_compat_with_openssl("CFB", input[i], strlen(input[i]), key, 0, iv);
+
+        /* aes_test_compat_with_openssl("ECB", input[i], strlen(input[i]), key, 1, iv); */
+        /* aes_test_compat_with_openssl("CBC", input[i], strlen(input[i]), key, 1, iv); */
+        /* aes_test_compat_with_openssl("CFB", input[i], strlen(input[i]), key, 1, iv); */
 
         /* aes_test("ECB", input[i], strlen(input[i]), key, 0, iv); */
         /* aes_test("CBC", input[i], strlen(input[i]), key, 0, iv); */

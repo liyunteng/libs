@@ -28,15 +28,15 @@ extern "C" {
 #define LOG_WARN  LOG_WARNING
 
 enum LOG_OUTTYPE {
-    LOG_OUTTYPE_STDOUT,
-    LOG_OUTTYPE_STDERR,
-    LOG_OUTTYPE_FILE,
-    LOG_OUTTYPE_MMAP,
-    LOG_OUTTYPE_UDP,
-    LOG_OUTTYPE_TCP,
-    LOG_OUTTYPE_LOGCAT,
-    LOG_OUTTYPE_SYSLOG,
-    LOG_OUTTYPE_NONE,
+    LOG_OUTTYPE_STDOUT = 0x0001,
+    LOG_OUTTYPE_STDERR = 0x0002,
+    LOG_OUTTYPE_FILE   = 0x0004,
+    LOG_OUTTYPE_MMAP   = 0x0008,
+    LOG_OUTTYPE_UDP    = 0x0010,
+    LOG_OUTTYPE_TCP    = 0x0020,
+    LOG_OUTTYPE_LOGCAT = 0x0040,
+    LOG_OUTTYPE_SYSLOG = 0x0080,
+    LOG_OUTTYPE_NONE   = 0x0000,
 };
 
 
@@ -153,18 +153,11 @@ void log_dump();
 #define LOGA(fmt...) LOG_PRINTF(LOG_ALERT, fmt)
 #define LOGP(fmt...) LOG_PRINTF(LOG_PANIC, fmt)
 
-#define LOG_INIT(ident, level)                                                 \
-    do {                                                                       \
-        log_format_t *__format = log_format_create("%d.%ms [%5.5V] %m%n");     \
-        log_output_t *__output = log_output_create(                            \
-            LOG_OUTTYPE_FILE, ".", (ident), 4 * 1024 * 1024, 4);               \
-        log_handler_t *__handler = log_handler_create(ident);                  \
-        if (__format && __output && __handler) {                               \
-            log_bind(__handler, level, -1, __format, __output);                \
-            log_handler_set_default(__handler);                                \
-        }                                                                      \
-    } while (0)
 
+/// simple: just for LOGX
+int log_simple_init(const char *ident, int level);
+int log_simple_set_level(int level);
+void log_simple_uninit(void);
 
 #ifdef __cplusplus
 }

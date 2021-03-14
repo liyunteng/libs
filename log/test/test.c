@@ -16,55 +16,48 @@ const char *module_name = "abc";
 void
 test_simple()
 {
-    LOG_INIT("ihi", LOG_VERBOSE);
+    /* log_simple_init("ihi", LOG_VERBOSE); */
 
-    LOGV("this is a %s", "verbose");
-    LOGD("this is a %s", "debug");
-    LOGI("this is a info");
-    LOGN("this is a notice");
-    LOGW("this is a warnning");
-    LOGE("this is a error");
-    LOGF("this is a fatal");
-    LOGA("this is a alert");
-    LOGP("this is a emerge");
+    int i;
+    log_format_t *format = log_format_create("%d.%ms [%5.5V] %m%n");
+    log_output_t *output =
+        log_output_create(LOG_OUTTYPE_MMAP, ".", "ihi", 4 *1024 * 1024, 4,
+                          4 * 1024, 1000);
+    log_handler_t *handler = log_handler_create("ihi");
+    log_bind(handler, -1, -1, format, output);
+    log_handler_set_default(handler);
 
-    log_dump();
-    log_cleanup();
-}
+    char buf[1024 - 32] = { 0 };
+    memset(buf, 'a', 1024-33);
 
-void
-test_level(void)
-{
-    log_handler_t *h1 = log_handler_create("ihi");
-    log_format_t *f1 = log_format_create("%d.%ms [%5.5V] %m%n");
-    log_output_t *o1 = log_output_create(LOG_OUTTYPE_FILE,".", "ihi", 4*1024*1024, 4 );
-    log_rule_t *r1 = log_bind(h1, -1, -1, f1, o1);
-    log_handler_set_default(h1);
-
-    LOGV("this is verbose");
-    LOGD("this is debug");
-    LOGI("this is info");
-    LOGN("this is notice");
-    LOGW("this is warnning");
-    LOGE("this is error");
-    LOGF("this is fatal");
-    LOGA("this is alert");
-    LOGP("this is panic");
-
-    log_set_level(h1, r1, LOG_WARNING, -1);
-
-    LOGV("this is verbose");
-    LOGD("this is debug");
-    LOGI("this is info");
-    LOGN("this is notice");
-    LOGW("this is warnning");
-    LOGE("this is error");
-    LOGF("this is fatal");
-    LOGA("this is alert");
-    LOGP("this is panic");
+    for (i = 0; i < 1024; i++) {
+        LOGV("%s", buf);
+    }
+    /* LOGV("this is verbose");
+     * LOGD("this is debug");
+     * LOGI("this is info");
+     * LOGN("this is notice");
+     * LOGW("this is warnning");
+     * LOGE("this is error");
+     * LOGF("this is fatal");
+     * LOGA("this is alert");
+     * LOGP("this is panic");
+     *
+     *
+     * log_simple_set_level(LOG_WARNING);
+     *
+     * LOGV("this is verbose");
+     * LOGD("this is debug");
+     * LOGI("this is info");
+     * LOGN("this is notice");
+     * LOGW("this is warnning");
+     * LOGE("this is error");
+     * LOGF("this is fatal");
+     * LOGA("this is alert");
+     * LOGP("this is panic"); */
 
     log_dump();
-    log_cleanup();
+    //log_simple_uninit();
 }
 
 void
@@ -439,12 +432,10 @@ test_big_buf()
     log_cleanup();
 }
 
-
 int
 main(int argc, char *argv[])
 {
     test_simple();
-    /* test_level(); */
     /* test_mlog(); */
 
     /* test_log_thread(); */

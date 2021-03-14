@@ -280,7 +280,7 @@ spec_create(char *pstart, char **pnext)
 
     s = calloc(1, sizeof(log_spec_t));
     if (!s) {
-        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
         return NULL;
     }
     s->str = p = pstart;
@@ -479,7 +479,7 @@ event_update(log_event_t *e, log_handler_t *handler, log_rule_t *rule,
 
     if (e->hostname_len == 0) {
         if (gethostname(e->hostname, sizeof(e->hostname) - 1) < 0) {
-            ERROR_LOG("gethostname failed(%s)\n", strerror(errno));
+            ERROR_LOG("gethostname failed: (%s)\n", strerror(errno));
         } else {
             e->hostname_len = strlen(e->hostname);
         }

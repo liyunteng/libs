@@ -39,7 +39,7 @@ buf_create(size_t size_min, size_t size_max)
 
     buf = calloc(1, sizeof(struct log_buf));
     if (!buf) {
-        ERROR_LOG("calloc failed:(%s)\n", strerror(errno));
+        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
         return NULL;
     }
 
@@ -52,7 +52,7 @@ buf_create(size_t size_min, size_t size_max)
 
     buf->start = calloc(1, buf->size_real);
     if (!buf->start) {
-        ERROR_LOG("calloc failed:(%s)\n", strerror(errno));
+        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
         goto failed;
     }
 
@@ -121,7 +121,7 @@ buf_resize(struct log_buf *buf, size_t increment)
     len = buf->tail - buf->start;
     p   = realloc(buf->start, new_size);
     if (!p) {
-        ERROR_LOG("realloc failed(%s)\n", strerror(errno));
+        ERROR_LOG("realloc failed: (%s)\n", strerror(errno));
         free(buf->start);
         buf->start      = NULL;
         buf->tail       = NULL;
@@ -159,7 +159,7 @@ buf_vprintf(struct log_buf *buf, const char *fmt, va_list args)
         /* *(buf->tail) = '\0'; */
         return 0;
     } else if (nwrite < 0) {
-        ERROR_LOG("vsnprintf failed(%s)\n", strerror(errno));
+        ERROR_LOG("vsnprintf failed: (%s)\n", strerror(errno));
         return -1;
     } else if (nwrite >= size_left) {
         int ret;
@@ -181,7 +181,7 @@ buf_vprintf(struct log_buf *buf, const char *fmt, va_list args)
             size_left = buf->end_plus_1 - buf->tail;
             nwrite    = vsnprintf(buf->tail, size_left, fmt, ap);
             if (nwrite < 0) {
-                ERROR_LOG("vsnprintf failed(%s)\n", strerror(errno));
+                ERROR_LOG("vsnprintf failed: (%s)\n", strerror(errno));
                 return -1;
             } else {
                 buf->tail += nwrite;

@@ -60,7 +60,7 @@ sock_emit(struct log_output *output, struct log_handler *handler)
             if (errno == EAGAIN || errno == EINTR) {
                 continue;
             } else {
-                ERROR_LOG("%s://%s:%d send failed(%s)\n",
+                ERROR_LOG("%s://%s:%d send failed: (%s)\n",
                           output->type_name,
                           ctx->addr,
                           ctx->port,
@@ -106,7 +106,7 @@ sock_ctx_init(struct log_output *output, va_list ap)
     if (output->ctx == NULL) {
         output->ctx = (sock_output_ctx *)calloc(1, sizeof(sock_output_ctx));
         if (!output->ctx) {
-            ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+            ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
             goto failed;
         }
         ((sock_output_ctx *)(output->ctx))->sockfd = -1;
@@ -134,7 +134,7 @@ sock_ctx_init(struct log_output *output, va_list ap)
 
     struct hostent *host = gethostbyname(ctx->addr);
     if (host == NULL) {
-        ERROR_LOG("%s gethostbyname failed(%s)\n", ctx->addr, strerror(errno));
+        ERROR_LOG("%s gethostbyname failed: (%s)\n", ctx->addr, strerror(errno));
         goto failed;
     }
 
@@ -144,7 +144,7 @@ sock_ctx_init(struct log_output *output, va_list ap)
         ctx->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
     }
     if (ctx->sockfd < 0) {
-        ERROR_LOG("socket failed(%s)\n", strerror(errno));
+        ERROR_LOG("socket failed: (%s)\n", strerror(errno));
         goto failed;
     }
 
@@ -154,7 +154,7 @@ sock_ctx_init(struct log_output *output, va_list ap)
     addr.sin_port   = htons(ctx->port);
     addr.sin_addr   = *(struct in_addr *)(host->h_addr_list[0]);
     if (connect(ctx->sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        ERROR_LOG("%s://%s:%d connect(%s)\n",
+        ERROR_LOG("%s://%s:%d connect failed: (%s)\n",
                   output->type_name,
                   ctx->addr,
                   ctx->port,
@@ -205,7 +205,7 @@ tcp_output_create(void)
 
     output = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
-        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
         return NULL;
     }
 
@@ -226,7 +226,7 @@ udp_output_create(void)
 
     output = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
-        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
         return NULL;
     }
 

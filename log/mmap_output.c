@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
+#include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -48,7 +49,8 @@ mmap_msync_file(struct log_output *output)
     cur = mmap_get_ms();
 
     page_size = getpagesize();
-    if (ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset >= page_size) {
+    if (ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset
+        >= page_size) {
         if ((ctx->mmap_window.data_offset == ctx->mmap_window.window_size)
             || (cur - ctx->mmap_window.msync_time > ctx->msync_interval)) {
             len =
@@ -59,7 +61,7 @@ mmap_msync_file(struct log_output *output)
                         len,
                         MS_ASYNC);
             if (ret < 0) {
-                ERROR_LOG("msync failed(%s)\n", strerror(errno));
+                ERROR_LOG("msync failed: (%s)\n", strerror(errno));
             }
 
             ctx->mmap_window.msync_time = cur;
@@ -145,7 +147,7 @@ mmap_map_file(struct log_output *output)
     ctx->mmap_window.addr = mmap(NULL, mmap_window_size, PROT_READ | PROT_WRITE,
                                  MAP_SHARED, ctx->fd, ctx->mmap_window.offset);
     if (ctx->mmap_window.addr == MAP_FAILED) {
-        ERROR_LOG("mmap failed(%s)\n", strerror(errno));
+        ERROR_LOG("mmap failed: (%s)\n", strerror(errno));
         return -1;
     }
 
@@ -153,50 +155,6 @@ mmap_map_file(struct log_output *output)
     ctx->mmap_window.window_size  = mmap_window_size;
     ctx->mmap_window.data_offset  = 0;
     ctx->mmap_window.msync_offset = 0;
-    return 0;
-}
-
-static int
-file_open_logfile(struct log_output *output)
-{
-    char *file_name;
-    uint32_t len;
-    mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
-
-    if (ctx->fd != -1) {
-        mmap_unmap_file(output);
-        close(ctx->fd);
-        ctx->fd = -1;
-    }
-
-    len = strlen(ctx->file_path);
-    len += 1; /* "/" */
-    len += strlen(ctx->log_name);
-    len += 4; /* ".log" */
-    len += 1; /* NULL char */
-
-    file_name = malloc(len * sizeof(char));
-    if (!file_name) {
-        ERROR_LOG("malloc failed(%s)\n", strerror(errno));
-        return -1;
-    }
-
-    file_getname(output, file_name, len);
-
-    if ((ctx->fd = open(file_name, O_RDWR | O_CREAT | O_TRUNC, 0644)) < 0) {
-        ERROR_LOG("fopen %s failed:(%s)\n", file_name, strerror(errno));
-        free(file_name);
-        return -1;
-    }
-
-    ctx->data_offset        = 0;
-    ctx->file_current_size  = 0;
-    ctx->mmap_window.offset = 0;
-
-    if (mmap_map_file(output) != 0) {
-        return -1;
-    }
-    free(file_name);
     return 0;
 }
 
@@ -224,7 +182,7 @@ file_rename_logfile(struct log_output *output)
         old_file_name = malloc(len * sizeof(char));
         new_file_name = malloc(len * sizeof(char));
         if (!old_file_name || !new_file_name) {
-            ERROR_LOG("malloc failed(%s)\n", strerror(errno));
+            ERROR_LOG("malloc failed: (%s)\n", strerror(errno));
             free(old_file_name);
             free(new_file_name);
             return -1;
@@ -242,6 +200,87 @@ file_rename_logfile(struct log_output *output)
     }
     return 0;
 }
+
+static int
+file_open_logfile(struct log_output *output)
+{
+    char *file_name;
+    uint32_t len;
+    int retry            = 0;
+    mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
+    struct stat st;
+
+    if (ctx->fd != -1) {
+        mmap_unmap_file(output);
+        close(ctx->fd);
+        ctx->fd = -1;
+    }
+
+    len = strlen(ctx->file_path);
+    len += 1; /* "/" */
+    len += strlen(ctx->log_name);
+    len += 4; /* ".log" */
+    len += 1; /* NULL char */
+
+    file_name = malloc(len * sizeof(char));
+    if (!file_name) {
+        ERROR_LOG("malloc failed: (%s)\n", strerror(errno));
+        return -1;
+    }
+
+    file_getname(output, file_name, len);
+
+    while (retry < 2) {
+        if ((ctx->fd = open(file_name, O_RDWR | O_CREAT | O_APPEND, 0644))
+            < 0) {
+            ERROR_LOG("fopen %s failed: (%s)\n", file_name, strerror(errno));
+            goto failed;
+        }
+
+        if (fstat(ctx->fd, &st) < 0) {
+            ERROR_LOG("fopen %s failed: (%s)\n", file_name, strerror(errno));
+            ctx->data_offset       = 0;
+            ctx->file_current_size = 0;
+        } else {
+            ctx->data_offset       = st.st_size;
+            ctx->file_current_size = st.st_size;
+        }
+
+        if (ctx->file_size < ctx->file_current_size
+            || ctx->file_size - ctx->file_current_size < ctx->map_size) {
+            if (file_rename_logfile(output) < 0) {
+                goto failed;
+            }
+            retry++;
+            continue;
+        }
+        break;
+    }
+
+    if (retry == 2) {
+        ERROR_LOG("file_size(%u) file_current_size(%u) map_size(%u)\n",
+                  ctx->file_size, ctx->file_current_size, ctx->map_size);
+        goto failed;
+    }
+
+    ctx->mmap_window.offset = 0;
+    if (mmap_map_file(output) != 0) {
+        goto failed;
+    }
+    free(file_name);
+    return 0;
+
+failed:
+    if (ctx->fd != -1) {
+        close(ctx->fd);
+        ctx->fd = -1;
+    }
+    if (file_name) {
+        free(file_name);
+    }
+    return -1;
+}
+
 
 static int
 mmap_emit(struct log_output *output, struct log_handler *handler)
@@ -417,7 +456,7 @@ mmap_ctx_init(struct log_output *output, va_list ap)
     if (output->ctx == NULL) {
         output->ctx = (mmap_output_ctx *)calloc(1, sizeof(mmap_output_ctx));
         if (output->ctx == NULL) {
-            ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+            ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
             goto failed;
         }
     }
@@ -488,9 +527,9 @@ struct log_output *
 mmap_output_create(void)
 {
     struct log_output *output = NULL;
-    output               = (struct log_output *)calloc(1, sizeof(struct log_output));
+    output = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
-        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
         return NULL;
     }
 

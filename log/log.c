@@ -173,7 +173,7 @@ log_format_create(const char *fmt)
 
     fp = (struct log_format *)calloc(1, sizeof(struct log_format));
     if (!fp) {
-        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
         return NULL;
     }
 
@@ -302,7 +302,7 @@ log_handler_create(const char *ident)
 
     handler = (struct log_handler *)calloc(1, sizeof(struct log_handler));
     if (!handler) {
-        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
         return NULL;
     }
     pthread_mutex_init(&handler->mutex, NULL);
@@ -422,7 +422,7 @@ log_bind(struct log_handler *handler, int level_begin, int level_end,
 
     struct log_rule *r = (struct log_rule *)calloc(1, sizeof(struct log_rule));
     if (!r) {
-        ERROR_LOG("malloc failed(%s)\n", strerror(errno));
+        ERROR_LOG("malloc failed: (%s)\n", strerror(errno));
         return NULL;
     }
 

@@ -8,6 +8,8 @@
 #include "log.h"
 #include <errno.h>
 #include <string.h>
+#include <sys/stat.h>
+
 
 #define DEFAULT_FILEPATH "."
 #define DEFAULT_FILENAME "test"
@@ -71,45 +73,6 @@ file_getname(struct log_output *output, char *file_name, uint16_t len)
 }
 
 static int
-file_open_logfile(struct log_output *output)
-{
-    char *file_name;
-    uint32_t len;
-
-
-    file_output_ctx *ctx = (file_output_ctx *)output->ctx;
-
-    if (ctx->fp != NULL) {
-        fclose(ctx->fp);
-        ctx->fp = NULL;
-    }
-    len = strlen(ctx->file_path);
-    len += 1; /* "/" */
-    len += strlen(ctx->log_name);
-    len += 4; /* ".log" */
-    len += 1; /* NULL char */
-
-    file_name = malloc(len * sizeof(char));
-    if (!file_name) {
-        ERROR_LOG("malloc failed(%s)\n", strerror(errno));
-        return -1;
-    }
-
-    file_getname(output, file_name, len);
-
-    if ((ctx->fp = fopen(file_name, "w")) == NULL) {
-        ERROR_LOG("fopen %s failed:(%s)\n", file_name, strerror(errno));
-        free(file_name);
-        return -1;
-    }
-
-    ctx->data_offset = 0;
-
-    free(file_name);
-    return 0;
-}
-
-static int
 file_rename_logfile(struct log_output *output)
 {
     uint32_t num, num_files, len;
@@ -132,7 +95,7 @@ file_rename_logfile(struct log_output *output)
         old_file_name = malloc(len * sizeof(char));
         new_file_name = malloc(len * sizeof(char));
         if (!old_file_name || !new_file_name) {
-            ERROR_LOG("malloc failed(%s)\n", strerror(errno));
+            ERROR_LOG("malloc failed: (%s)\n", strerror(errno));
             free(old_file_name);
             free(new_file_name);
             return -1;
@@ -150,6 +113,77 @@ file_rename_logfile(struct log_output *output)
     }
     return 0;
 }
+
+static int
+file_open_logfile(struct log_output *output)
+{
+    char *file_name;
+    uint32_t len;
+    int retry = 0;
+    struct stat st;
+
+    file_output_ctx *ctx = (file_output_ctx *)output->ctx;
+
+    if (ctx->fp != NULL) {
+        fclose(ctx->fp);
+        ctx->fp = NULL;
+    }
+    len = strlen(ctx->file_path);
+    len += 1; /* "/" */
+    len += strlen(ctx->log_name);
+    len += 4; /* ".log" */
+    len += 1; /* NULL char */
+
+    file_name = malloc(len * sizeof(char));
+    if (!file_name) {
+        ERROR_LOG("malloc failed: (%s)\n", strerror(errno));
+        return -1;
+    }
+
+    file_getname(output, file_name, len);
+
+    while (retry < 2) {
+        if ((ctx->fp = fopen(file_name, "a+")) == NULL) {
+            ERROR_LOG("fopen %s failed: (%s)\n", file_name, strerror(errno));
+            goto failed;
+        }
+        if (fstat(fileno(ctx->fp), &st) < 0) {
+            ERROR_LOG("fstat %s failed: (%s)\n", file_name, strerror(errno));
+            ctx->data_offset = 0;
+        } else {
+            ctx->data_offset = st.st_size;
+        }
+
+        if (ctx->file_size <= st.st_size) {
+            if (file_rename_logfile(output) < 0) {
+                goto failed;
+            }
+            retry ++;
+            continue;
+        }
+        break;
+    }
+
+    if (retry == 2) {
+        ERROR_LOG("file_size(%u) file_current_size(%u)\n",
+                  ctx->file_size, st.st_size);
+        goto failed;
+    }
+
+    free(file_name);
+    return 0;
+
+failed:
+    if (ctx->fp) {
+        fclose(ctx->fp);
+        ctx->fp = NULL;
+    }
+    if (file_name) {
+        free(file_name);
+    }
+    return -1;
+}
+
 
 static int
 file_emit(struct log_output *output, struct log_handler *handler)
@@ -193,7 +227,7 @@ file_emit(struct log_output *output, struct log_handler *handler)
     int left = ctx->file_size - ctx->data_offset;
     if (left > len) {
         if (fwrite(buf->start, len, 1, ctx->fp) != 1) {
-            ERROR_LOG("fwrite failed(%s) len:%lu\n", strerror(errno), len);
+            ERROR_LOG("fwrite failed: (%s) len:%lu\n", strerror(errno), len);
             return -1;
         }
         ctx->data_offset += len;
@@ -212,7 +246,7 @@ file_emit(struct log_output *output, struct log_handler *handler)
         if (nwrite > 0) {
             if (fwrite(buf->start + total, nwrite, 1, ctx->fp) != 1) {
                 ERROR_LOG(
-                    "fwrite failed(%s) nwrite: %lu total: %lu len: %lu left: "
+                    "fwrite failed: (%s) nwrite: %lu total: %lu len: %lu left: "
                     "%d\n",
                     strerror(errno), nwrite, total, len, left);
                 return -1;
@@ -296,7 +330,7 @@ file_ctx_init(struct log_output *output, va_list ap)
     if (!output->ctx) {
         output->ctx = (file_output_ctx *)calloc(1, sizeof(file_output_ctx));
         if (!output->ctx) {
-            ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+            ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
             goto failed;
         }
     }
@@ -355,7 +389,7 @@ file_output_create(void)
     struct log_output *output = NULL;
     output               = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
-        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
         return NULL;
     }
 

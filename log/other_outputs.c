@@ -42,7 +42,7 @@ stdout_emit(struct log_output *output, struct log_handler *handler)
 
     len = buf_len(buf);
     if (fwrite(buf->start, len, 1, stdout) != 1) {
-        ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
+        ERROR_LOG("fwrite failed: (%s)\n", strerror(errno));
         return -1;
     }
     return len;
@@ -65,7 +65,7 @@ stderr_emit(struct log_output *output, struct log_handler *handler)
 
     len = buf_len(buf);
     if (fwrite(buf->start, len, 1, stderr) != 1) {
-        ERROR_LOG("fwrite failed(%s)\n", strerror(errno));
+        ERROR_LOG("fwrite failed: (%s)\n", strerror(errno));
         return -1;
     }
     return len;
@@ -135,7 +135,7 @@ stderr_output_create(void)
 
     output = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
-        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
         return NULL;
     }
 
@@ -154,7 +154,7 @@ stdout_output_create(void)
 
     output = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
-        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
         return NULL;
     }
 
@@ -173,7 +173,7 @@ logcat_output_create(void)
 
     output = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
-        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
         return NULL;
     }
 

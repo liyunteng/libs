@@ -40,7 +40,7 @@ syslog_ctx_init(struct log_output *output, va_list ap)
     if (output->ctx == NULL) {
         output->ctx = (syslog_output_ctx *)calloc(1, sizeof(syslog_output_ctx));
         if (!output->ctx) {
-            ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+            ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
             return -1;
         }
     }
@@ -122,7 +122,7 @@ syslog_output_create(void)
 
     output = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
-        ERROR_LOG("calloc failed(%s)\n", strerror(errno));
+        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
         return NULL;
     }
 

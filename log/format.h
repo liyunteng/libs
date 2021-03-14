@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 
+
 typedef struct log_spec log_spec_t;
 typedef int (*write_buf)(log_spec_t *s, log_event_t *e, log_buf_t *buf);
 typedef int (*gen_msg)(log_spec_t *s, log_event_t *e);
@@ -31,7 +32,7 @@ struct log_spec {
 };
 
 void event_update(log_event_t *e, log_handler_t *handler, log_rule_t *rule,
-                  LOG_LEVEL_E level, const char *file, const char *func,
+                  int level, const char *file, const char *func,
                   long line, const char *fmt, va_list ap);
 
 log_spec_t *spec_create(char *pstart, char **pnext);

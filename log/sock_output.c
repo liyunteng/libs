@@ -4,7 +4,7 @@
  * Date   : 2021/01/15
  */
 #include "sock_output.h"
-#include "log_priv.h"
+#include "log.h"
 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -20,7 +20,7 @@
 
 
 static int
-sock_emit(log_output_t *output, log_handler_t *handler)
+sock_emit(struct log_output *output, struct log_handler *handler)
 {
     sock_output_ctx *ctx = NULL;
     log_buf_t *buf       = NULL;
@@ -82,7 +82,7 @@ sock_emit(log_output_t *output, log_handler_t *handler)
 }
 
 static void
-sock_ctx_dump(log_output_t *output)
+sock_ctx_dump(struct log_output *output)
 {
     if (output) {
         printf("type: %s\n", output->type_name);
@@ -95,7 +95,7 @@ sock_ctx_dump(log_output_t *output)
 }
 
 static int
-sock_ctx_init(log_output_t *output, va_list ap)
+sock_ctx_init(struct log_output *output, va_list ap)
 {
     sock_output_ctx *ctx = NULL;
     if (!output) {
@@ -177,7 +177,7 @@ failed:
 }
 
 static void
-sock_ctx_uninit(log_output_t *output)
+sock_ctx_uninit(struct log_output *output)
 {
     sock_output_ctx *ctx = NULL;
     if (!output) {
@@ -198,12 +198,12 @@ sock_ctx_uninit(log_output_t *output)
     output->ctx = NULL;
 }
 
-log_output_t *
+struct log_output *
 tcp_output_create(void)
 {
-    log_output_t *output = NULL;
+    struct log_output *output = NULL;
 
-    output = (log_output_t *)calloc(1, sizeof(log_output_t));
+    output = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
         ERROR_LOG("calloc failed(%s)\n", strerror(errno));
         return NULL;
@@ -219,12 +219,12 @@ tcp_output_create(void)
     return output;
 }
 
-log_output_t *
+struct log_output *
 udp_output_create(void)
 {
-    log_output_t *output = NULL;
+    struct log_output *output = NULL;
 
-    output = (log_output_t *)calloc(1, sizeof(log_output_t));
+    output = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
         ERROR_LOG("calloc failed(%s)\n", strerror(errno));
         return NULL;

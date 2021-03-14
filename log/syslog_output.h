@@ -5,7 +5,7 @@
  */
 #ifndef SYSLOG_OUTPUT_H
 #define SYSLOG_OUTPUT_H
-#include "log.h"
+#include "log_priv.h"
 
 typedef struct {
     char *ident;
@@ -14,6 +14,6 @@ typedef struct {
 } syslog_output_ctx;
 
 
-log_output_t *syslog_output_create(void);
+struct log_output *syslog_output_create(void);
 
 #endif

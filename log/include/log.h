@@ -3,8 +3,8 @@
  *
  * Date   : 2021/01/14
  */
-#ifndef LOG_H
-#define LOG_H
+#ifndef __LOG_H__
+#define __LOG_H__
 
 #ifdef __cplusplus
 extern "C" {
@@ -12,21 +12,20 @@ extern "C" {
 
 #include <stdint.h>
 
-typedef enum {
-    LOG_EMERG,              /* 0 */
-    LOG_PANIC = LOG_EMERG,  /* 0 */
-    LOG_ALERT,              /* 1 */
-    LOG_CRIT,               /* 2 */
-    LOG_FATAL = LOG_CRIT,   /* 2 */
-    LOG_ERR,                /* 3 */
-    LOG_ERROR = LOG_ERR,    /* 3 */
-    LOG_WARN,               /* 4 */
-    LOG_WARNING = LOG_WARN, /* 4 */
-    LOG_NOTICE,             /* 5 */
-    LOG_INFO,               /* 6 */
-    LOG_DEBUG,              /* 7 */
-    LOG_VERBOSE,            /* 8 */
-} LOG_LEVEL_E;
+#define LOG_EMERG    0
+#define LOG_ALERT    1
+#define LOG_CRIT     2
+#define LOG_ERR      3
+#define LOG_WARNING  4
+#define LOG_NOTICE   5
+#define LOG_INFO     6
+#define LOG_DEBUG    7
+#define LOG_VERBOSE  8
+
+#define LOG_ERROR LOG_ERR
+#define LOG_FATAL LOG_CRIT
+#define LOG_PANIC LOG_EMERG
+#define LOG_WARN  LOG_WARNING
 
 enum LOG_OUTTYPE {
     LOG_OUTTYPE_STDOUT,
@@ -44,13 +43,13 @@ enum LOG_OUTTYPE {
 typedef struct log_handler log_handler_t;
 typedef struct log_format log_format_t;
 typedef struct log_output log_output_t;
-
+typedef struct log_rule log_rule_t;
 
 log_handler_t *log_handler_create(const char *ident);
 void log_handler_destroy(log_handler_t *handler);
 log_handler_t *log_handler_get(const char *ident);
 int log_handler_set_default(log_handler_t *handler);
-
+log_handler_t *log_handler_get_default(void);
 
 //%d  YYYY-MM-DD HH:MM:SS
 //%d(%Y/%m/%d %H:%M:%S)  YYYY/MM/DD HH:MM:SS
@@ -108,16 +107,17 @@ void log_output_destroy(log_output_t *output);
 // level_en     -1 == LOG_EMERG
 // This will print handler's log to output, use format, when loglevel between
 // level_begin and level_end
-int log_bind(log_handler_t *handler, LOG_LEVEL_E level_beign,
-             LOG_LEVEL_E level_end, log_format_t *format, log_output_t *output);
-int log_unbind(log_handler_t *handler, log_format_t *format,
-               log_output_t *output);
+log_rule_t *log_bind(log_handler_t *handler, int level_beign, int level_end,
+                    log_format_t *format, log_output_t *output);
+int log_unbind(log_handler_t *handler, log_rule_t *rule);
+int log_set_level(log_handler_t *handler, log_rule_t*rule,
+                  int level_begin, int level_end);
 
 
-void mlog_printf(log_handler_t *handler, LOG_LEVEL_E level, const char *file,
+void mlog_printf(log_handler_t *handler, int level, const char *file,
                  const char *function, long line, const char *format, ...);
 
-void log_printf(LOG_LEVEL_E level, const char *file, const char *function,
+void log_printf(int level, const char *file, const char *function,
                 long line, const char *format, ...);
 
 void log_cleanup();
@@ -139,9 +139,9 @@ void log_dump();
 #define MLOGP(handler, fmt...) MLOG_PRINTF(handler, LOG_PANIC, fmt)
 
 
-#define LOG_PRINTF(level, fmt...)                                              \
+#define LOG_PRINTF(level, fmt...)                                       \
     do {                                                                       \
-        log_printf(level, __FILE__, __FUNCTION__, __LINE__, fmt);              \
+        mlog_printf(log_handler_get_default(), level, __FILE__, __FUNCTION__, __LINE__, fmt); \
     } while (0)
 #define LOGV(fmt...) LOG_PRINTF(LOG_VERBOSE, fmt)
 #define LOGD(fmt...) LOG_PRINTF(LOG_DEBUG, fmt)

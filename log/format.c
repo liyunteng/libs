@@ -16,6 +16,7 @@ extern char *LOGLEVELSTR[];
 extern char *COLORSTR[];
 extern char *loglevelstr[];
 
+
 static int
 spec_write_str(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
@@ -452,7 +453,7 @@ failed:
 
 void
 event_update(log_event_t *e, log_handler_t *handler, log_rule_t *rule,
-             LOG_LEVEL_E level, const char *file, const char *func, long line,
+             int level, const char *file, const char *func, long line,
              const char *fmt, va_list ap)
 {
     e->ident     = handler->ident;

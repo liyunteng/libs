@@ -4,9 +4,10 @@
  * Date   : 2021/01/15
  */
 #include "other_outputs.h"
-#include "log_priv.h"
+#include "log.h"
 #include <errno.h>
 #include <string.h>
+#include <unistd.h>
 
 #ifdef ANDROID
 #include <android/log.h>
@@ -14,7 +15,7 @@
 
 
 static void
-dump_output(log_output_t *output)
+dump_output(struct log_output *output)
 {
     if (output) {
         printf("type: %s\n", output->type_name);
@@ -24,7 +25,7 @@ dump_output(log_output_t *output)
 }
 
 static int
-stdout_emit(log_output_t *output, log_handler_t *handler)
+stdout_emit(struct log_output *output, struct log_handler *handler)
 {
     log_buf_t *buf = NULL;
     size_t len;
@@ -48,7 +49,7 @@ stdout_emit(log_output_t *output, log_handler_t *handler)
 }
 
 static int
-stderr_emit(log_output_t *output, log_handler_t *handler)
+stderr_emit(struct log_output *output, struct log_handler *handler)
 {
     log_buf_t *buf = NULL;
     size_t len;
@@ -71,11 +72,11 @@ stderr_emit(log_output_t *output, log_handler_t *handler)
 }
 
 static int
-logcat_emit(log_output_t *output, log_handler_t *handler)
+logcat_emit(struct log_output *output, struct log_handler *handler)
 {
     log_buf_t *buf = NULL;
     size_t len;
-    LOG_LEVEL_E level;
+    int level;
     if (!handler) {
         ERROR_LOG("handler is NULL\n");
         return -1;
@@ -127,12 +128,12 @@ logcat_emit(log_output_t *output, log_handler_t *handler)
 #endif
 }
 
-log_output_t *
+struct log_output *
 stderr_output_create(void)
 {
-    log_output_t *output = NULL;
+    struct log_output *output = NULL;
 
-    output = (log_output_t *)calloc(1, sizeof(log_output_t));
+    output = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
         ERROR_LOG("calloc failed(%s)\n", strerror(errno));
         return NULL;
@@ -146,12 +147,12 @@ stderr_output_create(void)
     return output;
 }
 
-log_output_t *
+struct log_output *
 stdout_output_create(void)
 {
-    log_output_t *output = NULL;
+    struct log_output *output = NULL;
 
-    output = (log_output_t *)calloc(1, sizeof(log_output_t));
+    output = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
         ERROR_LOG("calloc failed(%s)\n", strerror(errno));
         return NULL;
@@ -165,12 +166,12 @@ stdout_output_create(void)
     return output;
 }
 
-log_output_t *
+struct log_output *
 logcat_output_create(void)
 {
-    log_output_t *output = NULL;
+    struct log_output *output = NULL;
 
-    output = (log_output_t *)calloc(1, sizeof(log_output_t));
+    output = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
         ERROR_LOG("calloc failed(%s)\n", strerror(errno));
         return NULL;

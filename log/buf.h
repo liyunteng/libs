@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-typedef struct {
+typedef struct log_buf {
     char *start;
     char *tail;
     char *end;

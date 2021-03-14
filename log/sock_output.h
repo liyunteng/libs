@@ -5,8 +5,7 @@
  */
 #ifndef SOCK_OUTPUT_H
 #define SOCK_OUTPUT_H
-#include "log.h"
-
+#include "log_priv.h"
 #include <stdint.h>
 
 
@@ -16,6 +15,6 @@ typedef struct {
     int sockfd;
 } sock_output_ctx;
 
-log_output_t *tcp_output_create(void);
-log_output_t *udp_output_create(void);
+struct log_output *tcp_output_create(void);
+struct log_output *udp_output_create(void);
 #endif

@@ -14,7 +14,7 @@
 #define LOG_MAX_INT32_VALUE ((uint32_t)0x7fffffff)
 
 void
-buf_destroy(log_buf_t *buf)
+buf_destroy(struct log_buf *buf)
 {
     if (buf->start) {
         free(buf->start);
@@ -22,10 +22,10 @@ buf_destroy(log_buf_t *buf)
     free(buf);
 }
 
-log_buf_t *
+struct log_buf *
 buf_create(size_t size_min, size_t size_max)
 {
-    log_buf_t *buf = NULL;
+    struct log_buf *buf = NULL;
 
     if (size_min == 0) {
         ERROR_LOG("size_min == 0\n");
@@ -37,7 +37,7 @@ buf_create(size_t size_min, size_t size_max)
         return NULL;
     }
 
-    buf = calloc(1, sizeof(log_buf_t));
+    buf = calloc(1, sizeof(struct log_buf));
     if (!buf) {
         ERROR_LOG("calloc failed:(%s)\n", strerror(errno));
         return NULL;
@@ -70,7 +70,7 @@ failed:
 }
 
 static void
-buf_truncate(log_buf_t *buf)
+buf_truncate(struct log_buf *buf)
 {
     char *p;
     size_t len;
@@ -92,7 +92,7 @@ buf_truncate(log_buf_t *buf)
  * increment must > 0
  */
 static int
-buf_resize(log_buf_t *buf, size_t increment)
+buf_resize(struct log_buf *buf, size_t increment)
 {
     int ret         = 0;
     size_t new_size = 0;
@@ -140,7 +140,7 @@ buf_resize(log_buf_t *buf, size_t increment)
 }
 
 int
-buf_vprintf(log_buf_t *buf, const char *fmt, va_list args)
+buf_vprintf(struct log_buf *buf, const char *fmt, va_list args)
 {
     va_list ap;
     size_t size_left;
@@ -195,7 +195,7 @@ buf_vprintf(log_buf_t *buf, const char *fmt, va_list args)
 
 /* if width > num_len, 0 padding, else output num */
 int
-buf_printf_dec32(log_buf_t *buf, uint32_t ui32, int width)
+buf_printf_dec32(struct log_buf *buf, uint32_t ui32, int width)
 {
     unsigned char *p;
     char *q;
@@ -263,7 +263,7 @@ buf_printf_dec32(log_buf_t *buf, uint32_t ui32, int width)
 
 
 int
-buf_printf_dec64(log_buf_t *buf, uint64_t ui64, int width)
+buf_printf_dec64(struct log_buf *buf, uint64_t ui64, int width)
 {
     unsigned char *p;
     char *q;
@@ -355,7 +355,7 @@ buf_printf_dec64(log_buf_t *buf, uint64_t ui64, int width)
 }
 
 int
-buf_printf_hex(log_buf_t *buf, uint32_t ui32, int width)
+buf_printf_hex(struct log_buf *buf, uint32_t ui32, int width)
 {
     unsigned char *p;
     char *q;
@@ -426,7 +426,7 @@ buf_printf_hex(log_buf_t *buf, uint32_t ui32, int width)
 }
 
 int
-buf_append(log_buf_t *buf, const char *str, size_t str_len)
+buf_append(struct log_buf *buf, const char *str, size_t str_len)
 {
     char *p;
 
@@ -467,7 +467,7 @@ buf_append(log_buf_t *buf, const char *str, size_t str_len)
 }
 
 int
-buf_adjust_append(log_buf_t *buf, const char *str, size_t str_len,
+buf_adjust_append(struct log_buf *buf, const char *str, size_t str_len,
                   int left_adjust, int zero_pad, size_t in_width,
                   size_t out_width)
 {

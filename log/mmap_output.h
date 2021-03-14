@@ -32,5 +32,5 @@ typedef struct {
     uint32_t file_current_size;
 } mmap_output_ctx;
 
-log_output_t *mmap_output_create(void);
+struct log_output *mmap_output_create(void);
 #endif

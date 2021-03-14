@@ -5,12 +5,11 @@
  */
 #ifndef OUTPUT_H
 #define OUTPUT_H
-#include "log.h"
-#include <unistd.h>
+#include "log_priv.h"
 
 
-log_output_t *stderr_output_create(void);
-log_output_t *stdout_output_create(void);
-log_output_t *logcat_output_create(void);
+struct log_output *stderr_output_create(void);
+struct log_output *stdout_output_create(void);
+struct log_output *logcat_output_create(void);
 
 #endif

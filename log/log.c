@@ -81,10 +81,10 @@ static struct list_head handler_header = {
     &handler_header,
 };
 
-static log_handler_t *default_log_handler = NULL;
+static struct log_handler *default_log_handler = NULL;
 
 static size_t
-log_format(log_handler_t *handler, log_rule_t *r)
+log_do_format(struct log_handler *handler, struct log_rule *r)
 {
     log_spec_t *s;
     log_event_t *event = NULL;
@@ -114,7 +114,7 @@ log_format(log_handler_t *handler, log_rule_t *r)
 static int
 log_ctl_v(enum LOG_OPTS opt, va_list ap)
 {
-    log_handler_t *handler = va_arg(ap, log_handler_t *);
+    struct log_handler *handler = va_arg(ap, struct log_handler *);
     if (!handler) {
         ERROR_LOG("invalid indent\n");
         return -1;
@@ -159,10 +159,10 @@ log_ctl(enum LOG_OPTS opt, ...)
     return ret;
 }
 
-log_format_t *
+struct log_format *
 log_format_create(const char *fmt)
 {
-    log_format_t *fp = NULL;
+    struct log_format *fp = NULL;
     char *p, *q;
     log_spec_t *s;
 
@@ -171,7 +171,7 @@ log_format_create(const char *fmt)
         return NULL;
     }
 
-    fp = (log_format_t *)calloc(1, sizeof(log_format_t));
+    fp = (struct log_format *)calloc(1, sizeof(struct log_format));
     if (!fp) {
         ERROR_LOG("calloc failed(%s)\n", strerror(errno));
         return NULL;
@@ -196,7 +196,7 @@ log_format_create(const char *fmt)
 }
 
 void
-log_format_destroy(log_format_t *format)
+log_format_destroy(struct log_format *format)
 {
     if (!format) {
         ERROR_LOG("format is NULL\n");
@@ -208,10 +208,10 @@ log_format_destroy(log_format_t *format)
     format = NULL;
 }
 
-static log_output_t *
+static struct log_output *
 log_output_create_v(enum LOG_OUTTYPE type, va_list ap)
 {
-    log_output_t *output = NULL;
+    struct log_output *output = NULL;
 
     switch (type) {
     case LOG_OUTTYPE_STDOUT:
@@ -262,10 +262,10 @@ failed:
     return NULL;
 }
 
-log_output_t *
+struct log_output *
 log_output_create(enum LOG_OUTTYPE type, ...)
 {
-    log_output_t *output = NULL;
+    struct log_output *output = NULL;
     va_list ap;
     va_start(ap, type);
     output = log_output_create_v(type, ap);
@@ -274,7 +274,7 @@ log_output_create(enum LOG_OUTTYPE type, ...)
 }
 
 void
-log_output_destroy(log_output_t *output)
+log_output_destroy(struct log_output *output)
 {
     if (!output) {
         ERROR_LOG("output is NULL\n");
@@ -292,15 +292,15 @@ log_output_destroy(log_output_t *output)
 }
 
 
-log_handler_t *
+struct log_handler *
 log_handler_create(const char *ident)
 {
-    log_handler_t *handler = log_handler_get(ident);
+    struct log_handler *handler = log_handler_get(ident);
     if (handler) {
         return handler;
     }
 
-    handler = (log_handler_t *)calloc(1, sizeof(log_handler_t));
+    handler = (struct log_handler *)calloc(1, sizeof(struct log_handler));
     if (!handler) {
         ERROR_LOG("calloc failed(%s)\n", strerror(errno));
         return NULL;
@@ -331,7 +331,7 @@ failed:
 }
 
 void
-log_handler_destroy(log_handler_t *handler)
+log_handler_destroy(struct log_handler *handler)
 {
     if (!handler) {
         ERROR_LOG("handler is NULL\n");
@@ -356,10 +356,10 @@ log_handler_destroy(log_handler_t *handler)
     }
 }
 
-log_handler_t *
+struct log_handler *
 log_handler_get(const char *ident)
 {
-    log_handler_t *handler = NULL;
+    struct log_handler *handler = NULL;
     list_for_each_entry (handler, &handler_header, handler_entry) {
         if (strcmp(handler->ident, ident) == 0) {
             return handler;
@@ -369,25 +369,61 @@ log_handler_get(const char *ident)
 }
 
 int
-log_handler_set_default(log_handler_t *handler)
+log_handler_set_default(struct log_handler *handler)
 {
     default_log_handler = handler;
     return 0;
 }
 
-int
-log_bind(log_handler_t *handler, LOG_LEVEL_E level_begin, LOG_LEVEL_E level_end,
-         log_format_t *format, log_output_t *output)
+struct log_handler *
+log_handler_get_default(void)
 {
-    if (handler == NULL || format == NULL || output == NULL) {
+    return default_log_handler;
+}
+
+int
+log_set_level(struct log_handler *handler, struct log_rule *rule,
+              int level_begin, int level_end)
+{
+    if (!handler || !rule) {
         ERROR_LOG("invalid argument\n");
         return -1;
     }
+    struct log_rule *r = NULL;
+    list_for_each_entry (r, &handler->rules, rule) {
+        if (r == rule) {
 
-    log_rule_t *r = (log_rule_t *)calloc(1, sizeof(log_rule_t));
+            if (level_begin >= LOG_EMERG && level_begin <= LOG_VERBOSE) {
+                rule->level_begin = level_begin;
+            } else {
+                rule->level_begin = LOG_VERBOSE;
+            }
+
+            if (level_end >= LOG_EMERG && level_end <= LOG_VERBOSE) {
+                rule->level_end = level_end;
+            } else {
+                rule->level_end = LOG_EMERG;
+            }
+
+            return 0;
+        }
+    }
+    return -1;
+}
+
+struct log_rule*
+log_bind(struct log_handler *handler, int level_begin, int level_end,
+         struct log_format *format, struct log_output *output)
+{
+    if (handler == NULL || format == NULL || output == NULL) {
+        ERROR_LOG("invalid argument\n");
+        return NULL;
+    }
+
+    struct log_rule *r = (struct log_rule *)calloc(1, sizeof(struct log_rule));
     if (!r) {
         ERROR_LOG("malloc failed(%s)\n", strerror(errno));
-        return -1;
+        return NULL;
     }
 
     if (level_begin >= LOG_EMERG && level_begin <= LOG_VERBOSE) {
@@ -407,20 +443,20 @@ log_bind(log_handler_t *handler, LOG_LEVEL_E level_begin, LOG_LEVEL_E level_end,
     list_add_tail(&r->rule_entry, &rule_header);
     list_add_tail(&r->rule, &handler->rules);
 
-    return 0;
+    return r;
 }
 
 int
-log_unbind(log_handler_t *handler, log_format_t *format, log_output_t *output)
+log_unbind(struct log_handler *handler, struct log_rule *rule)
 {
-    if (handler == NULL || output == NULL) {
+    if (handler == NULL || rule == NULL) {
         ERROR_LOG("invalid argument\n");
         return -1;
     }
 
     log_rule_t *r;
     list_for_each_entry (r, &(handler->rules), rule) {
-        if (r->output == output && r->format == format) {
+        if (r == rule) {
             list_del(&r->rule);
             list_del(&r->rule_entry);
             free(r);
@@ -429,20 +465,19 @@ log_unbind(log_handler_t *handler, log_format_t *format, log_output_t *output)
         }
     }
 
-    ERROR_LOG("output not found\n");
+    ERROR_LOG("rule not found\n");
     return -1;
 }
 
 static void
-mlog_vprintf(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
+mlog_vprintf(log_handler_t *handler, const int lvl, const char *file,
              const char *func, const long line, const char *fmt, va_list ap)
 {
     uint16_t i;
     int ret;
-    LOG_LEVEL_E level;
-    log_rule_t *r = NULL;
-    int len;
+    int level, len;
 
+    struct log_rule *r = NULL;
     if (handler == NULL) {
         ERROR_LOG("handler is NULL\n");
         return;
@@ -463,7 +498,7 @@ mlog_vprintf(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
 
         event_update(&handler->event, handler, r, level, file, func, line, fmt,
                      ap);
-        len = log_format(handler, r);
+        len = log_do_format(handler, r);
         if (len <= 0) {
             DEBUG_LOG("len: %d\n", len);
             continue;
@@ -481,7 +516,7 @@ mlog_vprintf(log_handler_t *handler, const LOG_LEVEL_E lvl, const char *file,
 }
 
 void
-mlog_printf(log_handler_t *handler, LOG_LEVEL_E level, const char *file,
+mlog_printf(struct log_handler *handler, int level, const char *file,
             const char *function, long line, const char *fmt, ...)
 {
     va_list ap;
@@ -494,7 +529,7 @@ mlog_printf(log_handler_t *handler, LOG_LEVEL_E level, const char *file,
 }
 
 void
-log_printf(LOG_LEVEL_E level, const char *file, const char *function, long line,
+log_printf(int level, const char *file, const char *function, long line,
            const char *fmt, ...)
 {
     va_list ap;
@@ -511,22 +546,22 @@ void
 log_cleanup(void)
 {
 
-    log_handler_t *handler, *htmp;
+    struct log_handler *handler, *htmp;
     list_for_each_entry_safe (handler, htmp, &handler_header, handler_entry) {
         log_handler_destroy(handler);
     }
 
-    log_format_t *format, *ftmp;
+    struct log_format *format, *ftmp;
     list_for_each_entry_safe (format, ftmp, &format_header, format_entry) {
         log_format_destroy(format);
     }
 
-    log_output_t *output, *otmp;
+    struct log_output *output, *otmp;
     list_for_each_entry_safe (output, otmp, &output_header, output_entry) {
         log_output_destroy(output);
     }
 
-    log_rule_t *rule, *rtmp;
+    struct log_rule *rule, *rtmp;
     list_for_each_entry_safe (rule, rtmp, &rule_header, rule_entry) {
         list_del(&rule->rule_entry);
         free(rule);
@@ -534,7 +569,7 @@ log_cleanup(void)
 }
 
 void
-dump_statstic(log_output_t *output)
+dump_statstic(struct log_output *output)
 {
     int i;
     if (output) {
@@ -556,22 +591,22 @@ log_dump(void)
     int j          = 0;
     int rule_count = 0, format_count = 0, output_count = 0, handler_count = 0;
     printf("=====================log profile==============================\n");
-    log_rule_t *rule;
+    struct log_rule *rule;
     list_for_each_entry (rule, &rule_header, rule_entry) {
         rule_count++;
     }
 
-    log_format_t *format;
+    struct log_format *format;
     list_for_each_entry (format, &format_header, format_entry) {
         format_count++;
     }
 
-    log_output_t *output;
+    struct log_output *output;
     list_for_each_entry (output, &output_header, output_entry) {
         output_count++;
     }
 
-    log_handler_t *handler;
+    struct log_handler *handler;
     list_for_each_entry (handler, &handler_header, handler_entry) {
         handler_count++;
     }

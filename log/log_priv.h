@@ -43,10 +43,10 @@ struct log_format {
     struct list_head callbacks;
 };
 
-typedef int (*log_output_ctx_init_fn)(log_output_t *output, va_list ap);
-typedef void (*log_output_ctx_uninit_fn)(log_output_t *output);
-typedef int (*log_output_emit_fn)(log_output_t *output, log_handler_t *handler);
-typedef void (*log_output_dump_fn)(log_output_t *output);
+typedef int (*log_output_ctx_init_fn)(struct log_output *output, va_list ap);
+typedef void (*log_output_ctx_uninit_fn)(struct log_output *output);
+typedef int (*log_output_emit_fn)(struct log_output *output, struct log_handler *handler);
+typedef void (*log_output_dump_fn)(struct log_output *output);
 struct log_output {
     enum LOG_OUTTYPE type;
     char *type_name;
@@ -66,20 +66,20 @@ struct log_output {
     log_output_dump_fn dump;
 };
 
-typedef struct {
-    LOG_LEVEL_E level_begin;
-    LOG_LEVEL_E level_end;
-    log_output_t *output;
-    log_format_t *format;
+struct log_rule {
+    int level_begin;
+    int level_end;
+    struct log_output *output;
+    struct log_format *format;
     struct list_head rule_entry;
     struct list_head rule;
-} log_rule_t;
+};
 
-typedef struct {
+typedef struct log_event {
     char *ident;
     size_t ident_len;
 
-    LOG_LEVEL_E level;
+    int level;
 
     const char *file;
     size_t file_len;
@@ -108,20 +108,20 @@ typedef struct {
     char hostname[256];
     size_t hostname_len;
 
-    log_buf_t *msg_buf;
-    log_buf_t *pre_msg_buf;
+    struct log_buf *msg_buf;
+    struct log_buf *pre_msg_buf;
 } log_event_t;
 
 struct log_handler {
     pthread_mutex_t mutex;
     char ident[128];
 
-    log_event_t event;
+    struct log_event event;
 
     struct list_head rules;  // rules
     struct list_head handler_entry;
 };
 
 
-void dump_statstic(log_output_t *output);
+void dump_statstic(struct log_output *output);
 #endif

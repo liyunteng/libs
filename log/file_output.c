@@ -5,7 +5,7 @@
  */
 #include "file_output.h"
 #include "buf.h"
-#include "log_priv.h"
+#include "log.h"
 #include <errno.h>
 #include <string.h>
 
@@ -15,12 +15,22 @@
 #define DEFAULT_FILESIZE 4 * 1024 * 1024
 
 
+typedef struct {
+    char *file_path;
+    char *log_name;
+    uint16_t num_files;
+    uint32_t file_size;
+    uint16_t file_idx;
+    uint32_t data_offset;
+    FILE *fp;
+} file_output_ctx;
+
 /* pointer to environment */
 extern char **environ;
 
 /* dump the environment */
 static void
-dump_environment(log_output_t *output)
+dump_environment(struct log_output *output)
 {
     static char buf[BUFSIZ];
     int cnt              = 0;
@@ -53,7 +63,7 @@ dump_environment(log_output_t *output)
 
 
 static int
-file_getname(log_output_t *output, char *file_name, uint16_t len)
+file_getname(struct log_output *output, char *file_name, uint16_t len)
 {
     file_output_ctx *ctx = (file_output_ctx *)output->ctx;
     snprintf(file_name, len, "%s/%s.log", ctx->file_path, ctx->log_name);
@@ -61,7 +71,7 @@ file_getname(log_output_t *output, char *file_name, uint16_t len)
 }
 
 static int
-file_open_logfile(log_output_t *output)
+file_open_logfile(struct log_output *output)
 {
     char *file_name;
     uint32_t len;
@@ -100,7 +110,7 @@ file_open_logfile(log_output_t *output)
 }
 
 static int
-file_rename_logfile(log_output_t *output)
+file_rename_logfile(struct log_output *output)
 {
     uint32_t num, num_files, len;
     char *old_file_name, *new_file_name;
@@ -142,7 +152,7 @@ file_rename_logfile(log_output_t *output)
 }
 
 static int
-file_emit(log_output_t *output, log_handler_t *handler)
+file_emit(struct log_output *output, struct log_handler *handler)
 {
     int ret;
     file_output_ctx *ctx = NULL;
@@ -227,7 +237,7 @@ file_emit(log_output_t *output, log_handler_t *handler)
 }
 
 static void
-file_ctx_dump(log_output_t *output)
+file_ctx_dump(struct log_output *output)
 {
     if (output) {
         printf("type: %s\n", output->type_name);
@@ -245,7 +255,7 @@ file_ctx_dump(log_output_t *output)
 }
 
 static void
-file_ctx_uninit(log_output_t *output)
+file_ctx_uninit(struct log_output *output)
 {
     file_output_ctx *ctx = NULL;
     if (!output) {
@@ -275,7 +285,7 @@ file_ctx_uninit(log_output_t *output)
 }
 
 static int
-file_ctx_init(log_output_t *output, va_list ap)
+file_ctx_init(struct log_output *output, va_list ap)
 {
     file_output_ctx *ctx = NULL;
     if (!output) {
@@ -339,11 +349,11 @@ failed:
 }
 
 
-log_output_t *
+struct log_output *
 file_output_create(void)
 {
-    log_output_t *output = NULL;
-    output               = (log_output_t *)calloc(1, sizeof(log_output_t));
+    struct log_output *output = NULL;
+    output               = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
         ERROR_LOG("calloc failed(%s)\n", strerror(errno));
         return NULL;

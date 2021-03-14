@@ -4,6 +4,7 @@
  * Date   : 2021/01/18
  */
 #include "mmap_output.h"
+#include "log.h"
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -21,7 +22,7 @@
 #define DEFAULT_MSYNC_INTERVAL 1 * 1000
 
 inline static int
-file_getname(log_output_t *output, char *file_name, uint16_t len)
+file_getname(struct log_output *output, char *file_name, uint16_t len)
 {
     mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
     snprintf(file_name, len, "%s/%s.log", ctx->file_path, ctx->log_name);
@@ -37,7 +38,7 @@ mmap_get_ms(void)
 }
 
 inline static int
-mmap_msync_file(log_output_t *output)
+mmap_msync_file(struct log_output *output)
 {
     uint32_t cur;
     mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
@@ -87,7 +88,7 @@ mmap_msync_file(log_output_t *output)
 }
 
 static int
-mmap_unmap_file(log_output_t *output)
+mmap_unmap_file(struct log_output *output)
 {
     mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
 
@@ -105,7 +106,7 @@ mmap_unmap_file(log_output_t *output)
 }
 
 static int
-mmap_map_file(log_output_t *output)
+mmap_map_file(struct log_output *output)
 {
     size_t mmap_window_size;
     int page_size;
@@ -156,7 +157,7 @@ mmap_map_file(log_output_t *output)
 }
 
 static int
-file_open_logfile(log_output_t *output)
+file_open_logfile(struct log_output *output)
 {
     char *file_name;
     uint32_t len;
@@ -200,7 +201,7 @@ file_open_logfile(log_output_t *output)
 }
 
 static int
-file_rename_logfile(log_output_t *output)
+file_rename_logfile(struct log_output *output)
 {
     uint32_t num, num_files, len;
     char *old_file_name, *new_file_name;
@@ -243,7 +244,7 @@ file_rename_logfile(log_output_t *output)
 }
 
 static int
-mmap_emit(log_output_t *output, log_handler_t *handler)
+mmap_emit(struct log_output *output, struct log_handler *handler)
 {
     int ret;
     mmap_output_ctx *ctx = NULL;
@@ -347,7 +348,7 @@ mmap_emit(log_output_t *output, log_handler_t *handler)
 }
 
 static void
-mmap_ctx_dump(log_output_t *output)
+mmap_ctx_dump(struct log_output *output)
 {
     if (output) {
         printf("type: %s\n", output->type_name);
@@ -372,7 +373,7 @@ mmap_ctx_dump(log_output_t *output)
 }
 
 static void
-mmap_ctx_uninit(log_output_t *output)
+mmap_ctx_uninit(struct log_output *output)
 {
     mmap_output_ctx *ctx = NULL;
     if (!output) {
@@ -405,7 +406,7 @@ mmap_ctx_uninit(log_output_t *output)
 }
 
 static int
-mmap_ctx_init(log_output_t *output, va_list ap)
+mmap_ctx_init(struct log_output *output, va_list ap)
 {
     mmap_output_ctx *ctx = NULL;
     if (!output) {
@@ -483,11 +484,11 @@ failed:
     return -1;
 }
 
-log_output_t *
+struct log_output *
 mmap_output_create(void)
 {
-    log_output_t *output = NULL;
-    output               = (log_output_t *)calloc(1, sizeof(log_output_t));
+    struct log_output *output = NULL;
+    output               = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
         ERROR_LOG("calloc failed(%s)\n", strerror(errno));
         return NULL;

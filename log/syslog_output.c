@@ -4,7 +4,7 @@
  * Date   : 2021/01/17
  */
 #include "syslog_output.h"
-#include "log_priv.h"
+#include "log.h"
 
 #include <errno.h>
 #include <string.h>
@@ -14,7 +14,7 @@
 
 
 static void
-syslog_ctx_dump(log_output_t *output)
+syslog_ctx_dump(struct log_output *output)
 {
     if (output) {
         printf("type: %s\n", output->type_name);
@@ -29,7 +29,7 @@ syslog_ctx_dump(log_output_t *output)
 }
 
 static int
-syslog_ctx_init(log_output_t *output, va_list ap)
+syslog_ctx_init(struct log_output *output, va_list ap)
 {
     syslog_output_ctx *ctx = NULL;
     if (!output) {
@@ -65,7 +65,7 @@ syslog_ctx_init(log_output_t *output, va_list ap)
 }
 
 static void
-syslog_ctx_uninit(log_output_t *output)
+syslog_ctx_uninit(struct log_output *output)
 {
     syslog_output_ctx *ctx = NULL;
     if (!output) {
@@ -87,11 +87,11 @@ syslog_ctx_uninit(log_output_t *output)
 }
 
 static int
-syslog_emit(log_output_t *output, log_handler_t *handler)
+syslog_emit(struct log_output *output, struct log_handler *handler)
 {
     log_buf_t *buf = NULL;
     size_t len;
-    LOG_LEVEL_E level;
+    int level;
     if (!handler) {
         ERROR_LOG("handler is NULL\n");
         return -1;
@@ -115,12 +115,12 @@ syslog_emit(log_output_t *output, log_handler_t *handler)
     return len;
 }
 
-log_output_t *
+struct log_output *
 syslog_output_create(void)
 {
-    log_output_t *output = NULL;
+    struct log_output *output = NULL;
 
-    output = (log_output_t *)calloc(1, sizeof(log_output_t));
+    output = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
         ERROR_LOG("calloc failed(%s)\n", strerror(errno));
         return NULL;

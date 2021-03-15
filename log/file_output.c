@@ -10,23 +10,6 @@
 #include <string.h>
 #include <sys/stat.h>
 
-
-#define DEFAULT_FILEPATH "."
-#define DEFAULT_FILENAME "test"
-#define DEFAULT_BAKUP 0
-#define DEFAULT_FILESIZE 4 * 1024 * 1024
-
-
-typedef struct {
-    char *file_path;
-    char *log_name;
-    uint16_t num_files;
-    uint32_t file_size;
-    uint16_t file_idx;
-    uint32_t data_offset;
-    FILE *fp;
-} file_output_ctx;
-
 /* pointer to environment */
 extern char **environ;
 
@@ -73,44 +56,76 @@ file_getname(struct log_output *output, char *file_name, uint16_t len)
 }
 
 static int
-file_rename_logfile(struct log_output *output)
+file_rotate(struct log_output *output)
 {
     uint32_t num, num_files, len;
     char *old_file_name, *new_file_name;
+    struct stat st;
+    uint32_t bak_file_num;
+    int i = 0;
     file_output_ctx *ctx = (file_output_ctx *)output->ctx;
 
-    if (ctx->num_files > 0) {
-        for (num = 0, num_files = ctx->num_files; num_files; num_files /= 10) {
-            ++num;
-        }
+    // don't rotate
+    if (ctx->num_files == 0) {
+        return 0;
+    }
 
-        len = strlen(ctx->file_path);
-        len += 1; /* "/" */
+    for (num = 0, num_files = ctx->num_files; num_files; num_files /= 10) {
+        ++num;
+    }
 
-        len += strlen(ctx->log_name);
-        len += 4;         /* ".log" */
-        len += (num + 1); /* ".<digit>" */
-        len += 1;         /* NULL char */
+    len = strlen(ctx->file_path);
+    len += 1; /* "/" */
 
-        old_file_name = malloc(len * sizeof(char));
-        new_file_name = malloc(len * sizeof(char));
-        if (!old_file_name || !new_file_name) {
-            ERROR_LOG("malloc failed: (%s)\n", strerror(errno));
-            free(old_file_name);
-            free(new_file_name);
-            return -1;
-        }
+    len += strlen(ctx->log_name);
+    len += 4;         /* ".log" */
+    len += (num + 1); /* ".<digit>" */
+    len += 1;         /* NULL char */
 
-        file_getname(output, old_file_name, len);
-        snprintf(new_file_name, len, "%s.%u", old_file_name,
-                 (ctx->file_idx % ctx->num_files));
-        rename(old_file_name, new_file_name);
-
-        ++ctx->file_idx;
-        DEBUG_LOG("rename %s ==> %s\n", old_file_name, new_file_name);
+    old_file_name = malloc(len * sizeof(char));
+    new_file_name = malloc(len * sizeof(char));
+    if (!old_file_name || !new_file_name) {
+        ERROR_LOG("malloc failed: (%s)\n", strerror(errno));
         free(old_file_name);
         free(new_file_name);
+        return -1;
     }
+
+    bak_file_num = 0;
+    for (i = 0; i < ctx->num_files; i++) {
+        snprintf(old_file_name, len, "%s/%s.log.%u", ctx->file_path,
+                 ctx->log_name, i);
+        if (lstat(old_file_name, &st) < 0) {
+            if (errno == ENOENT) {
+                break;
+            }
+        }
+        bak_file_num++;
+    }
+
+    for (i = bak_file_num; i >= 0; i--) {
+        if (i == ctx->num_files) {
+            continue;
+        }
+
+        if (i == 0) {
+            snprintf(old_file_name, len, "%s/%s.log", ctx->file_path,
+                     ctx->log_name);
+        } else {
+            snprintf(old_file_name, len, "%s/%s.log.%u", ctx->file_path,
+                     ctx->log_name, (i - 1));
+        }
+
+        snprintf(new_file_name, len, "%s/%s.log.%u", ctx->file_path,
+                 ctx->log_name, i);
+        rename(old_file_name, new_file_name);
+        DEBUG_LOG("rename %s ==> %s\n", old_file_name, new_file_name);
+    }
+
+    ++ctx->file_idx;
+    free(old_file_name);
+    free(new_file_name);
+
     return 0;
 }
 
@@ -119,8 +134,8 @@ file_open_logfile(struct log_output *output)
 {
     char *file_name;
     uint32_t len;
-    int retry = 0;
     struct stat st;
+    int need_create_dir = 0;
 
     file_output_ctx *ctx = (file_output_ctx *)output->ctx;
 
@@ -128,6 +143,30 @@ file_open_logfile(struct log_output *output)
         fclose(ctx->fp);
         ctx->fp = NULL;
     }
+
+    if (lstat(ctx->file_path, &st) < 0) {
+        if (errno != ENOENT) {
+            ERROR_LOG("lstat %s failed: (%s)\n", ctx->file_path,
+                      strerror(errno));
+            goto failed;
+        }
+        need_create_dir = 1;
+    } else {
+        if ((st.st_mode & S_IFMT) != S_IFDIR) {
+            ERROR_LOG("%s is not directory\n", ctx->file_path);
+            goto failed;
+        }
+    }
+
+    if (need_create_dir) {
+        if (mkdir(ctx->file_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) < 0) {
+            ERROR_LOG("mkdir %s failed: (%s)\n", ctx->file_path,
+                      strerror(errno));
+            goto failed;
+        }
+        DEBUG_LOG("mkdir %s\n", ctx->file_path);
+    }
+
     len = strlen(ctx->file_path);
     len += 1; /* "/" */
     len += strlen(ctx->log_name);
@@ -142,32 +181,51 @@ file_open_logfile(struct log_output *output)
 
     file_getname(output, file_name, len);
 
-    while (retry < 2) {
-        if ((ctx->fp = fopen(file_name, "a+")) == NULL) {
-            ERROR_LOG("fopen %s failed: (%s)\n", file_name, strerror(errno));
-            goto failed;
-        }
-        if (fstat(fileno(ctx->fp), &st) < 0) {
-            ERROR_LOG("fstat %s failed: (%s)\n", file_name, strerror(errno));
-            ctx->data_offset = 0;
-        } else {
-            ctx->data_offset = st.st_size;
-        }
-
-        if (ctx->file_size <= st.st_size) {
-            if (file_rename_logfile(output) < 0) {
+    if (lstat(file_name, &st) < 0) {
+        if (errno == ENOENT) {
+            // create new file
+            if ((ctx->fp = fopen(file_name, "w")) == NULL) {
+                ERROR_LOG("fopen %s failed: (%s)\n", file_name,
+                          strerror(errno));
                 goto failed;
             }
-            retry ++;
-            continue;
+            DEBUG_LOG("open file(create) %s\n", file_name);
+            ctx->data_offset = 0;
+        } else {
+            ERROR_LOG("lstat %s failed: (%s)\n", file_name, strerror(errno));
+            goto failed;
         }
-        break;
-    }
+    } else {
+        // file exits
 
-    if (retry == 2) {
-        ERROR_LOG("file_size(%u) file_current_size(%lld)\n",
-                  ctx->file_size, st.st_size);
-        goto failed;
+        // rotate
+        if (ctx->file_size > 0 && ctx->num_files > 0) {
+            if (file_rotate(output) < 0) {
+                ERROR_LOG("rename %s failed\n", file_name);
+                goto failed;
+            }
+            DEBUG_LOG("create file %s\n", file_name);
+            st.st_size = 0;
+        }
+
+        if (ctx->file_size > 0 && ctx->file_size <= st.st_size) {
+            // truncated
+            if ((ctx->fp = fopen(file_name, "w")) == NULL) {
+                ERROR_LOG("fopen %s failed: (%s)\n", file_name,
+                          strerror(errno));
+                goto failed;
+            }
+            DEBUG_LOG("open file(truncated) %s\n", file_name);
+            ctx->data_offset = 0;
+        } else {
+            // append
+            if ((ctx->fp = fopen(file_name, "a+")) == NULL) {
+                ERROR_LOG("fopen %s(append) failed: (%s)\n", file_name,
+                          strerror(errno));
+                goto failed;
+            }
+            ctx->data_offset = st.st_size;
+        }
     }
 
     free(file_name);
@@ -224,8 +282,12 @@ file_emit(struct log_output *output, struct log_handler *handler)
     }
 
     len      = buf_len(buf);
-    int left = ctx->file_size - ctx->data_offset;
-    if (left > len) {
+    int left = 0;
+    if (ctx->file_size > 0) {
+        left = ctx->file_size - ctx->data_offset;
+    }
+
+    if ((ctx->file_size > 0 && left > len) || ctx->file_size == 0) {
         if (fwrite(buf->start, len, 1, ctx->fp) != 1) {
             ERROR_LOG("fwrite failed: (%s) len:%lu\n", strerror(errno), len);
             return -1;
@@ -259,7 +321,6 @@ file_emit(struct log_output *output, struct log_handler *handler)
             break;
         }
 
-        file_rename_logfile(output);
         ret = file_open_logfile(output);
         if (ret != 0) {
             ERROR_LOG("open logfile failed\n");
@@ -337,32 +398,20 @@ file_ctx_init(struct log_output *output, va_list ap)
     ctx = (file_output_ctx *)output->ctx;
 
     char *file_path = va_arg(ap, char *);
-    if (file_path && strlen(file_path) > 0) {
-        ctx->file_path = strdup(file_path);
-    } else {
-        ctx->file_path = strdup(DEFAULT_FILEPATH);
-    }
+    ctx->file_path  = strdup(file_path);
+    DEBUG_LOG("ctx->file_path: %s\n", ctx->file_path);
 
     char *file_name = va_arg(ap, char *);
-    if (file_name && strlen(file_name) > 0) {
-        ctx->log_name = strdup(file_name);
-    } else {
-        ctx->log_name = strdup(DEFAULT_FILENAME);
-    }
+    ctx->log_name   = strdup(file_name);
+    DEBUG_LOG("ctx->log_name: %s\n", ctx->log_name);
 
     unsigned long file_size = va_arg(ap, unsigned long);
-    if (file_size > 0) {
-        ctx->file_size = file_size;
-    } else {
-        ctx->file_size = DEFAULT_FILESIZE;
-    }
+    ctx->file_size          = file_size;
+    DEBUG_LOG("ctx->file_size: %u\n", ctx->file_size);
 
-    int num_files = va_arg(ap, int);
-    if (num_files >= 0) {
-        ctx->num_files = num_files;
-    } else {
-        ctx->num_files = DEFAULT_BAKUP;
-    }
+    int num_files  = va_arg(ap, int);
+    ctx->num_files = num_files;
+    DEBUG_LOG("ctx->num_files: %d\n", ctx->num_files);
 
     ctx->fp       = NULL;
     ctx->file_idx = 0;
@@ -387,7 +436,7 @@ struct log_output *
 file_output_create(void)
 {
     struct log_output *output = NULL;
-    output               = (struct log_output *)calloc(1, sizeof(struct log_output));
+    output = (struct log_output *)calloc(1, sizeof(struct log_output));
     if (!output) {
         ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
         return NULL;

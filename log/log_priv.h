@@ -26,8 +26,8 @@
 #endif
 
 #define DEBUG_LOG(fmt, ...)
-/* #define DEBUG_LOG(fmt, ...) \ fprintf(stdout, "%s:%d " fmt, __FILE__,
- * __LINE__, ##__VA_ARGS__) */
+// #define DEBUG_LOG(fmt, ...)                                           \
+//    fprintf(stdout, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 #define ERROR_LOG(fmt, ...)                                                    \
     fprintf(stderr, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 
@@ -45,7 +45,8 @@ struct log_format {
 
 typedef int (*log_output_ctx_init_fn)(struct log_output *output, va_list ap);
 typedef void (*log_output_ctx_uninit_fn)(struct log_output *output);
-typedef int (*log_output_emit_fn)(struct log_output *output, struct log_handler *handler);
+typedef int (*log_output_emit_fn)(struct log_output *output,
+                                  struct log_handler *handler);
 typedef void (*log_output_dump_fn)(struct log_output *output);
 struct log_output {
     enum LOG_OUTTYPE type;

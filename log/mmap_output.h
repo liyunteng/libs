@@ -14,10 +14,10 @@ typedef struct {
     uint16_t num_files;
     uint32_t file_size;
     uint16_t file_idx;
+    uint32_t data_offset; /* data offset to file */
 
     uint32_t map_size;
     uint32_t msync_interval;
-
     struct {
         void *addr;
         uint32_t offset;      /* addr offset to file  */
@@ -28,7 +28,6 @@ typedef struct {
     } mmap_window;
 
     int fd;
-    uint32_t data_offset; /* data offset to file */
     uint32_t file_current_size;
 } mmap_output_ctx;
 

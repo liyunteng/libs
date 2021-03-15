@@ -17,16 +17,22 @@ const char *module_name = "abc";
 void
 test_simple()
 {
-    /* log_simple_init("ihi", LOG_VERBOSE); */
-
     int i;
+    log_simple_init("ihi", LOG_VERBOSE);
+
+#if 0
     log_format_t *format = log_format_create("%d.%ms [%5.5V] %m%n");
+#if 1
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_MMAP, ".", "ihi", 4 *1024 * 1024, 4,
+        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 4 *1024*1024, 0,
                           4 * 1024, 1000);
+#else
+    log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", 4*1024*1024, 4);
+#endif
     log_handler_t *handler = log_handler_create("ihi");
     log_bind(handler, -1, -1, format, output);
     log_handler_set_default(handler);
+#endif
 
     char buf[1024 - 32] = { 0 };
     memset(buf, 'a', 1024-33);
@@ -58,7 +64,7 @@ test_simple()
      * LOGP("this is panic"); */
 
     log_dump();
-    //log_simple_uninit();
+    log_simple_uninit();
 }
 
 void
@@ -66,14 +72,14 @@ test_mlog()
 {
     log_handler_t *h1      = log_handler_create("handler1");
     log_format_t *format1  = log_format_create("%d %p %c %C%V%R %F:%U:%L %m%n");
-    log_output_t *fileout1 = log_output_create(LOG_OUTTYPE_FILE, ".",
+    log_output_t *fileout1 = log_output_create(LOG_OUTTYPE_FILE, "logs",
                                                "handler1", 1024 * 1024 * 4, 4);
     log_rule_t *r1 = log_bind(h1, -1, -1, format1, fileout1);
 
     log_handler_t *h2      = log_handler_create("handler2");
     log_format_t *format2  = log_format_create("%d.%ms [%V] %m%n");
     log_output_t *std_out  = log_output_create(LOG_OUTTYPE_STDOUT);
-    log_output_t *fileout2 = log_output_create(LOG_OUTTYPE_FILE, ".",
+    log_output_t *fileout2 = log_output_create(LOG_OUTTYPE_FILE, "logs",
                                                "handler2", 1024 * 1024 * 4, 4);
     log_rule_t *r2 = log_bind(h2, -1, -1, format2, fileout2);
 
@@ -142,10 +148,10 @@ test_log_thread()
     log_format_t *f  = log_format_create("%d.%ms %c:%T [%-5.5V] %m%n");
 #if 0
     log_output_t *o =
-        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
+        log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", 1024 * 1024 * 4, 4);
 #else
     log_output_t *o =
-        log_output_create(LOG_OUTTYPE_MMAP, ".", "ihi", 1024 * 1024 * 4, 4,
+        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 1024 * 1024 * 4, 4,
                           4 * 1024 * 1024, 1000);
 #endif
 
@@ -170,7 +176,7 @@ test_mlog_benchmark()
     log_handler_t *h2     = log_handler_create("h2");
     log_handler_t *h3     = log_handler_create("h3");
     log_format_t *format  = log_format_create("%d %p %c %V %F:%U:%L %m%n");
-    log_output_t *fileout = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi",
+    log_output_t *fileout = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
                                               1024 * 1024 * 1000, 10, 4);
 
     log_bind(h1, -1, -1, format, fileout);
@@ -207,12 +213,13 @@ test_log_benchmark()
 {
     /* log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n"); */
     log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
+#if 1
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_MMAP, ".", "ihi", 1024 * 1024 * 1024, 4,
+        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 1024 * 1024 * 1024, 4,
                           4 * 1024 * 1024, 1000);
-#if 0
-    log_output_t *output  = log_output_create(LOG_OUTTYPE_FILE, ".", "ihi",
-                                              1024 * 1024 * 1024, 100);
+#else
+    log_output_t *output  = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
+                                              1024 * 1024 * 1024, 4);
 #endif
     log_handler_t *handler = log_handler_create("ihi");
     log_bind(handler, -1, -1, format, output);
@@ -254,12 +261,13 @@ test_log_big_benchmark()
 {
     log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
 
+#if 1
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_MMAP, ".", "ihi", 1024 * 1024 * 1024, 4,
+        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 1024 * 1024 * 1024, 4,
                           4 * 1024 * 1024, 1 * 1000);
-#if 0
+#else
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 1024, 4);
+        log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", 1024 * 1024 * 1024, 4);
 #endif
     log_handler_t *handler = log_handler_create("ihi");
     log_bind(handler, -1, -1, format, output);
@@ -289,10 +297,10 @@ test_multi_output()
     log_format_t *format1 = log_format_create("%m%n");
     log_format_t *format2 = log_format_create("%m");
     log_output_t *file1 =
-        log_output_create(LOG_OUTTYPE_MMAP, ".", "ihi", 8 * 1024 * 1024, 50,
+        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 8 * 1024 * 1024, 50,
                           4 * 1024, 100);
     log_output_t *file2 =
-        log_output_create(LOG_OUTTYPE_FILE, ".", "test", 8 * 1024 * 1024, 50);
+        log_output_create(LOG_OUTTYPE_FILE, "logs", "test", 8 * 1024 * 1024, 50);
     log_output_t *sout = log_output_create(LOG_OUTTYPE_STDOUT);
     log_output_t *serr = log_output_create(LOG_OUTTYPE_STDERR);
 
@@ -340,7 +348,7 @@ test_format()
         "%d(%y/%m/%d %H:%M:%S).%ms us(%us) %E(LOGNAME)@%H %c %p:tid<%t>:%T "
         "[%-5.5V]%C[%-5.5v]%R %.10F:%.5U:%L %m%n");
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 4, 4);
+        log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", 1024 * 1024 * 4, 4);
     log_handler_t *handler = log_handler_create("default");
     if (!format) {
         printf("format create failed\n");
@@ -393,8 +401,14 @@ test_big_buf()
     int i;
 
     log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
+#if 0
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_FILE, ".", "ihi", 1024 * 1024 * 3, 5);
+        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 3 * 1024 * 1024, 5,
+                          4 * 1024, 100);
+#else
+    log_output_t *output =
+        log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", 1024 * 1024 * 3, 5);
+#endif
     log_handler_t *handler = log_handler_create("ihi");
     if (!format) {
         printf("format create failed\n");

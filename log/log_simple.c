@@ -8,7 +8,7 @@
 
 #define DEFAULT_LOG_FILE_SIZE 4 * 1024 * 1024
 #define DEFAULT_LOG_BAKUP_NUM 4
-#define DEFAULT_LOG_DIR "."
+#define DEFAULT_LOG_DIR "logs"
 
 typedef struct {
     log_format_t *fmt;

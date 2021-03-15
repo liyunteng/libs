@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
+#include <sys/fcntl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -130,7 +131,7 @@ mmap_map_file(struct log_output *output)
     page_size        = getpagesize();
     mmap_window_size = (ctx->map_size + page_size - 1) & (~(page_size - 1));
 
-    if (mmap_window_size > ctx->file_size - ctx->data_offset) {
+    if (ctx->file_size > 0 && mmap_window_size > ctx->file_size - ctx->data_offset) {
         mmap_window_size = (ctx->file_size - ctx->data_offset + page_size - 1)
                            & (~(page_size - 1));
     }
@@ -159,45 +160,77 @@ mmap_map_file(struct log_output *output)
 }
 
 static int
-file_rename_logfile(struct log_output *output)
+file_rotate(struct log_output *output)
 {
     uint32_t num, num_files, len;
     char *old_file_name, *new_file_name;
-
+    struct stat st;
+    uint32_t bak_file_num = 0;
+    int i = 0;
     mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
 
-    if (ctx->num_files > 0) {
-        for (num = 0, num_files = ctx->num_files; num_files; num_files /= 10) {
-            ++num;
-        }
+    // don't rotate
+    if (ctx->num_files == 0) {
+        return 0;
+    }
 
-        len = strlen(ctx->file_path);
-        len += 1; /* "/" */
+    for (num = 0, num_files = ctx->num_files; num_files; num_files /= 10) {
+        ++num;
+    }
 
-        len += strlen(ctx->log_name);
-        len += 4;         /* ".log" */
-        len += (num + 1); /* ".<digit>" */
-        len += 1;         /* NULL char */
+    len = strlen(ctx->file_path);
+    len += 1; /* "/" */
 
-        old_file_name = malloc(len * sizeof(char));
-        new_file_name = malloc(len * sizeof(char));
-        if (!old_file_name || !new_file_name) {
-            ERROR_LOG("malloc failed: (%s)\n", strerror(errno));
-            free(old_file_name);
-            free(new_file_name);
-            return -1;
-        }
+    len += strlen(ctx->log_name);
+    len += 4;         /* ".log" */
+    len += (num + 1); /* ".<digit>" */
+    len += 1;         /* NULL char */
 
-        file_getname(output, old_file_name, len);
-        snprintf(new_file_name, len, "%s.%u", old_file_name,
-                 (ctx->file_idx % ctx->num_files));
-        rename(old_file_name, new_file_name);
-
-        ++ctx->file_idx;
-        DEBUG_LOG("rename %s ==> %s\n", old_file_name, new_file_name);
+    old_file_name = malloc(len * sizeof(char));
+    new_file_name = malloc(len * sizeof(char));
+    if (!old_file_name || !new_file_name) {
+        ERROR_LOG("malloc failed: (%s)\n", strerror(errno));
         free(old_file_name);
         free(new_file_name);
+        return -1;
     }
+
+    bak_file_num = 0;
+    for (i = 0; i < ctx->num_files; i++) {
+        snprintf(old_file_name, len, "%s/%s.log.%u", ctx->file_path,
+                 ctx->log_name, i);
+        if (lstat(old_file_name, &st) < 0) {
+            if (errno == ENOENT) {
+                break;
+            }
+        }
+        bak_file_num++;
+    }
+
+
+    for (i = bak_file_num; i >= 0; i--) {
+        if (i == ctx->num_files) {
+            continue;
+        }
+
+        if (i == 0) {
+            snprintf(old_file_name, len, "%s/%s.log", ctx->file_path,
+                     ctx->log_name);
+        } else {
+            snprintf(old_file_name, len, "%s/%s.log.%u", ctx->file_path,
+                     ctx->log_name, (i - 1));
+        }
+
+        snprintf(new_file_name, len, "%s/%s.log.%u", ctx->file_path,
+                 ctx->log_name, i);
+        rename(old_file_name, new_file_name);
+        DEBUG_LOG("rename %s ==> %s\n", old_file_name, new_file_name);
+    }
+
+    ++ctx->file_idx;
+    free(old_file_name);
+    free(new_file_name);
+
     return 0;
 }
 
@@ -206,14 +239,38 @@ file_open_logfile(struct log_output *output)
 {
     char *file_name;
     uint32_t len;
-    int retry            = 0;
-    mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
     struct stat st;
+    int need_create_dir = 0;
+
+    mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
 
     if (ctx->fd != -1) {
         mmap_unmap_file(output);
         close(ctx->fd);
         ctx->fd = -1;
+    }
+
+    if (lstat(ctx->file_path, &st) < 0) {
+        if (errno != ENOENT) {
+            ERROR_LOG("lstat %s failed: (%s)\n", ctx->file_path,
+                      strerror(errno));
+            goto failed;
+        }
+        need_create_dir = 1;
+    } else {
+        if ((st.st_mode & S_IFMT) != S_IFDIR) {
+            ERROR_LOG("%s is not directory\n", ctx->file_path);
+            goto failed;
+        }
+    }
+
+    if (need_create_dir) {
+        if (mkdir(ctx->file_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) < 0) {
+            ERROR_LOG("mkdir %s failed: (%s)\n", ctx->file_path,
+                      strerror(errno));
+            goto failed;
+        }
+        DEBUG_LOG("mkdir %s\n", ctx->file_path);
     }
 
     len = strlen(ctx->file_path);
@@ -229,38 +286,53 @@ file_open_logfile(struct log_output *output)
     }
 
     file_getname(output, file_name, len);
-
-    while (retry < 2) {
-        if ((ctx->fd = open(file_name, O_RDWR | O_CREAT | O_APPEND, 0644))
-            < 0) {
-            ERROR_LOG("fopen %s failed: (%s)\n", file_name, strerror(errno));
-            goto failed;
-        }
-
-        if (fstat(ctx->fd, &st) < 0) {
-            ERROR_LOG("fopen %s failed: (%s)\n", file_name, strerror(errno));
+    if (lstat(file_name, &st) < 0) {
+        if (errno == ENOENT) {
+            // create new file
+            if ((ctx->fd = open(file_name, O_RDWR | O_CREAT, 0644)) < 0) {
+                ERROR_LOG("open %s failed: (%s)\n", file_name, strerror(errno));
+                goto failed;
+            }
+            DEBUG_LOG("open file(create) %s\n", file_name);
             ctx->data_offset       = 0;
             ctx->file_current_size = 0;
         } else {
-            ctx->data_offset       = st.st_size;
-            ctx->file_current_size = st.st_size;
+            ERROR_LOG("lstat %s failed: (%s)\n", file_name, strerror(errno));
+            goto failed;
         }
+    } else {
+        // file exists
 
-        if (ctx->file_size < ctx->file_current_size
-            || ctx->file_size - ctx->file_current_size < ctx->map_size) {
-            if (file_rename_logfile(output) < 0) {
+        // rotate
+        if (ctx->file_size > 0 && ctx->num_files > 0) {
+            if (file_rotate(output) < 0) {
+                ERROR_LOG("rename %s failed\n", file_name);
                 goto failed;
             }
-            retry++;
-            continue;
+            st.st_size = 0;
         }
-        break;
-    }
 
-    if (retry == 2) {
-        ERROR_LOG("file_size(%u) file_current_size(%u) map_size(%u)\n",
-                  ctx->file_size, ctx->file_current_size, ctx->map_size);
-        goto failed;
+        if (ctx->file_size > 0 && ctx->file_size <= st.st_size) {
+            // truncated
+            if ((ctx->fd = open(file_name, O_RDWR | O_CREAT | O_TRUNC, 0644))
+                < 0) {
+                ERROR_LOG("fopen %s failed: (%s)\n", file_name,
+                          strerror(errno));
+                goto failed;
+            }
+            DEBUG_LOG("open file(trucated) %s\n", file_name);
+            ctx->data_offset       = 0;
+            ctx->file_current_size = 0;
+        } else {
+            // append
+            if ((ctx->fd = open(file_name, O_RDWR | O_CREAT | O_APPEND, 0644)) < 0) {
+                ERROR_LOG("fopen %s failed: (%s)\n", file_name, strerror(errno));
+                goto failed;
+            }
+            DEBUG_LOG("open file(append) %s\n", file_name);
+            ctx->data_offset = st.st_size;
+            ctx->file_current_size = st.st_size;
+        }
     }
 
     ctx->mmap_window.offset = 0;
@@ -322,9 +394,12 @@ mmap_emit(struct log_output *output, struct log_handler *handler)
     }
 
     len       = buf_len(buf);
-    file_left = ctx->file_size - ctx->data_offset;
+    file_left =  0;
+    if (ctx->file_size > 0) {
+        file_left = ctx->file_size - ctx->data_offset;
+    }
     mmap_left = ctx->mmap_window.window_size - ctx->mmap_window.data_offset;
-    if (file_left >= len && mmap_left >= len) {
+    if ((ctx->file_size > 0 && file_left >= len) && mmap_left >= len) {
         memcpy(ctx->mmap_window.addr + ctx->mmap_window.data_offset, buf->start,
                len);
 
@@ -339,7 +414,7 @@ mmap_emit(struct log_output *output, struct log_handler *handler)
     size_t total = 0;
     int left     = 0;
     while (total < len) {
-        if (mmap_left > file_left) {
+        if (ctx->file_size > 0 &&  mmap_left > file_left) {
             left = file_left;
         } else {
             left = mmap_left;
@@ -365,8 +440,7 @@ mmap_emit(struct log_output *output, struct log_handler *handler)
             break;
         }
 
-        if (nwrite == file_left) {
-            file_rename_logfile(output);
+        if (ctx->file_size > 0 && ctx->data_offset >= ctx->file_size) {
             ret = file_open_logfile(output);
             if (ret != 0) {
                 ERROR_LOG("open logfile failed\n");
@@ -380,7 +454,9 @@ mmap_emit(struct log_output *output, struct log_handler *handler)
             }
         }
 
-        file_left = ctx->file_size - ctx->data_offset;
+        if (ctx->file_size > 0) {
+            file_left = ctx->file_size - ctx->data_offset;
+        }
         mmap_left = ctx->mmap_window.window_size - ctx->mmap_window.data_offset;
     }
     return total;

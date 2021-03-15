@@ -2,7 +2,7 @@ include_directories(include)
 include_directories(../list/include)
 aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} SRC_LIST)
 
-get_filename_component(name ${CMAKE_CURRENT_SOURCE_DIR} NAME_WLE)
+get_filename_component(name ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 add_library(lib${name}_shared SHARED ${SRC_LIST})
 set_target_properties(lib${name}_shared PROPERTIES OUTPUT_NAME ${name})
 

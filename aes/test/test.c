@@ -437,7 +437,7 @@ main(void)
 {
     aes_self_test(1);
     int i;
-    unsigned char *input[] = {
+    char *input[] = {
         "abc",
         "0123456789",
         "0123456789abcdef",
@@ -455,9 +455,9 @@ main(void)
     // echo -n 0123456789abcdef | openssl enc -aec-128-ecb -K
     // 000102030405060708090A0B0C0D0E0F -nosalt -iv 00 | xxd
     for (i = 0; i< sizeof(input)/sizeof(input[0]); i++) {
-        aes_test_compat_with_openssl("ECB", input[i], strlen(input[i]), key, 0, iv);
-        aes_test_compat_with_openssl("CBC", input[i], strlen(input[i]), key, 0, iv);
-        aes_test_compat_with_openssl("CFB", input[i], strlen(input[i]), key, 0, iv);
+        aes_test_compat_with_openssl("ECB", (unsigned char *)input[i], strlen(input[i]), key, 0, iv);
+        aes_test_compat_with_openssl("CBC", (unsigned char *)input[i], strlen(input[i]), key, 0, iv);
+        aes_test_compat_with_openssl("CFB", (unsigned char *)input[i], strlen(input[i]), key, 0, iv);
 
         /* aes_test_compat_with_openssl("ECB", input[i], strlen(input[i]), key, 1, iv); */
         /* aes_test_compat_with_openssl("CBC", input[i], strlen(input[i]), key, 1, iv); */

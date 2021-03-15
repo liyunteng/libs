@@ -9,8 +9,8 @@
 #include <string.h>
 #ifdef NDEBUG
 #undef NDEBUG
-#include <assert.h>
 #endif
+#include <assert.h>
 
 void dump_uri_query(struct uri_query_t q)
 {

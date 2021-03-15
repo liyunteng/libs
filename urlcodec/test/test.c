@@ -35,6 +35,7 @@ int urlcodec_test(void)
             }
         }
     }
+    return 0;
 }
 
 int main(void)

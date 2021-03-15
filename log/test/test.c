@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <sys/syslog.h>
 #include <unistd.h>
+#include <string.h>
 #include "log.h"
 
 const char *module_name = "abc";

@@ -165,7 +165,7 @@ file_open_logfile(struct log_output *output)
     }
 
     if (retry == 2) {
-        ERROR_LOG("file_size(%u) file_current_size(%u)\n",
+        ERROR_LOG("file_size(%u) file_current_size(%lld)\n",
                   ctx->file_size, st.st_size);
         goto failed;
     }

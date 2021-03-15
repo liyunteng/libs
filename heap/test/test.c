@@ -7,10 +7,12 @@
 #include <stdio.h>
 #include <time.h>
 #include <stdlib.h>
+
 #ifdef NDEBUG
 #undef NDEBUG
-#include <assert.h>
 #endif
+#include <assert.h>
+
 #define N 100
 static int heap_test_compare(void* param, const void* p1, const void* p2)
 {

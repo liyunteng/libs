@@ -4,13 +4,16 @@
  * Date   : 2020/04/30
  */
 
+#include "mpool.h"
+#include "atomic.h"
+#include "macro.h"
+
 #include <errno.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-#include "mpool.h"
 
 //Enable this macro to detect memory leak issues.
 #ifdef MPOOL_DBG
@@ -98,14 +101,14 @@ mpool_init(size_t msize, size_t total_size, void *pool)
     }
 
     if (ctx->flag & MPOOL_FLAG_READY) {
-        atomic_inc(&ctx->ref);
+        atomic_increment32(&ctx->ref);
         return ctx;
     } else {
-        if (atomic_cmpxchg(&ctx->ref, 0, 1) != 0) {  //lock
+        if (atomic_cas32(&ctx->ref, 0, 1) != 1) {  //lock
             //loop to wait someone else init ctx
             while (!(ctx->flag & MPOOL_FLAG_READY))
                 ;
-            atomic_inc(&ctx->ref);
+            atomic_increment32(&ctx->ref);
             return ctx;
         }
     }
@@ -160,7 +163,7 @@ void
 mpool_cleanup(mpool_ctx_t *ctx)
 {
     if (ctx) {
-        if (atomic_dec_and_test(&(ctx->ref))) {
+        if (atomic_decrement32(&(ctx->ref)) == 0) {
             if (ctx->flag & MPOOL_FLAG_ALLOC) {
                 free(ctx);
             } else {
@@ -182,7 +185,7 @@ mpool_enqueue(mpool_ctx_t *ctx, mpool_item_t *ptr)
         }
 #endif
         uint32_t idx = ctx->tail;
-        if (cmpxchg(&ctx->tail, idx, idx + 1) == idx) {
+        if (atomic_cas32(&ctx->tail, idx, idx + 1)) {
             ctx->queue[idx % ctx->max] = ptr;
             return;
         }
@@ -200,7 +203,7 @@ mpool_dequeue(mpool_ctx_t *ctx)
 
         uint32_t idx      = ctx->head;
         mpool_item_t *ptr = NULL;
-        if (cmpxchg(&ctx->head, idx, idx + 1) == idx) {
+        if (atomic_cas32(&ctx->head, idx, idx + 1)) {
             ptr = ctx->queue[idx % ctx->max];
             return ptr;
         }
@@ -219,7 +222,7 @@ __mpool_get(mpool_ctx_t *ctx, const char *file, int line)
 
     ptr = mpool_dequeue(ctx);
     if (ptr) {
-        if (atomic_cmpxchg(&ptr->ref, 0, 1) == 0) {
+        if (atomic_cas32(&ptr->ref, 0, 1)) {
 #ifdef MPOOL_DBG
             loc_list_free(ptr->get);
             loc_list_free(ptr->put);
@@ -252,7 +255,7 @@ __mpool_put(void *p, const char *file, int line)
     mpool_ref_dec(p);
 
 #ifdef MPOOL_DBG
-    if (atomic_read(&ptr->ref) < 0) {
+    if (atomic_load32(&ptr->ref) < 0) {
         fprintf(stderr, "ATTENTION: double free on %s:%d!\n", file, line);
         loc_list_dump(ptr);
     }
@@ -264,11 +267,11 @@ __mpool_ref_inc(void *p, const char *file, int line)
 {
     if (p) {
         mpool_item_t *ptr = container_of(p, mpool_item_t, data);
-        atomic_inc(&ptr->ref);
+        atomic_increment32(&ptr->ref);
 #ifdef MPOOL_DBG
         loc_t *loc = loc_init(file, line);
         ptr->get   = loc_list_insert(ptr->get, loc);
-        if (atomic_read(&ptr->ref) <= 1) {
+        if (atomic_load32(&ptr->ref) <= 1) {
             fprintf(stderr, "ref inc on a free memory on %s:%d\n", file, line);
             loc_list_dump(ptr);
         }
@@ -281,7 +284,7 @@ mpool_ref_dec(void *p)
 {
     if (p) {
         mpool_item_t *ptr = container_of(p, mpool_item_t, data);
-        if (atomic_dec_and_test(&(ptr->ref))) {
+        if (atomic_decrement32(&(ptr->ref))) {
             mpool_enqueue(ptr->ctx, ptr);
 #ifdef MPOOL_DBG
 //            loc_list_dump(ptr);

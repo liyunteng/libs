@@ -27,7 +27,6 @@
 extern "C" {
 #endif
 
-#include "types.h"
 #include <stdlib.h>
 
 typedef int datatype;

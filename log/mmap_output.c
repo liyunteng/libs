@@ -143,7 +143,10 @@ mmap_map_file(struct log_output *output)
 
     ctx->file_current_size += mmap_window_size;
     lseek(ctx->fd, ctx->file_current_size, SEEK_SET);
-    ftruncate(ctx->fd, ctx->file_current_size);
+    if (ftruncate(ctx->fd, ctx->file_current_size) != 0) {
+        ERROR_LOG("ftrucate failed: (%s)\n", strerror(errno));
+        return -1;
+    }
 
     ctx->mmap_window.addr = mmap(NULL, mmap_window_size, PROT_READ | PROT_WRITE,
                                  MAP_SHARED, ctx->fd, ctx->mmap_window.offset);

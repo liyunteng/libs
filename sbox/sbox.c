@@ -4,14 +4,16 @@
  * Date   : 2020/04/29
  */
 
+#include "sbox.h"
+#include "atomic.h"
+#include "macro.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
-
-#include "sbox.h"
 
 int sbox_cmp(sbox_ptr a, sbox_ptr b)
 {
@@ -34,7 +36,7 @@ int sbox_cmp(sbox_ptr a, sbox_ptr b)
         case so_str:
             return strcmp(a->d.c, b->d.c);
         case so_bytes:
-            i = min(a->len, b->len);
+            i = MIN(a->len, b->len);
             ret = memcpy((uint8_t*)(a->d.b), (uint8_t *)(b->d.b), i);
             if (ret != NULL) {
                 return i;
@@ -53,7 +55,7 @@ sbox_ptr sbox_new_int(int64_t i)
     if (box) {
         box->type = so_int;
         box->len = sizeof(int64_t);
-        atomic_inc(&box->count);
+        atomic_increment32(&box->count);
         box->d.i = i;
     }
     return box;
@@ -65,7 +67,7 @@ sbox_ptr sobx_new_float(double d)
     if (box) {
         box->type = so_float;
         box->len = sizeof(double);
-        atomic_inc(&box->count);
+        atomic_increment32(&box->count);
         box->d.f = d;
     }
     return box;
@@ -85,7 +87,7 @@ sbox_ptr sbox_new_str(const char *str)
         memset(box, 0, len);
         box->type = so_str;
         box->len = len;
-        atomic_inc(&box->count);
+        atomic_increment32(&box->count);
         strcpy(box->d.c, str);
     }
     return box;
@@ -103,7 +105,7 @@ sbox_ptr sbox_new_bytes(void *data, uint32_t len)
         memset(box, 0, size);
         box->type = so_bytes;
         box->len = len;
-        atomic_inc(&box->count);
+        atomic_increment32(&box->count);
         memcpy(box->d.b, data, len);
     }
     return box;
@@ -116,7 +118,7 @@ sbox_ptr sbox_new_dict()
         memset(box, 0, sizeof(sbox_t));
         box->type = so_dict;
         box->len = sizeof(sbox_t);
-        atomic_inc(&box->count);
+        atomic_increment32(&box->count);
     }
     return box;
 }
@@ -125,7 +127,7 @@ sbox_ptr sbox_hold(sbox_ptr box)
 {
     if (box) {
         /* FIXME: should inc only if not zero */
-        atomic_inc(&box->count);
+        atomic_increment32(&box->count);
     }
     return box;
 }
@@ -287,7 +289,7 @@ sbox_ptr sbox_new_list(void)
         memset(box, 0, sizeof(sbox_t));
         box->type = so_list;
         box->len = sizeof(sbox_t);
-        atomic_inc(&box->count);
+        atomic_increment32(&box->count);
     }
     return box;
 }
@@ -409,7 +411,7 @@ int sbox_tostr(sbox_ptr box, char *buf)
     if (box) {
         switch(box->type) {
         case so_int:
-            return sprintf(buf, "%lld", box->d.i);
+            return sprintf(buf, "%I64ld", box->d.i);
 
         case so_float:
             return sprintf(buf, "%lf", box->d.f);
@@ -493,7 +495,7 @@ static void __list_free_helper(sbox_ptr list)
 void sbox_release(sbox_ptr box)
 {
     if (box) {
-        if (atomic_dec_and_test(&box->count)) {
+        if (atomic_decrement32(&box->count) == 0) {
             switch (box->type) {
             case so_list:
                 __list_free_helper(box);

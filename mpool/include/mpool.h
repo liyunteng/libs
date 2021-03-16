@@ -27,9 +27,8 @@
 extern "C" {
 #endif
 
-#include "atomic_x86_64.h"
-#include "types.h"
 #include <stdint.h>
+#include <stddef.h>
 
 #define MPOOL_DBG
 
@@ -37,6 +36,7 @@ extern "C" {
 #define MPOOL_FLAG_READY 0x02U
 
 #define ALIGN_SIZE 8
+typedef int32_t atomic_t;
 
 typedef struct {
     void *ctx;

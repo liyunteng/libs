@@ -14,7 +14,6 @@
 #include <unistd.h>
 
 #include "avl.h"
-#include "types.h"
 
 avl_tree_h_td my_avl_tree;
 

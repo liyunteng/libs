@@ -21,6 +21,7 @@
  *
  */
 #include "bst.h"
+#include "macro.h"
 #include <assert.h>
 #include <stdio.h>
 #include <time.h>

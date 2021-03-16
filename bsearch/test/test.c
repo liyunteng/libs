@@ -5,6 +5,7 @@
  */
 
 #include "bsearch.h"
+#include "macro.h"
 #include <stdio.h>
 
 

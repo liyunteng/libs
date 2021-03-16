@@ -4,22 +4,21 @@
  * Date   : 2021/01/17
  */
 
+#include "log.h"
+#include "macro.h"
+
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/syslog.h>
 #include <unistd.h>
 #include <string.h>
-#include "todo.h"
-#include "deprecated.h"
-
-#include "log.h"
 
 const char *module_name = "abc";
 
-TODO(ABC);
+TODO(THIS IS A TEST);
 
-deprecated void
+void
 test_simple(void)
 {
     int i;
@@ -397,7 +396,7 @@ test_format()
     log_cleanup();
 }
 
-void
+deprecated void
 test_big_buf()
 {
     char *buf   = NULL;

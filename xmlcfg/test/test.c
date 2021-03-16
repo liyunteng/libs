@@ -66,7 +66,7 @@ test1()
         ERR("xmlcfg_get_int");
         return -1;
     }
-    printf("upload.content.priority = %lld\n", val);
+    printf("upload.content.priority = %I64ld\n", val);
 
 
     xmlcfg_ptr iter = NULL;

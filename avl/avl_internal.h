@@ -24,7 +24,7 @@
 #ifndef AVL_INTERNAL_H
 #define AVL_INTERNAL_H
 #include "avl.h"
-#include "types.h"
+#include "macro.h"
 #include <stdint.h>
 #include <pthread.h>
 

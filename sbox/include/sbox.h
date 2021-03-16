@@ -6,13 +6,13 @@
 #ifndef __SBOX_H__
 #define __SBOX_H__
 
-#include "atomic_x86_64.h"
 #include "rbtree.h"
 #include <stdint.h>
 #include <string.h>
 
 #define FACCURACY 0.000001
 
+typedef int32_t atomic_t;
 typedef enum __sbox_type {
     so_int,
     so_float,
@@ -43,7 +43,7 @@ typedef struct __sbox {
 } sbox_t, *sbox_ptr;
 
 #define SBOX_DATA_LEN_DEFAULT ((uint32_t)(sizeof(sbox_t) - offsetof(sbox_t, d)))
-#define sbox_size(len) (max(len, SBOX_DATA_LEN_DEFAULT) + (uint32_t)offsetof(sbox_t, d))
+#define sbox_size(len) (MAX(len, SBOX_DATA_LEN_DEFAULT) + (uint32_t)offsetof(sbox_t, d))
 
 typedef struct __sbox_dict_node {
     sbox_ptr        key;

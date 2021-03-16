@@ -10,12 +10,17 @@
 #include <sys/syslog.h>
 #include <unistd.h>
 #include <string.h>
+#include "todo.h"
+#include "deprecated.h"
+
 #include "log.h"
 
 const char *module_name = "abc";
 
-void
-test_simple()
+TODO(ABC);
+
+deprecated void
+test_simple(void)
 {
     int i;
     log_simple_init("ihi", LOG_VERBOSE);
@@ -68,7 +73,7 @@ test_simple()
 }
 
 void
-test_mlog()
+test_mlog(int n)
 {
     log_handler_t *h1      = log_handler_create("handler1");
     log_format_t *format1  = log_format_create("%d %p %c %C%V%R %F:%U:%L %m%n");

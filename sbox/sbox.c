@@ -411,7 +411,11 @@ int sbox_tostr(sbox_ptr box, char *buf)
     if (box) {
         switch(box->type) {
         case so_int:
-            return sprintf(buf, "%I64ld", box->d.i);
+#if defined(__APPLE__)
+            return sprintf(buf, "%lld", box->d.i);
+#else
+            return sprintf(buf, "%ld", box->d.i);
+#endif
 
         case so_float:
             return sprintf(buf, "%lf", box->d.f);

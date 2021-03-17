@@ -17,14 +17,15 @@
 /* #define __PRAGMA_MESSAGE__(x) _Pragma(__STRINGFY1__(GCC error x)) */
 
 #if _MSC_VER
+#warning _MCS_VER
 #define TODO(msg) __PRAGMA_MESSAGE__(__STRINGFY1__(TODO: msg))
-#define FIXME(msg) __PRAGMA_MESSAGE__(__STRINGFY1__(FIXME: msg))
+#define FIXME(msg) __PRAGMA_MESSAGE__(__STRINGFY1__(FIXME : msg))
 #elif __GNUC__
 #define TODO(msg) __PRAGMA_MESSAGE__(__STRINGFY__(TODO: msg))
 #define FIXME(msg) __PRAGMA_MESSAGE__(__STRINGFY__(FIXME: msg))
 #else
-#define TODO(msg) TODO msg
-#define FIXME(msg) FIXME msg
+#define TODO(msg)
+#define FIXME(msg)
 #endif
 #endif
 
@@ -45,14 +46,15 @@
 #endif
 #endif
 
+
 // deprecated
-#ifndef deprecated
+#ifndef DEPRECATED_API
 #if defined(_MSC_VER)
-#define deprecated __declspec(deprecated)
+#define DEPRECATED_API __declspec(deprecated)
 #elif __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC__MMINOR__ >= 1)
-#define deprecated __attribute__((deprecated))
+#define DEPRECATED_API __attribute__((deprecated))
 #else
-#define deprecated
+#define DEPRECATED_API
 #endif
 #endif
 
@@ -145,17 +147,29 @@
 #define ALIGN(v, a) (((v)+(a)-1)&~((a)-1))
 #endif
 
-
 // bool
-typedef int bool;
+#ifndef bool
+#if defined(_Bool)
+#define bool _Bool
+#else
+#define bool unsigned char
+#endif
+#endif
 
 #ifndef TRUE
 #define TRUE 1
+#endif
+
+#ifndef true
+#define true 1
 #endif
 
 #ifndef FALSE
 #define FALSE 0
 #endif
 
+#ifndef false
+#define false 0
+#endif
 
 #endif

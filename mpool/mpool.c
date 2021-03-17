@@ -185,7 +185,7 @@ mpool_enqueue(mpool_ctx_t *ctx, mpool_item_t *ptr)
         }
 #endif
         uint32_t idx = ctx->tail;
-        if (atomic_cas32(&ctx->tail, idx, idx + 1)) {
+        if (atomic_cas32((vint32_t *)&ctx->tail, idx, idx + 1)) {
             ctx->queue[idx % ctx->max] = ptr;
             return;
         }
@@ -203,7 +203,7 @@ mpool_dequeue(mpool_ctx_t *ctx)
 
         uint32_t idx      = ctx->head;
         mpool_item_t *ptr = NULL;
-        if (atomic_cas32(&ctx->head, idx, idx + 1)) {
+        if (atomic_cas32((vint32_t *)&ctx->head, idx, idx + 1)) {
             ptr = ctx->queue[idx % ctx->max];
             return ptr;
         }

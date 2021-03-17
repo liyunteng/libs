@@ -7,19 +7,6 @@
 #include <assert.h>
 #include "crc.h"
 
-#ifndef bool
-#define bool unsigned char
-#endif // bool
-
-#ifndef false
-#define false 0
-#endif // false
-
-#ifndef true
-#define true 1
-#endif // true
-
-
 unsigned int
 CRC32MPEG2(unsigned char *data, int length)
 {

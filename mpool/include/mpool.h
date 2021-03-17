@@ -50,6 +50,7 @@ typedef struct {
 } mpool_item_t;
 
 typedef volatile uint32_t vuint32_t;
+    typedef volatile int32_t vint32_t;
 
 typedef struct {
     size_t size;   //size of a mpool_item_t, align to 8 bytes

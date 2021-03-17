@@ -17,7 +17,7 @@ typedef __int64 int64_t;
 #elif defined(__linux__)
 #include <stdint.h>
 #elif defined(__APPLE__)
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
 #if defined(__cplusplus)
 #include <atomic> // for compile error
 #endif
@@ -137,7 +137,7 @@ static inline int atomic_cas64(volatile int64_t *value, int64_t oldvalue, int64_
 static inline int32_t atomic_increment32(volatile int32_t *value)
 {
 	assert((intptr_t)value % 4 == 0);
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
     return atomic_fetch_add((atomic_int_fast32_t*)value, 1) + 1;
 #else
     return OSAtomicIncrement32(value);
@@ -147,7 +147,7 @@ static inline int32_t atomic_increment32(volatile int32_t *value)
 static inline int64_t atomic_increment64(volatile int64_t *value)
 {
 	assert((intptr_t)value % 8 == 0);
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
     return atomic_fetch_add((atomic_int_fast64_t*)value, 1) + 1;
 #else
     return OSAtomicIncrement64(value);
@@ -157,7 +157,7 @@ static inline int64_t atomic_increment64(volatile int64_t *value)
 static inline int32_t atomic_decrement32(volatile int32_t *value)
 {
 	assert((intptr_t)value % 4 == 0);
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
     return atomic_fetch_sub((atomic_int_fast32_t*)value, 1) - 1;
 #else
 	return OSAtomicDecrement32(value);
@@ -167,7 +167,7 @@ static inline int32_t atomic_decrement32(volatile int32_t *value)
 static inline int64_t atomic_decrement64(volatile int64_t *value)
 {
 	assert((intptr_t)value % 8 == 0);
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
     return atomic_fetch_sub((atomic_int_fast64_t*)value, 1) - 1;
 #else
 	return OSAtomicDecrement64(value);
@@ -177,7 +177,7 @@ static inline int64_t atomic_decrement64(volatile int64_t *value)
 static inline int32_t atomic_add32(volatile int32_t *value, int32_t incr)
 {
 	assert((intptr_t)value % 4 == 0);
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
     return atomic_fetch_add((atomic_int_fast32_t*)value, incr) + incr;
 #else
 	return OSAtomicAdd32(incr, value);
@@ -187,7 +187,7 @@ static inline int32_t atomic_add32(volatile int32_t *value, int32_t incr)
 static inline int64_t atomic_add64(volatile int64_t *value, int64_t incr)
 {
 	assert((intptr_t)value % 8 == 0);
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
     return atomic_fetch_add((atomic_int_fast64_t*)value, incr) + incr;
 #else
     return OSAtomicAdd64(incr, value);
@@ -197,7 +197,7 @@ static inline int64_t atomic_add64(volatile int64_t *value, int64_t incr)
 static inline int32_t atomic_load32(volatile int32_t *value)
 {
     assert((intptr_t)value % 4 == 0);
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
     return atomic_load((atomic_int_fast32_t*)value);
 #else
     return OSAtomicOr32(0, (uint32_t*)value);
@@ -207,7 +207,7 @@ static inline int32_t atomic_load32(volatile int32_t *value)
 static inline int64_t atomic_load64(volatile int64_t *value)
 {
     assert((intptr_t)value % 8 == 0);
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
     return atomic_load((atomic_int_fast64_t*)value);
 #else
     return OSAtomicAdd64(0, value);
@@ -217,7 +217,7 @@ static inline int64_t atomic_load64(volatile int64_t *value)
 static inline int atomic_cas32(volatile int32_t *value, int32_t oldvalue, int32_t newvalue)
 {
 	assert((intptr_t)value % 4 == 0);
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
     return atomic_compare_exchange_strong((atomic_int_fast32_t*)value, &oldvalue, newvalue) ? 1 : 0;
 #else
 	return OSAtomicCompareAndSwap32(oldvalue, newvalue, value) ? 1 : 0;
@@ -227,7 +227,7 @@ static inline int atomic_cas32(volatile int32_t *value, int32_t oldvalue, int32_
 static inline int atomic_cas64(volatile int64_t *value, int64_t oldvalue, int64_t newvalue)
 {
 	assert((intptr_t)value % 8 == 0);
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
     return atomic_compare_exchange_strong((atomic_int_fast64_t*)value, &oldvalue, newvalue) ? 1 : 0;
 #else
 	return OSAtomicCompareAndSwap64(oldvalue, newvalue, value) ? 1 : 0;
@@ -242,7 +242,7 @@ static inline int atomic_cas_ptr(void* volatile *value, void *oldvalue, void *ne
 	assert(0 == (intptr_t)value % 4 && 0 == (intptr_t)oldvalue % 4 && 0 == (intptr_t)newvalue % 4);
 #endif
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
     return atomic_compare_exchange_strong((atomic_intptr_t*)value, (intptr_t*)&oldvalue, (intptr_t)newvalue) ? 1 : 0;
 #else
 	return OSAtomicCompareAndSwapPtr(oldvalue, newvalue, value) ? 1 : 0;

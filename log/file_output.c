@@ -46,17 +46,7 @@ dump_environment(struct log_output *output)
     fprintf(ctx->fp, "\n");
 }
 
-
-static int
-file_getname(struct log_output *output, char *file_name, uint16_t len)
-{
-    file_output_ctx *ctx = (file_output_ctx *)output->ctx;
-    snprintf(file_name, len, "%s/%s.log", ctx->file_path, ctx->log_name);
-    return 0;
-}
-
-static int
-file_rotate(struct log_output *output)
+static int file_rotate(struct log_output *output)
 {
     uint32_t num, num_files, len;
     char *old_file_name, *new_file_name;
@@ -179,7 +169,7 @@ file_open_logfile(struct log_output *output)
         return -1;
     }
 
-    file_getname(output, file_name, len);
+    snprintf(file_name, len, "%s/%s.log", ctx->file_path, ctx->log_name);
 
     if (lstat(file_name, &st) < 0) {
         if (errno == ENOENT) {

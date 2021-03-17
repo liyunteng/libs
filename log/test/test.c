@@ -396,7 +396,7 @@ test_format()
     log_cleanup();
 }
 
-deprecated void
+DEPRECATED_API void
 test_big_buf()
 {
     char *buf   = NULL;

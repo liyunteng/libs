@@ -66,8 +66,11 @@ test1()
         ERR("xmlcfg_get_int");
         return -1;
     }
-    printf("upload.content.priority = %I64ld\n", val);
-
+#if defined(__APPLE__)
+    printf("upload.content.priority = %lld\n", val);
+#else
+    printf("upload.content.priority = %ld\n", val);
+#endif
 
     xmlcfg_ptr iter = NULL;
     if ((iter = xmlcfg_iter_init(cfg, "upload.content.files", "file")) == NULL) {

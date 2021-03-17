@@ -12,7 +12,7 @@ typedef CRITICAL_SECTION spinlock_t;
 #elif defined(__APPLE__)
 #include <assert.h>
 
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
 #include <os/lock.h>
 typedef struct os_unfair_lock_s spinlock_t;
 #else
@@ -45,7 +45,7 @@ static inline int spinlock_create(spinlock_t *locker)
 	// Minimum support OS: WinXP
 	return InitializeCriticalSectionAndSpinCount(locker, 0x00000400) ? 0: -1;
 #elif defined(__APPLE__)
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
     locker->_os_unfair_lock_opaque = 0;
 #else
     // see more Apple Developer spinlock
@@ -86,7 +86,7 @@ static inline void spinlock_lock(spinlock_t *locker)
 #if defined(_WIN32)
 	EnterCriticalSection(locker);
 #elif defined(__APPLE__)
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
     os_unfair_lock_lock(locker);
 #else
 	OSSpinLockLock(locker);
@@ -103,7 +103,7 @@ static inline void spinlock_unlock(spinlock_t *locker)
 #if defined(_WIN32)
 	LeaveCriticalSection(locker);
 #elif defined(__APPLE__)
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
     os_unfair_lock_unlock(locker);
 #else
 	OSSpinLockUnlock(locker);
@@ -120,7 +120,7 @@ static inline int spinlock_trylock(spinlock_t *locker)
 #if defined(_WIN32)
 	return TryEnterCriticalSection(locker) ? 1 : 0;
 #elif defined(__APPLE__)
-#if MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
+#if __MAC_OS_X_VERSION_MIN_REQUIRED >= MAC_OS_X_VERSION_10_12 || __IPHONE_OS_VERSION_MIN_REQUIRED >= __IPHONE_10_0
     return os_unfair_lock_trylock(locker) ? 1 : 0;
 #else
 	return OSSpinLockTry(locker) ? 1 : 0;

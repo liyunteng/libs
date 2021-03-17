@@ -18,7 +18,7 @@
 //Enable this macro to detect memory leak issues.
 #ifdef MPOOL_DBG
 
-#    define LOC_MAX_FILE_LEN 16
+#define LOC_MAX_FILE_LEN 16
 typedef struct _loc_t {
     char file[LOC_MAX_FILE_LEN];
     int line;
@@ -104,7 +104,7 @@ mpool_init(size_t msize, size_t total_size, void *pool)
         atomic_increment32(&ctx->ref);
         return ctx;
     } else {
-        if (atomic_cas32(&ctx->ref, 0, 1) != 1) {  //lock
+        if (atomic_cas32(&ctx->ref, 0, 1) != true) {  //lock
             //loop to wait someone else init ctx
             while (!(ctx->flag & MPOOL_FLAG_READY))
                 ;
@@ -113,7 +113,8 @@ mpool_init(size_t msize, size_t total_size, void *pool)
         }
     }
 
-    if (ctx == pool) {
+    // if malloc by me, add MPOOL_FLAG_ALLOC flag
+    if (ctx != pool) {
         ctx->flag |= MPOOL_FLAG_ALLOC;
     }
 
@@ -167,8 +168,16 @@ mpool_cleanup(mpool_ctx_t *ctx)
             if (ctx->flag & MPOOL_FLAG_ALLOC) {
                 free(ctx);
             } else {
+#ifdef MPOOL_DBG
+                fprintf(stderr, "cleanup and ctx->flag: 0x%x\n", ctx->flag);
+#endif
+
                 ctx->flag &= ~MPOOL_FLAG_READY;  //clear the ready flag
             }
+        } else {
+#ifdef MPOOL_DBG
+            fprintf(stderr, "cleanup and ctx->ref == %d\n", ctx->ref);
+#endif
         }
     }
 }
@@ -180,10 +189,11 @@ mpool_enqueue(mpool_ctx_t *ctx, mpool_item_t *ptr)
 #ifdef MPOOL_DBG
         if (mpool_empty(ctx)) {
             fprintf(stderr, "Try to put a package in to an empty pool!\n");
-            loc_list_dump(ptr);
+            /* loc_list_dump(ptr); */
             return;
         }
 #endif
+
         uint32_t idx = ctx->tail;
         if (atomic_cas32((vint32_t *)&ctx->tail, idx, idx + 1)) {
             ctx->queue[idx % ctx->max] = ptr;
@@ -195,7 +205,6 @@ mpool_enqueue(mpool_ctx_t *ctx, mpool_item_t *ptr)
 static inline mpool_item_t *
 mpool_dequeue(mpool_ctx_t *ctx)
 {
-
     while (1) {
         if (mpool_full(ctx)) {
             return NULL;
@@ -225,7 +234,9 @@ __mpool_get(mpool_ctx_t *ctx, const char *file, int line)
         if (atomic_cas32(&ptr->ref, 0, 1)) {
 #ifdef MPOOL_DBG
             loc_list_free(ptr->get);
+            ptr->get = NULL;
             loc_list_free(ptr->put);
+            ptr->put = NULL;
             loc_t *loc = loc_init(file, line);
             ptr->get   = loc_list_insert(ptr->get, loc);
 #endif
@@ -234,7 +245,8 @@ __mpool_get(mpool_ctx_t *ctx, const char *file, int line)
             ret = (void *)ptr->data;
         } else {
 #ifdef MPOOL_DBG
-            fprintf(stderr, "Un-expected package in queue!\n");
+            fprintf(stderr, "Un-expected package in queue! ref: %d\n",
+                    atomic_load32(&ptr->ref));
             loc_list_dump(ptr);
 #endif
         }
@@ -246,20 +258,7 @@ __mpool_get(mpool_ctx_t *ctx, const char *file, int line)
 void
 __mpool_put(void *p, const char *file, int line)
 {
-#ifdef MPOOL_DBG
-    mpool_item_t *ptr = container_of(p, mpool_item_t, data);
-    loc_t *loc        = loc_init(file, line);
-    ptr->put          = loc_list_insert(ptr->put, loc);
-#endif
-
-    mpool_ref_dec(p);
-
-#ifdef MPOOL_DBG
-    if (atomic_load32(&ptr->ref) < 0) {
-        fprintf(stderr, "ATTENTION: double free on %s:%d!\n", file, line);
-        loc_list_dump(ptr);
-    }
-#endif
+    __mpool_ref_dec(p, file, line);
 }
 
 void
@@ -272,7 +271,7 @@ __mpool_ref_inc(void *p, const char *file, int line)
         loc_t *loc = loc_init(file, line);
         ptr->get   = loc_list_insert(ptr->get, loc);
         if (atomic_load32(&ptr->ref) <= 1) {
-            fprintf(stderr, "ref inc on a free memory on %s:%d\n", file, line);
+            fprintf(stderr, "ATTENTION: after ref inc %d on %s:%d\n", ptr->ref, file, line);
             loc_list_dump(ptr);
         }
 #endif
@@ -280,16 +279,21 @@ __mpool_ref_inc(void *p, const char *file, int line)
 }
 
 void
-mpool_ref_dec(void *p)
+__mpool_ref_dec(void *p, const char *file, int line)
 {
     if (p) {
         mpool_item_t *ptr = container_of(p, mpool_item_t, data);
-        if (atomic_decrement32(&(ptr->ref))) {
+        if (atomic_decrement32(&(ptr->ref)) == 0) {
             mpool_enqueue(ptr->ctx, ptr);
-#ifdef MPOOL_DBG
-//            loc_list_dump(ptr);
-#endif
         }
+#ifdef MPOOL_DBG
+        loc_t *loc        = loc_init(file, line);
+        ptr->put          = loc_list_insert(ptr->put, loc);
+        if (atomic_load32(&ptr->ref) != 0) {
+            fprintf(stderr, "ATTENTION: double free on %s:%d!\n", file, line);
+            loc_list_dump(ptr);
+        }
+#endif
     }
 }
 

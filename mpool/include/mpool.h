@@ -1,28 +1,11 @@
 /*
- * mpool.h -- memory pool
+ * mpool.h - mpool
  *
- * Copyright (C) 2016 liyunteng
- * Auther: liyunteng <li_yunteng@163.com>
- * License: GPL
- * Update time:  2016/06/06 00:52:00
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
+ * Date   : 2021/03/17
  */
+#ifndef __MPOOL_H__
+#define __MPOOL_H__
 
-#ifndef MPOOL_H
-#define MPOOL_H
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -36,11 +19,14 @@ extern "C" {
 #define MPOOL_FLAG_READY 0x02U
 
 #define ALIGN_SIZE 8
-typedef int32_t atomic_t;
+typedef volatile uint32_t vuint32_t;
+typedef volatile int32_t vint32_t;
+typedef vint32_t atomic_t;
 
 typedef struct {
     void *ctx;
     atomic_t ref;
+
     //For debug
 #ifdef MPOOL_DBG
     void *get;
@@ -49,19 +35,17 @@ typedef struct {
     uint8_t data[0];
 } mpool_item_t;
 
-typedef volatile uint32_t vuint32_t;
-    typedef volatile int32_t vint32_t;
 
 typedef struct {
     size_t size;   //size of a mpool_item_t, align to 8 bytes
-    size_t msize;  //size of a member
-    uint32_t max;
+    size_t msize;  //size of a member, sizeof(*mpool_item_t->data)
+    uint32_t max;  // capacity
     uint32_t flag;
     atomic_t ref;
     vuint32_t head;
     vuint32_t tail;
-    mpool_item_t **queue;
-    uint8_t *pool;
+    mpool_item_t **queue; // array of mpool_item_t pointer
+    uint8_t *pool; // data
 } mpool_ctx_t;
 
 /*
@@ -99,9 +83,9 @@ void __mpool_put(void *ptr, const char *, int);
  *  Increace / decrease ref count.
  */
 void __mpool_ref_inc(void *ptr, const char *, int);
-void mpool_ref_dec(void *ptr);
-
+void __mpool_ref_dec(void *ptr, const char *, int);
 #define mpool_ref_inc(ptr) __mpool_ref_inc(ptr, __FILE__, __LINE__)
+#define mpool_ref_dec(ptr) __mpool_ref_dec(ptr, __FILE__, __LINE__)
 
 /*
  *  Get index for a piece of memory

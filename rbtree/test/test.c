@@ -3,153 +3,234 @@
  *
  * Date   : 2020/04/26
  */
-#include <stdio.h>
-#include <string.h>
 #include "rbtree.h"
+#include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-struct test_node_key {
-    int id;
-};
-struct test_node_value {
-    char value[128];
-};
+typedef struct rb_root dict_root_t;
 
-struct test_rb_node {
+typedef struct dict {
     struct rb_node node;
-    struct test_node_key key;
-    struct test_node_value value;
-};
+    uint32_t key;
+    char value[128];
+} dict_t;
 
-static struct rb_root test_rb_root;
-static int test_node_cmp(const struct test_node_key *first,
-                         const struct test_node_key *second)
+#define DICT_ROOT_INIT                                                         \
+    (dict_root_t) { NULL, }
+#define dict_root_init(root) ((root)->rb_node = NULL)
+
+static int
+dict_key_cmp(const uint32_t first, const uint32_t second)
 {
-    if (first->id > second->id) {
-        return 1;
-    } else if (first->id < second->id) {
+    if (first < second) {
         return -1;
-    } else {
-        return 0;
+    } else if (first > second) {
+        return 1;
     }
+    return 0;
 }
 
-struct test_rb_node *test_rb_node_create()
+static char *
+strrev(char *str)
 {
-    struct test_rb_node *node = NULL;
+    char *p1, *p2;
 
-    node = (struct test_rb_node *)malloc(sizeof(struct test_rb_node));
-    if (!node) {
-        return NULL;
+    if (!str || !*str)
+        return str;
+
+    for (p1 = str, p2 = str + strlen(str) - 1; p2 > p1; ++p1, --p2) {
+        *p1 ^= *p2;
+        *p2 ^= *p1;
+        *p1 ^= *p2;
     }
-    memset(node, 0, sizeof(struct test_rb_node));
-    return node;
+
+    return str;
 }
 
-void test_rb_node_free(struct test_rb_node *node)
+static char s_tree[256];
+static void
+rbtree_print_node(struct rb_node *node)
 {
+    struct rb_node *p;
+    struct rb_node *g;
+    dict_t *v;
     if (!node)
         return;
 
-    free(node);
-    node = NULL;
+    p = rb_parent(node);
+    g = p ? rb_parent(p) : NULL;
+
+    s_tree[0] = 0;
+    while (g) {
+        if (p == g->rb_left && g->rb_right) {
+            strcat(s_tree, "\t|");
+        } else {
+            strcat(s_tree, "\t");
+        }
+
+        p = g;
+        g = rb_parent(p);
+    }
+    strrev(s_tree);
+
+    v = rb_entry(node, dict_t, node);
+
+    if (!rb_parent(node))
+        printf("%d(%c)\n", v->key, rb_is_black(node) ? 'B' : 'R');
+    else
+        printf("%s|----%d(%c)\n", s_tree, v->key, rb_is_black(node) ? 'B' : 'R');
+
+    rbtree_print_node(node->rb_left);
+    rbtree_print_node(node->rb_right);
 }
 
-struct test_rb_node *test_rbtree_search(const struct test_node_key *key)
-{
-    int result = 0;
-    struct rb_node *node = test_rb_root.rb_node;
 
-    while(node) {
-        struct test_rb_node *data = rb_entry(node, struct test_rb_node, node);
-        result = test_node_cmp(key, &data->key);
-        if (result < 0)
-            node = node->rb_left;
-        else if (result > 0)
-            node = node->rb_right;
-        else
+static void
+rbtree_print(struct rb_root *root)
+{
+    rbtree_print_node(root->rb_node);
+}
+
+dict_t *
+dict_create(uint32_t key, const char *value)
+{
+    dict_t *dict = NULL;
+    dict         = (dict_t *)calloc(1, sizeof(dict_t));
+    if (dict) {
+        dict->key = key;
+        strncpy(dict->value, value, sizeof(dict->value));
+    }
+    return dict;
+}
+
+void
+dict_destroy(dict_t *dict)
+{
+    if (dict) {
+        free(dict);
+        dict = NULL;
+    }
+}
+
+dict_t *
+dict_search(dict_root_t *root, const uint32_t key)
+{
+    int result           = 0;
+    struct rb_node *node = root->rb_node;
+
+    while (node) {
+        dict_t *data = rb_entry(node, dict_t, node);
+        result       = dict_key_cmp(key, data->key);
+        if (result == 0) {
             return data;
+        }
+
+        node = result > 0 ? node->rb_right : node->rb_left;
     }
 
     return NULL;
 }
 
-int test_rbtree_insert(struct test_rb_node *data)
+int
+dict_insert(dict_root_t *root, dict_t *data)
 {
-    int result = 0;
-    struct rb_node **new_node = &(test_rb_root.rb_node), *parent_node = NULL;
+    int result                = 0;
+    struct rb_node **link = &(root->rb_node);
+    struct rb_node *parent = NULL;
 
-    while (*new_node) {
-        struct test_rb_node *this = rb_entry(*new_node, struct test_rb_node, node);
+    while (*link) {
+        parent = *link;
+        dict_t *this = rb_entry(parent, dict_t, node);
 
-        result = test_node_cmp(&data->key, &this->key);
-        parent_node = *new_node;
-        if (result < 0)
-            new_node = &((*new_node)->rb_left);
-        else if (result > 0)
-            new_node = &((*new_node)->rb_right);
-        else
-            return 0;
+        result      = dict_key_cmp(data->key, this->key);
+        // duplicated key link to left
+        link = result > 0 ? &parent->rb_right : &parent->rb_left;
     }
 
-    rb_link_node(&data->node, parent_node, new_node);
-    rb_insert_color(&data->node, &test_rb_root);
-    return 1;
+    rb_link_node(&data->node, parent, link);
+    rb_insert_color(&data->node, root);
+    return 0;
 }
 
-void test_rbtree_erase(const struct test_node_key *key)
+void
+dict_erase(dict_root_t *root, const uint32_t key)
 {
-    struct test_rb_node *data = test_rbtree_search(key);
-    if (data) {
-        rb_erase(&data->node, &test_rb_root);
-        test_rb_node_free(data);
+    while (1) {
+        dict_t *data = dict_search(root, key);
+        if (!data) {
+            break;
+        }
+        rb_erase(&data->node, root);
+        dict_destroy(data);
     }
 }
 
-void test_rbtree_init()
+typedef void (*dict_iter_callback)(int idx, dict_t *data);
+void
+dict_iter(dict_root_t *root, dict_iter_callback callback)
 {
-    test_rb_root = RB_ROOT;
-}
-
-void test_rbtree_dump()
-{
-    struct rb_node *p = rb_first(&test_rb_root);
+    struct rb_node *p = rb_first(root);
+    uint32_t idx      = 0;
     while (p) {
-        struct test_rb_node *pn = rb_entry(p, struct test_rb_node, node);
-        printf("%d: %s color: 0x%lX %p\n", pn->key.id, pn->value.value, pn->node.rb_parent_color, &pn->node);
+        dict_t *data = rb_entry(p, dict_t, node);
+        if (data && callback) {
+            callback(idx, data);
+        }
+        idx++;
         p = rb_next(p);
     }
 }
 
-int rbtree_test(void)
+void
+dump(int idx, dict_t *data)
 {
-    int array[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    /* int array[] = {35, 18, 69, 9, 21, 60, 90, 4, 30, 45, 64, 85, 96, 50}; */
-    test_rbtree_init();
-    for (int i = 0; i < sizeof(array)/sizeof(array[0]); i++) {
-        struct test_rb_node *node = test_rb_node_create();
-        if (node) {
-            node->key.id = array[i];
-            sprintf(node->value.value, "%d", array[i]);
+    printf("%u key: %u  value: %s\n", idx, data->key, data->value);
+}
 
-            test_rbtree_insert(node);
-        }
+int
+dict_test(void)
+{
+    dict_root_t root = DICT_ROOT_INIT;
+    dict_t *data     = NULL;
+    char buf[128]    = {0};
+    int i;
+
+    for (i = 0; i < 100; i++) {
+        snprintf(buf, sizeof(buf) - 1, "this is %d", i);
+        data = dict_create(i, buf);
+        assert(data);
+        dict_insert(&root, data);
     }
-    test_rbtree_dump();
-    printf("======\n");
-    for (int i = 0; i < sizeof(array)/sizeof(array[0]); i += 2) {
-        struct test_node_key key;
-        key.id = array[i];
-        struct test_rb_node *node = test_rbtree_search(&key);
-        if (node) {
-            test_rbtree_erase(&key);
-        }
+
+    for (i = 0; i < 100; i += 3) {
+        snprintf(buf, sizeof(buf) - 1, "this is %d", i + 100);
+        data = dict_create(i, buf);
+        assert(data);
+        dict_insert(&root, data);
     }
-    test_rbtree_dump();
+
+    dict_erase(&root, 75);
+    rbtree_print(&root);
+    dict_iter(&root, dump);
+
+    data = dict_search(&root, 26);
+    if (data) {
+        printf("key: %u value: %s\n", data->key, data->value);
+    }
+
+    for (i = 0; i < 100; i++) {
+        dict_erase(&root, i);
+    }
+    dict_iter(&root, dump);
     return 0;
 }
 
-int main(void)
+int
+main(void)
 {
-    rbtree_test();
+    dict_test();
     return 0;
 }

@@ -39,7 +39,7 @@ mpool_test(void)
             if (p) {
                 mpool_item_t *ptr = container_of((void *)p, mpool_item_t, data);
                 p->id = mpool_get_idx(ctx, p);
-                snprintf(p->str, sizeof(p->str), "this is %p", thread_self());
+                snprintf(p->str, sizeof(p->str), "this is %lx", (long)thread_self());
                 queue[i] = p;
                 printf(
                     "get [%2d] idx: %2d ref: %3d %p size: %2d count: %2d head: %2d "

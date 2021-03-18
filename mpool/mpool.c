@@ -194,6 +194,7 @@ mpool_enqueue(mpool_ctx_t *ctx, mpool_item_t *ptr)
         }
 #endif
 
+
         uint32_t idx = ctx->tail;
         if (atomic_cas32((vint32_t *)&ctx->tail, idx, idx + 1)) {
             ctx->queue[idx % ctx->max] = ptr;
@@ -318,6 +319,7 @@ mpool_get_by_idx(mpool_ctx_t *ctx, int idx)
     if (!ctx || idx < 0 || idx >= ctx->max) {
         return NULL;
     }
+
     mpool_item_t *ptr = (mpool_item_t *)(ctx->pool + idx * ctx->size);
     return ptr->data;
 }

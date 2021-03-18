@@ -15,10 +15,12 @@ typedef struct fifo {
     void *data;
 } fifo_t;
 
-
 uint32_t rounddown_pow_of_two(uint32_t n);
 
-// nelem must be 2^order
+///
+/// nelem: n elemnt, nelem must be 2^order
+/// esize: element size
+/// return: 0-success other-failed
 int fifo_init(fifo_t *fifo, void *buf, uint32_t nelem, uint32_t esize);
 int fifo_alloc(fifo_t *fifo, uint32_t nelem, uint32_t esize);
 void fifo_free(fifo_t *fifo);

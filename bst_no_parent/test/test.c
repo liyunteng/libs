@@ -1,34 +1,16 @@
 /*
- * test_bst.c -- bst test
+ * test.c - test
  *
- * Copyright (C) 2016 liyunteng
- * Auther: liyunteng <li_yunteng@163.com>
- * License: GPL
- * Update time:  2016/04/20 08:20:30
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along with
- * this program; if not, write to the Free Software Foundation, Inc.,
- * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
- *
+ * Date   : 2021/03/18
  */
+#include "bst.h"
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
-#include "bst.h"
-
-int
-main(void)
+static int bst_test(void)
 {
     struct bst_node *root = NULL;
     datatype arr[]        = {2, 1, 7, 4, 3, 6, 5, 8};
@@ -73,5 +55,12 @@ main(void)
         printf("not found.\n");
     }
 
+    return 0;
+}
+
+int
+main(void)
+{
+    bst_test();
     return 0;
 }

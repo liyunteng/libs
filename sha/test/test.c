@@ -1486,7 +1486,7 @@ typedef struct {
 } input_t;
 
 void
-test(void)
+sha_test1(void)
 {
     printf("SHA1:\n");
     SHA1Context sha1ctx;
@@ -1528,7 +1528,7 @@ test(void)
 }
 
 void
-test1(void)
+sha_test2(void)
 {
     printf("SHA512:\n");
     USHAContext ctx;
@@ -1570,7 +1570,7 @@ test1(void)
 }
 
 void
-test2(void)
+sha_test3(void)
 {
     printf("HMAC: \n");
     HMACContext ctx;
@@ -1616,8 +1616,8 @@ int
 main(int argc, char *argv[])
 {
     /* sha_test(argc, argv); */
-    test();
-    test1();
-    test2();
+    sha_test1();
+    sha_test2();
+    sha_test3();
     return 0;
 }

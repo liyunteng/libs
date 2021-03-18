@@ -1,14 +1,10 @@
 /*
  * aes.h - aes
  *
- * Author : liyunteng <liyunteng@streamocean.com>
- * Date   : 2019/08/25
- *
- * Copyright (C) 2019 StreamOcean, Inc.
- * All rights reserved.
+ * Date   : 2021/03/18
  */
-#ifndef AES_H
-#define AES_H
+#ifndef __AES_H__
+#define __AES_H__
 
 #define AES_ENCRYPT 1
 #define AES_DECRYPT 0

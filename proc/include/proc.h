@@ -3,8 +3,8 @@
  *
  * Date   : 2020/04/29
  */
-#ifndef PROC_H
-#define PROC_H
+#ifndef __PROC_H__
+#define __PROC_H__
 
 #ifndef bool
 #define bool int

@@ -3,12 +3,11 @@
  *
  * Date   : 2020/04/25
  */
+#include "libconfig.h"
 
 #include <stdio.h>
 #include <sys/types.h>
 #include <string.h>
-
-#include "libconfig.h"
 
 #define CFG_PROP_LINE_MAX_LEN 512
 

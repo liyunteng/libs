@@ -1,14 +1,10 @@
 /*
  * xmlcfg.h - xmlcfg
  *
- * Author : liyunteng <liyunteng@streamocean.com>
- * Date   : 2019/08/24
- *
- * Copyright (C) 2019 StreamOcean, Inc.
- * All rights reserved.
+ * Date   : 2021/03/18
  */
-#ifndef XMLCFG_H
-#define XMLCFG_H
+#ifndef __XMLCFG_H__
+#define __XMLCFG_H__
 
 #define MAX_KEY_LEN 32
 #define KEY_TOKEN "."
@@ -35,4 +31,5 @@ extern xmlcfg_ptr xmlcfg_iter_init(xmlcfg_ptr cfg, const char *parent,
                                    const char *name);
 extern int xmlcfg_iter_hasnext(xmlcfg_ptr iter);
 extern xmlcfg_ptr xmlcfg_iter_next(xmlcfg_ptr iter);
+
 #endif

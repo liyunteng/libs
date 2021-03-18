@@ -1,12 +1,9 @@
 /*
- * avl_test.c - avl_test
+ * test.c - test
  *
- * Author : liyunteng <liyunteng@streamocean.com>
- * Date   : 2019/09/03
- *
- * Copyright (C) 2019 StreamOcean, Inc.
- * All rights reserved.
+ * Date   : 2021/03/18
  */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

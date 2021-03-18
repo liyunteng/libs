@@ -119,7 +119,8 @@ void test_rbtree_dump()
         p = rb_next(p);
     }
 }
-int main(void)
+
+int rbtree_test(void)
 {
     int array[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     /* int array[] = {35, 18, 69, 9, 21, 60, 90, 4, 30, 45, 64, 85, 96, 50}; */
@@ -144,6 +145,11 @@ int main(void)
         }
     }
     test_rbtree_dump();
+    return 0;
+}
 
+int main(void)
+{
+    rbtree_test();
     return 0;
 }

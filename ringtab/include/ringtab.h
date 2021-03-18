@@ -3,8 +3,8 @@
  *
  * Date   : 2020/04/27
  */
-#ifndef RINGTAB_H
-#define RINGTAB_H
+#ifndef __RINGTAB_H__
+#define __RINGTAB_H__
 #include <stdint.h>
 
 #define RINGTAB_ITEM_NONE -1

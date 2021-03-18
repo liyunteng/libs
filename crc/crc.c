@@ -1,11 +1,11 @@
 /*
- * crc.c - crc
+ * crc.c - crc32
  *
  * Date   : 2020/04/25
  */
+#include "crc.h"
 #include <stdio.h>
 #include <assert.h>
-#include "crc.h"
 
 unsigned int
 CRC32MPEG2(unsigned char *data, int length)

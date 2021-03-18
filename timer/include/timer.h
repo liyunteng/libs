@@ -3,8 +3,8 @@
  *
  * Date   : 2020/04/30
  */
-#ifndef TIMER_H
-#define TIMER_H
+#ifndef __TIMER_H__
+#define __TIMER_H__
 
 #include <stdint.h>
 #include <pthread.h>

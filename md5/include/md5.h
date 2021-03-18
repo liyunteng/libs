@@ -3,8 +3,8 @@
  *
  * Date   : 2020/04/25
  */
-#ifndef MD5_H
-#define MD5_H
+#ifndef __MD5_H__
+#define __MD5_H__
 
 #define MD5_DIGEST_CHARS    16
 #define MD5_DIGEST_INTS     (MD5_DIGEST_CHARS / sizeof(unsigned int))

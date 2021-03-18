@@ -1,12 +1,9 @@
 /*
  * test.c - test
  *
- * Author : liyunteng <liyunteng@streamocean.com>
- * Date   : 2019/08/24
- *
- * Copyright (C) 2019 StreamOcean, Inc.
- * All rights reserved.
+ * Date   : 2021/03/18
  */
+
 #include "xmlcfg.h"
 #include <string.h>
 #define ERR(fmt, args...) fprintf(stderr, fmt, ##args)
@@ -44,9 +41,8 @@ const char *xml_template = "                                        \
 </root>                                                             \
 ";
 
-int test1(void);
 int
-test1()
+xmlcfg_test(void)
 {
     xmlcfg_ptr cfg = NULL;
     cfg            = xmlcfg_init_bymem(xml_template, strlen(xml_template));
@@ -100,6 +96,6 @@ test1()
 int
 main(void)
 {
-    test1();
+    xmlcfg_test();
     return 0;
 }

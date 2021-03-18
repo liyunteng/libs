@@ -1,12 +1,9 @@
 /*
  * aes.c - aes
  *
- * Author : liyunteng <liyunteng@streamocean.com>
- * Date   : 2019/08/25
- *
- * Copyright (C) 2019 StreamOcean, Inc.
- * All rights reserved.
+ * Date   : 2021/03/18
  */
+
 #include "aes.h"
 #include <string.h>
 

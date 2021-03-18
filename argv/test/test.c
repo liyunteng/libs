@@ -15,6 +15,7 @@ int main(void)
 
     char **argv = NULL;
     int argc = 0;
+    printf("%s\n", str);
     argv = argv_split(str, &argc);
     if (argv) {
         for (i = 0; i < argc; i++) {

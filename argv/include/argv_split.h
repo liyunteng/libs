@@ -3,8 +3,8 @@
  *
  * Date   : 2020/09/28
  */
-#ifndef ARGV_SPLIT_H
-#define ARGV_SPLIT_H
+#ifndef __ARGV_SPLIT_H__
+#define __ARGV_SPLIT_H__
 
 char **argv_split(const char *str, int *argcp);
 

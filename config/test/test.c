@@ -12,7 +12,7 @@ static void print(char *key, char *data, void *priv_data)
     printf("%s = %s\n", key, data);
 }
 
-int main(void)
+int libconfig_test(void)
 {
     cfg_prop_obj_t *cfg_obj = NULL;
     char *filename = "test_config.cfg";
@@ -43,5 +43,12 @@ int main(void)
     cfg_prop_write_to_file(filename, cfg_obj);
 
     cfg_prop_close(cfg_obj);
+
+    return 0;
+}
+
+int main(void)
+{
+    libconfig_test();
     return 0;
 }

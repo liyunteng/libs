@@ -3,8 +3,8 @@
  *
  * Date   : 2020/04/25
  */
-#ifndef DAEMON_H
-#define DAEMON_H
+#ifndef __DAEMON_H__
+#define __DAEMON_H__
 
 #include <signal.h>
 #include <semaphore.h>

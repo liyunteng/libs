@@ -15,8 +15,7 @@ cmp(const void *key, const void *elt)
     return *(int *)key - *(int *)elt;
 }
 
-int
-main(void)
+int bsearch_test(void)
 {
     int array[128];
     int i;
@@ -35,5 +34,12 @@ main(void)
         }
     }
 
+    return 0;
+}
+
+int
+main(void)
+{
+    bsearch_test();
     return 0;
 }

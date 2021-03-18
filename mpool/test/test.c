@@ -37,13 +37,14 @@ mpool_test(void)
         for (i = 0; i < 16; i++) {
             p = (item_t *)mpool_get(ctx);
             if (p) {
+                mpool_item_t *ptr = container_of(p, mpool_item_t, data);
                 p->id = mpool_get_idx(ctx, p);
                 snprintf(p->str, sizeof(p->str), "this is %p", thread_self());
                 queue[i] = p;
                 printf(
                     "get [%2d] idx: %2d ref: %3d %p size: %2d count: %2d head: %2d "
                     "tail: %2d\n",
-                    i, p->id, container_of(p, mpool_item_t, data)->ref, p,
+                    i, p->id, ptr->ref, p,
                     mpool_size(ctx), mpool_count(ctx), ctx->head,
                     ctx->tail);
             }
@@ -53,11 +54,12 @@ mpool_test(void)
         for (i = 0; i < count; i++) {
             p = mpool_get_by_idx(ctx, i);
             if (p) {
+                mpool_item_t *ptr = container_of(p, mpool_item_t, data);
                 mpool_put(p);
                 printf(
                     "put [%2d] idx: %2d ref: %3d %p size: %2d count: %2d head: %2d "
                     "tail: %2d\n",
-                    i, p->id, container_of(p, mpool_item_t, data)->ref, p,
+                    i, p->id, ptr->ref, p,
                     mpool_size(ctx), mpool_count(ctx), ctx->head,
                     ctx->tail);
             }
@@ -107,8 +109,8 @@ mpool_benchmark(void)
          * p, mpool_size(ctx), mpool_count(ctx), ctx->head, ctx->tail); */
     }
 
-    printf("idx: %d %p  size: %d count: %d head: %d tail: %d\n", i, p,
-           mpool_size(ctx), mpool_count(ctx), ctx->head, ctx->tail);
+    printf("idx: %d %p  size: %d count: %d head: %d tail: %d\n",
+           i, p, mpool_size(ctx), mpool_count(ctx), ctx->head, ctx->tail);
     mpool_cleanup(ctx);
     return 0;
 }
@@ -124,7 +126,7 @@ run(void *arg)
         p = mpool_get(ctx);
         if (p) {
             p->id = mpool_get_idx(ctx, p);
-            snprintf(p->str, sizeof(p->str), "this is 0x%lx", pthread_self());
+            snprintf(p->str, sizeof(p->str), "this is 0x%lx", (long)pthread_self());
         }
         mpool_put(p);
     }

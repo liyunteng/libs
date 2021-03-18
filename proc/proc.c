@@ -3,6 +3,9 @@
  *
  * Date   : 2020/04/29
  */
+
+#include "proc.h"
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
@@ -11,8 +14,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
-
-#include "proc.h"
 
 #define MAX_PATH 256
 #define NAME_TITLE_LEN 6        /* strlen("Name:")+1 */

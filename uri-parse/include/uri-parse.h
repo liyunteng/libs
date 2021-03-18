@@ -3,8 +3,8 @@
  *
  * Date   : 2021/03/14
  */
-#ifndef URI_PARSE_H
-#define URI_PARSE_H
+#ifndef __URI_PARSE_H__
+#define __URI_PARSE_H__
 
 #ifdef __cplusplus
 extern "C" {

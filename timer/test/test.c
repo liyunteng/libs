@@ -3,6 +3,7 @@
  *
  * Date   : 2020/04/30
  */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -41,9 +42,8 @@ void time_print(void* data)
     printf("local time: %04d-%02d-%02d %02d:%02d:%02d\n", tt.tm_year + 1900, tt.tm_mon + 1, tt.tm_mday, tt.tm_hour, tt.tm_min, tt.tm_sec);
 }
 
-int main(int argc, char* argv[])
+int timer_test(void)
 {
-
     timer_ctx_t ctx;
     time_t t = time(NULL);
     if(timer_init(&ctx) == NULL) {
@@ -66,5 +66,11 @@ int main(int argc, char* argv[])
 
     printf("Clean up\n");
     timer_cleanup(&ctx);
+    return 0;
+}
+
+int main(int argc, char* argv[])
+{
+    timer_test();
     return 0;
 }

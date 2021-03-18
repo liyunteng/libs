@@ -6,13 +6,14 @@
 
 #include "crc.h"
 #include <stdio.h>
+
 typedef struct {
     unsigned char *data;
     int data_len;
     unsigned int out;
 } crc_test_pair;
-int
-main(void)
+
+int crc32_test(void)
 {
     unsigned char d0[] = {0x00};
     // 0x4e, 0x08, 0xbf, 0xb4
@@ -83,5 +84,13 @@ main(void)
             printf("success crc: 0x%X\n", crc);
         }
     }
+
+    return 0;
+}
+
+int
+main(void)
+{
+    crc32_test();
     return 0;
 }

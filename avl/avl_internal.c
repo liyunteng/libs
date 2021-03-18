@@ -1,12 +1,11 @@
 /*
  * avl_internal.c - avl_internal
  *
- * Author : liyunteng <liyunteng@streamocean.com>
- * Date   : 2019/09/03
- *
- * Copyright (C) 2019 StreamOcean, Inc.
- * All rights reserved.
+ * Date   : 2021/03/18
  */
+
+#include "avl_internal.h"
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,7 +13,6 @@
 #include <syslog.h>
 #include <unistd.h>
 
-#include "avl_internal.h"
 
 /*
  * avl_balance_right_internal

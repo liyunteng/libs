@@ -3,8 +3,8 @@
  *
  * Date   : 2020/04/25
  */
-#ifndef LIBCONFIG_H
-#define LIBCONFIG_H
+#ifndef __LIBCONFIG_H__
+#define __LIBCONFIG_H__
 
 #include <json-c/json.h>
 

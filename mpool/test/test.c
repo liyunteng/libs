@@ -37,7 +37,7 @@ mpool_test(void)
         for (i = 0; i < 16; i++) {
             p = (item_t *)mpool_get(ctx);
             if (p) {
-                mpool_item_t *ptr = container_of(p, mpool_item_t, data);
+                mpool_item_t *ptr = container_of((void *)p, mpool_item_t, data);
                 p->id = mpool_get_idx(ctx, p);
                 snprintf(p->str, sizeof(p->str), "this is %p", thread_self());
                 queue[i] = p;
@@ -54,7 +54,7 @@ mpool_test(void)
         for (i = 0; i < count; i++) {
             p = mpool_get_by_idx(ctx, i);
             if (p) {
-                mpool_item_t *ptr = container_of(p, mpool_item_t, data);
+                mpool_item_t *ptr = container_of((void *)p, mpool_item_t, data);
                 mpool_put(p);
                 printf(
                     "put [%2d] idx: %2d ref: %3d %p size: %2d count: %2d head: %2d "

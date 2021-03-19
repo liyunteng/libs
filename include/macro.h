@@ -114,7 +114,7 @@
 
 // ARRAY_SIZE
 #ifndef ARRAY_SIZE
-#define ARRAY_SIZE(name) (size_t)((sizeof(name)) / (sizeof(name[0])))
+#define ARRAY_SIZE(name) ((sizeof(name)) / (sizeof(name[0])))
 #endif
 
 // MIN

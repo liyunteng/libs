@@ -455,11 +455,12 @@ rbtree_prev(const struct rbtree_node *node)
         while (node->right)
             node = node->right;
         return node;
-    } else {
-        while (node->parent && node == node->parent->left)
-            node = node->parent;
-        return node->parent;
     }
+
+    while (node->parent && node == node->parent->left)
+        node = node->parent;
+
+    return node->parent;
 }
 
 const struct rbtree_node *
@@ -470,9 +471,33 @@ rbtree_next(const struct rbtree_node *node)
         while (node->left)
             node = node->left;
         return node;
-    } else {
-        while (node->parent && node == node->parent->right)
-            node = node->parent;
-        return node->parent;
     }
+
+    while (node->parent && node == node->parent->right)
+            node = node->parent;
+
+    return node->parent;
+}
+
+void
+rb_replace(struct rbtree_root *root, struct rbtree_node *old,
+           struct rbtree_node *new)
+{
+    struct rbtree_node *p = old->parent;
+    if (p) {
+        if (old == p->left)
+            p->left = new;
+        else
+            p->right = new;
+    } else {
+        root->node = new;
+    }
+
+    if (old->left)
+        new->left = old->left;
+    if (old->right)
+        new->right = old->right;
+
+    // copy to new
+    *new = *old;
 }

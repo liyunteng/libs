@@ -18,7 +18,7 @@
  * #endif */
 #include <assert.h>
 
-#define N 32
+#define N 100
 
 typedef struct rbtree_value {
     rbtree_node_t node;
@@ -296,7 +296,7 @@ dict_search(dict_root_t *root, const uint32_t key)
         if (result == 0) {
             return data;
         }
-        node = result > 0 ? node->right : node->left;
+        node = result < 0 ? node->left : node->right;
     }
 
     return NULL;
@@ -313,8 +313,8 @@ dict_insert(dict_root_t *root, dict_t *data)
         parent = *link;
         dict_t *this = rbtree_entry(parent, dict_t, node);
         result = dict_key_cmp(data->key, this->key);
-         // duplicated key link to left
-        link = result > 0 ? &parent->right : &parent->left;
+         // duplicated key link to right
+        link = result < 0 ? &parent->left : &parent->right;
     }
 
     rbtree_insert(root, parent, link, &(data->node));
@@ -364,30 +364,28 @@ dict_test(void)
     char buf[128]    = {0};
     int i;
 
-    for (i = 0; i < 100; i++) {
+    for (i = 0; i < N; i++) {
         snprintf(buf, sizeof(buf) - 1, "this is %d", i);
         data = dict_create(i, buf);
         assert(data);
+        data->key = i;
         dict_insert(&root, data);
     }
-
-    for (i = 0; i < 100; i += 3) {
-        snprintf(buf, sizeof(buf) - 1, "this is %d", i + 100);
+    for (i = 0; i < N; i += 3) {
+        snprintf(buf, sizeof(buf) - 1, "this is %d", i + N);
         data = dict_create(i, buf);
         assert(data);
         dict_insert(&root, data);
     }
 
-    dict_erase(&root, 75);
-    dict_iter(&root, dump);
     rbtree_print(&root);
+    dict_iter(&root, dump);
 
     data = dict_search(&root, 26);
     if (data) {
         printf("key: %u value: %s\n", data->key, data->value);
     }
-
-    for (i = 0; i < 100; i++) {
+    for (i = 0; i < N; i++) {
         dict_erase(&root, i);
     }
     dict_iter(&root, dump);

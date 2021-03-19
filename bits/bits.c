@@ -6,7 +6,7 @@
 #include "bits.h"
 #include <assert.h>
 
-void bits_init(struct bits_t* bits, const void* data, size_t size)
+void bits_init(struct bits* bits, const void* data, size_t size)
 {
 	bits->data = (uint8_t*)data;
 	bits->size = size;
@@ -14,7 +14,7 @@ void bits_init(struct bits_t* bits, const void* data, size_t size)
 	bits->error = 0;
 }
 
-int bits_next(struct bits_t* bits)
+int bits_next(struct bits* bits)
 {
 	uint8_t bit;
 	assert(bits && bits->data && bits->size > 0);
@@ -28,7 +28,7 @@ int bits_next(struct bits_t* bits)
 	return bit ? 1 : 0;
 }
 
-uint64_t bits_next_n(struct bits_t* bits, int n)
+uint64_t bits_next_n(struct bits* bits, int n)
 {
 	size_t i;
 	uint64_t v;
@@ -62,7 +62,7 @@ uint64_t bits_next_n(struct bits_t* bits, int n)
 	return v;
 }
 
-int bits_read(struct bits_t* bits)
+int bits_read(struct bits* bits)
 {
 	int bit;
 	bit = bits_next(bits);
@@ -71,7 +71,7 @@ int bits_read(struct bits_t* bits)
 	return bit;
 }
 
-uint64_t bits_read_n(struct bits_t* bits, int n)
+uint64_t bits_read_n(struct bits* bits, int n)
 {
 	uint64_t bit;
 	bit = bits_next_n(bits, n);
@@ -80,7 +80,7 @@ uint64_t bits_read_n(struct bits_t* bits, int n)
 	return bit;
 }
 
-int bits_read_ue(struct bits_t* bits)
+int bits_read_ue(struct bits* bits)
 {
 	int bit;
 	int leadingZeroBits = -1;
@@ -99,13 +99,13 @@ int bits_read_ue(struct bits_t* bits)
 	return (1 << leadingZeroBits) - 1 + bit;
 }
 
-int bits_read_se(struct bits_t* bits)
+int bits_read_se(struct bits* bits)
 {
 	int v = bits_read_ue(bits);
 	return (0 == v % 2 ? -1 : 1) * ((v + 1) / 2);
 }
 
-int bits_read_te(struct bits_t* bits)
+int bits_read_te(struct bits* bits)
 {
 	int v = bits_read_ue(bits);
 	if (v != 1)
@@ -114,7 +114,7 @@ int bits_read_te(struct bits_t* bits)
 		return bits_read(bits) ? 0 : 1;
 }
 
-int bits_write(struct bits_t* bits, int v)
+int bits_write(struct bits* bits, int v)
 {
 	assert(bits && bits->data && bits->size > 0);
 	if (bits->bits >= bits->size * 8)
@@ -129,7 +129,7 @@ int bits_write(struct bits_t* bits, int v)
 	return 0;
 }
 
-int bits_write_n(struct bits_t* bits, uint64_t v, int n)
+int bits_write_n(struct bits* bits, uint64_t v, int n)
 {
 	int m;
 	size_t i;

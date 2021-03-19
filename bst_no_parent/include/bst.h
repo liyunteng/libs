@@ -6,7 +6,9 @@
 #ifndef __BST_NO_PARENT_H__
 #define __BST_NO_PARENT_H__
 
-#include "types.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef int datatype;
 struct bst_node {
@@ -25,5 +27,9 @@ extern struct bst_node *bst_min(struct bst_node *root);
 extern struct bst_node *bst_max(struct bst_node *root);
 extern struct bst_node *bst_search(struct bst_node *root, datatype key);
 extern int bst_delete(struct bst_node **root, datatype key);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif

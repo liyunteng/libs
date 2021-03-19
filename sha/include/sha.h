@@ -308,5 +308,4 @@ extern int hkdfResult(HKDFContext *context, uint8_t prk[USHAMaxHashSize],
 }
 #endif
 
-
 #endif

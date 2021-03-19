@@ -11,7 +11,7 @@
 #include <errno.h>
 
 typedef struct {
-    struct channel_t *ch;
+    channel_t *ch;
     int timeout;
 } param_t;
 
@@ -23,7 +23,7 @@ typedef struct {
 void *producer(void *arg)
 {
     param_t *param = (param_t *)arg;
-    struct channel_t *ch = param->ch;
+    channel_t *ch = param->ch;
     int timeout = param->timeout;
     int i, ret;
     msg_t msg;
@@ -52,7 +52,7 @@ void *producer(void *arg)
 void *consumer(void *arg)
 {
     param_t *param = (param_t *)arg;
-    struct channel_t *ch = param->ch;
+    channel_t *ch = param->ch;
     int timeout = param->timeout;
     int ret;
     msg_t msg;
@@ -79,7 +79,7 @@ void *consumer(void *arg)
     return (void *)0;
 }
 
-static void ch_send_quit(struct channel_t *ch)
+static void ch_send_quit(channel_t *ch)
 {
     msg_t msg;
     msg.id = 0;
@@ -91,7 +91,7 @@ int test(int np, int timeout)
 {
     pthread_t c;
     pthread_t *ps;
-    struct channel_t *ch;
+    channel_t *ch;
     param_t paramp, paramc;
     int i;
 

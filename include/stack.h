@@ -6,6 +6,10 @@
 #ifndef __STACK_H__
 #define __STACK_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // lock-free stack
 
 #include "atomic.h"
@@ -79,6 +83,8 @@ static inline int stack_clear(struct stack *stack)
 	return 0;
 }
 
-
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif

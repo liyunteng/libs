@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-struct heap_t
+struct heap
 {
 	void** elts; // elements
 	int size;
@@ -23,13 +23,13 @@ struct heap_t
 	void* param;
 };
 
-static void heap_percolate_up(struct heap_t* heap);
-static void heap_percolate_down(struct heap_t* heap);
+static void heap_percolate_up(struct heap* heap);
+static void heap_percolate_down(struct heap* heap);
 
-struct heap_t* heap_create(heap_less compare, void* param)
+struct heap* heap_create(heap_less compare, void* param)
 {
-	struct heap_t* heap;
-	heap = (struct heap_t*)calloc(1, sizeof(*heap));
+	struct heap* heap;
+	heap = (struct heap*)calloc(1, sizeof(*heap));
 	if (heap)
 	{
 		heap->less = compare;
@@ -38,7 +38,7 @@ struct heap_t* heap_create(heap_less compare, void* param)
 	return heap;
 }
 
-void heap_destroy(struct heap_t* heap)
+void heap_destroy(struct heap* heap)
 {
 	if (heap->elts)
 	{
@@ -50,7 +50,7 @@ void heap_destroy(struct heap_t* heap)
 	free(heap);
 }
 
-void heap_reserve(struct heap_t* heap, int size)
+void heap_reserve(struct heap* heap, int size)
 {
 	void* p;
 	if (heap->capacity < size)
@@ -64,23 +64,23 @@ void heap_reserve(struct heap_t* heap, int size)
 	}
 }
 
-int heap_size(struct heap_t* heap)
+int heap_size(struct heap* heap)
 {
 	return heap->size;
 }
 
-int heap_empty(struct heap_t* heap)
+int heap_empty(struct heap* heap)
 {
 	return !heap->size;
 }
 
-int heap_push(struct heap_t* heap, void* ptr)
+int heap_push(struct heap* heap, void* ptr)
 {
 	if (heap->size + 1 >= heap->capacity)
 	{
 		heap_reserve(heap, heap->size + 2014);
 		if (heap->size + 1 >= heap->capacity)
-			return ENOMEM;
+			return -ENOMEM;
 	}
 
 	heap->elts[heap->size++] = ptr;
@@ -88,7 +88,7 @@ int heap_push(struct heap_t* heap, void* ptr)
 	return 0;
 }
 
-void heap_pop(struct heap_t* heap)
+void heap_pop(struct heap* heap)
 {
 	if (heap->size < 1)
 		return;
@@ -96,21 +96,21 @@ void heap_pop(struct heap_t* heap)
 	heap->size -= 1;
 }
 
-void* heap_top(struct heap_t* heap)
+void* heap_top(struct heap* heap)
 {
 	if (heap->size < 1)
 		return NULL;
 	return heap->elts[0];
 }
 
-void* heap_get(heap_t* heap, int index)
+void* heap_get(struct heap* heap, int index)
 {
 	if (index < 0 || index >= heap->size)
 		return NULL;
 	return heap->elts[index];
 }
 
-static inline void heap_swap(struct heap_t* heap, int l, int r)
+static inline void heap_swap(struct heap* heap, int l, int r)
 {
 	void* elt;
 	elt = heap->elts[l];
@@ -123,7 +123,7 @@ static inline void heap_swap(struct heap_t* heap, int l, int r)
 2. Compare the added element with its parent; if they are in the correct order, stop.
 3. If not, swap the element with its parent and return to the previous step.
 */
-static void heap_percolate_up(struct heap_t* heap)
+static void heap_percolate_up(struct heap* heap)
 {
 	int n, p;
 
@@ -143,7 +143,7 @@ static void heap_percolate_up(struct heap_t* heap)
 2. Compare the new root with its children; if they are in the correct order, stop.
 3. If not, swap the element with one of its children and return to the previous step. (Swap with its smaller child in a min-heap and its larger child in a max-heap.)
 */
-static void heap_percolate_down(struct heap_t* heap)
+static void heap_percolate_down(struct heap* heap)
 {
 	int n, c, min;
 	assert(heap->size > 0);

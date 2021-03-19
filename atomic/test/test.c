@@ -6,6 +6,7 @@
 #include "atomic.h"
 #include <stdlib.h>
 #include <pthread.h>
+#include <stdio.h>
 
 #ifdef NDEBUG
 #undef NDEBUG
@@ -50,6 +51,7 @@ void atomic_test(void)
 #else
 	free(pval64);
 #endif
+    printf("atomic_test done\n");
 }
 
 
@@ -85,6 +87,8 @@ void atomic_test2(void)
 
     assert(s_v32 == 100);
 	assert(s_v64 == 0x0011001100110011);
+    printf("atomic_test2 done\n");
+
 }
 
 int main(void)

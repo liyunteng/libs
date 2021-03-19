@@ -6,18 +6,20 @@
 
 #include "proc.h"
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <dirent.h>
 #include <assert.h>
+#include <dirent.h>
 #include <fcntl.h>
-#include <unistd.h>
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #define MAX_PATH 256
-#define NAME_TITLE_LEN 6        /* strlen("Name:")+1 */
-int check_process(const char *proc_name)
+#define NAME_TITLE_LEN 6 /* strlen("Name:")+1 */
+
+static int
+check_process(const char *proc_name)
 {
     DIR *dp;
     struct dirent *entry;
@@ -33,8 +35,8 @@ int check_process(const char *proc_name)
     while ((entry = readdir(dp)) != NULL) {
         lstat(entry->d_name, &statbuf);
         if (S_ISDIR(statbuf.st_mode)) {
-            if (strcmp(".", entry->d_name) == 0 ||
-                strcmp("..", entry->d_name) == 0)
+            if (strcmp(".", entry->d_name) == 0
+                || strcmp("..", entry->d_name) == 0)
                 continue;
 
             memset(pathname, 0, MAX_PATH);
@@ -45,7 +47,7 @@ int check_process(const char *proc_name)
             if (fd != -1) {
                 char name[MAX_PATH];
                 char proc[MAX_PATH];
-                count =read (fd, name, MAX_PATH);
+                count = read(fd, name, MAX_PATH);
                 if (count > NAME_TITLE_LEN) {
                     sscanf(name, "Name:%s", proc);
                     if (strcmp(proc, proc_name) == 0) {
@@ -60,10 +62,11 @@ int check_process(const char *proc_name)
     return nres;
 }
 
-bool wait_proc_exit(const char *proc_name, int timeout)
+int
+wait_proc_exit(const char *proc_name, int timeout)
 {
     if (!proc_name) {
-        return false;
+        return -1;
     }
 
     while ((check_process(proc_name) > 0) && timeout > 0) {
@@ -71,15 +74,16 @@ bool wait_proc_exit(const char *proc_name, int timeout)
         timeout--;
     }
 
-    return timeout != 0;
+    return timeout == 0 ? -1 : 0;
 }
 
-bool wait_procs_exit(const char **procs, int timeout)
+int
+wait_procs_exit(const char **procs, int timeout)
 {
     const char *proc_name = NULL;
-    bool res = true;
+    int res               = 0;
     if (!procs) {
-        return false;
+        return -1;
     }
     proc_name = *procs;
     while (proc_name) {

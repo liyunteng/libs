@@ -10,8 +10,7 @@
 extern "C" {
 #endif
 
-
-typedef struct heap_t heap_t;
+typedef struct heap heap_t;
 
 /// heap compare callback
 /// @return 1 if ptr1 < ptr2, 0-other

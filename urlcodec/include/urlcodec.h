@@ -32,7 +32,4 @@ int url_decode(const char* source, int srcBytes, char* target, int tgtBytes);
 #ifdef  __cplusplus
 }
 #endif
-
-
-
 #endif

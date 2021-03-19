@@ -5,6 +5,11 @@
  */
 #ifndef __RINGTAB_H__
 #define __RINGTAB_H__
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 
 #define RINGTAB_ITEM_NONE -1
@@ -30,13 +35,13 @@ typedef struct {
     char data[0];
 } ringtab_hdr_t;
 
-#define RINGTAB_STRUCT(name, n_items, item_size)        \
-    struct name {                                       \
-        ringtab_hdr_t hdr;                              \
-        char          data[(n_items) * (item_size)];    \
+#define RINGTAB_STRUCT(name, n_items, item_size)                               \
+    struct name {                                                              \
+        ringtab_hdr_t hdr;                                                     \
+        char data[(n_items) * (item_size)];                                    \
     }
 
-typedef void (*ringtab_item_release_fn) (void *ctx, void *item);
+typedef void (*ringtab_item_release_fn)(void *ctx, void *item);
 
 /******************************************
  * Inline APIs for primitive definitions. *
@@ -45,24 +50,19 @@ typedef void (*ringtab_item_release_fn) (void *ctx, void *item);
 /*
  * Initialization.
  */
-void
-ringtab_init (ringtab_hdr_t *rtab,
-              int16_t n_items,
-              int16_t item_size);
+void ringtab_init(ringtab_hdr_t *rtab, int16_t n_items, int16_t item_size);
 
 
 /*
  * The number of items in the table
  */
-int16_t
-ringtab_items_used(ringtab_hdr_t *rtab);
+int16_t ringtab_items_used(ringtab_hdr_t *rtab);
 
 
 /*
  * The number of empty spots in the table
  */
-int16_t
-ringtab_items_left(ringtab_hdr_t *rtab);
+int16_t ringtab_items_left(ringtab_hdr_t *rtab);
 
 
 /*
@@ -70,16 +70,14 @@ ringtab_items_left(ringtab_hdr_t *rtab);
  * Return TRUE if success; FALSE, otherwise.
  * Note, producer calls this function to get the item pointer to write to.
  */
-void *
-ringtab_put_item (ringtab_hdr_t  *rtab);
+void *ringtab_put_item(ringtab_hdr_t *rtab);
 
 
 /*
  * Consumer locate the item at head.
  * It can be called multiple times consecutively and get the same result.
  */
-void *
-ringtab_use_item (ringtab_hdr_t  *rtab);
+void *ringtab_use_item(ringtab_hdr_t *rtab);
 
 /*
  * Consumer locate the item at in_use+1.
@@ -89,38 +87,33 @@ ringtab_use_item (ringtab_hdr_t  *rtab);
  * For now, this is up to caller to maintain the serialization of peek
  * and clean.
  */
-void *
-ringtab_peek_next (ringtab_hdr_t  *rtab);
+void *ringtab_peek_next(ringtab_hdr_t *rtab);
 
 /*
  * Producer locate the last item at tail.
  * It can be called multiple times consecutively and get the same result.
  */
-void *
-ringtab_peek_last (ringtab_hdr_t  *rtab);
+void *ringtab_peek_last(ringtab_hdr_t *rtab);
 
 
 /*
  * Consumer set dirty pointer to in_use if it's not set yet;
  * then dequeue from head.
  */
-void
-ringtab_done_item (ringtab_hdr_t *rtab);
+void ringtab_done_item(ringtab_hdr_t *rtab);
 
 
 /*
  * Producer release the dirty item.
  * All items between dirty->head need to clean.
  */
-void *
-ringtab_get_dirty (ringtab_hdr_t *rtab);
+void *ringtab_get_dirty(ringtab_hdr_t *rtab);
 
 
 /*
  * Consumer dequeue item from head.
  */
-void *
-ringtab_get_item (ringtab_hdr_t  *rtab);
+void *ringtab_get_item(ringtab_hdr_t *rtab);
 
 
 /****************************************
@@ -129,32 +122,32 @@ ringtab_get_item (ringtab_hdr_t  *rtab);
 /*
  * Producer clean up all dirty items and return new item pointer to write to.
  */
-void *
-ringtab_produce_item (ringtab_hdr_t           *rtab,
-                      ringtab_item_release_fn  release_fn,
-                      void                    *rel_ctx);
+void *ringtab_produce_item(ringtab_hdr_t *rtab,
+                           ringtab_item_release_fn release_fn,
+                           void *rel_ctx);
 
 /*
  * Conumer marks the current in-use item done and use the next one.
  */
-void *
-ringtab_consume_item (ringtab_hdr_t  *rtab);
+void *ringtab_consume_item(ringtab_hdr_t *rtab);
 
 /*
  * Producer clean up all dirty items.
  */
-void
-ringtab_cleanup (ringtab_hdr_t           *rtab,
-                 ringtab_item_release_fn  release_fn,
-                 void                    *rel_ctx);
+void ringtab_cleanup(ringtab_hdr_t *rtab,
+                     ringtab_item_release_fn release_fn,
+                     void *rel_ctx);
 
 /*
  * Producer clean up all dirty items and not-in-use items.
  */
-void
-ringtab_cleanup_all (ringtab_hdr_t           *rtab,
-                     ringtab_item_release_fn  release_fn,
-                     void                    *rel_ctx);
+void ringtab_cleanup_all(ringtab_hdr_t *rtab,
+                         ringtab_item_release_fn release_fn,
+                         void *rel_ctx);
 
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif

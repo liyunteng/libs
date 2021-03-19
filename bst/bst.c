@@ -25,7 +25,7 @@ bst_destroy(Node **root)
     return;
 }
 
-Node *
+static Node *
 __bst_insert(Node **root, Node *pre, datatype data)
 {
     if (!*root) {

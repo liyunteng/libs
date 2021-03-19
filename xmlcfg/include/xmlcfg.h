@@ -6,11 +6,15 @@
 #ifndef __XMLCFG_H__
 #define __XMLCFG_H__
 
-#define MAX_KEY_LEN 32
-#define KEY_TOKEN "."
-
 #include <libxml/parser.h>
 #include <libxml/tree.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define MAX_KEY_LEN 32
+#define KEY_TOKEN "."
 
 typedef struct {
     xmlDocPtr doc;
@@ -31,5 +35,11 @@ extern xmlcfg_ptr xmlcfg_iter_init(xmlcfg_ptr cfg, const char *parent,
                                    const char *name);
 extern int xmlcfg_iter_hasnext(xmlcfg_ptr iter);
 extern xmlcfg_ptr xmlcfg_iter_next(xmlcfg_ptr iter);
+
+
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif

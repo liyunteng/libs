@@ -11,7 +11,7 @@
 #include <stdlib.h>
 #include <assert.h>
 
-struct channel_t
+struct channel
 {
 	int elesize; // element size
 	int capacity; // channel capacity(by element)
@@ -23,11 +23,11 @@ struct channel_t
     sema_t writer;
 };
 
-struct channel_t* channel_create(int capacity, int elementsize)
+struct channel *channel_create(int capacity, int elementsize)
 {
-	struct channel_t* c;
+	struct channel* c = NULL;
 	assert(capacity > 0 && elementsize > 0);
-	c = (struct channel_t*)malloc(sizeof(*c) + capacity * elementsize);
+	c = (struct channel*)malloc(sizeof(*c) + capacity * elementsize);
 	if (c)
 	{
 		memset(c, 0, sizeof(*c));
@@ -41,9 +41,9 @@ struct channel_t* channel_create(int capacity, int elementsize)
 	return c;
 }
 
-void channel_destroy(struct channel_t** pc)
+void channel_destroy(struct channel** pc)
 {
-	struct channel_t* c;
+	struct channel* c = NULL;
 
 	if (!pc || !*pc)
 		return;
@@ -57,7 +57,7 @@ void channel_destroy(struct channel_t** pc)
 	free(c);
 }
 
-void channel_clear(struct channel_t* c)
+void channel_clear(struct channel* c)
 {
 	locker_lock(&c->locker);
 	c->count = 0;
@@ -65,13 +65,13 @@ void channel_clear(struct channel_t* c)
 	locker_unlock(&c->locker);
 }
 
-int channel_count(struct channel_t* c)
+int channel_count(struct channel* c)
 {
 	// TODO: memory alignment
 	return c->count;
 }
 
-int channel_push(struct channel_t* c, const void* e)
+int channel_push(struct channel* c, const void* e)
 {
 	sema_wait(&c->writer);
 
@@ -85,7 +85,7 @@ int channel_push(struct channel_t* c, const void* e)
 	return 0;
 }
 
-int channel_pop(struct channel_t* c, void* e)
+int channel_pop(struct channel* c, void* e)
 {
 	sema_wait(&c->reader);
 
@@ -100,7 +100,7 @@ int channel_pop(struct channel_t* c, void* e)
 	return 0;
 }
 
-int channel_push_timeout(struct channel_t* c, const void* e, int timeout)
+int channel_push_timeout(struct channel* c, const void* e, int timeout)
 {
 	int r;
 	r = sema_timewait(&c->writer, timeout);
@@ -117,7 +117,7 @@ int channel_push_timeout(struct channel_t* c, const void* e, int timeout)
 	return 0;
 }
 
-int channel_pop_timeout(struct channel_t* c, void* e, int timeout)
+int channel_pop_timeout(struct channel* c, void* e, int timeout)
 {
 	int r;
 	r = sema_timewait(&c->reader, timeout);

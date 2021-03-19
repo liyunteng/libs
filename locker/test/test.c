@@ -7,6 +7,7 @@
 #include "thread.h"
 #include "system.h"
 #include <string.h>
+#include <stdio.h>
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -55,6 +56,8 @@ void locker_test(void)
 	}
 
 	locker_destroy(&locker);
+
+    printf("locker test ok\n");
 }
 
 int main(void)

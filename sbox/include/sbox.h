@@ -5,6 +5,9 @@
  */
 #ifndef __SBOX_H__
 #define __SBOX_H__
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #include "rbtree.h"
 #include <stdint.h>
@@ -135,4 +138,9 @@ extern sbox_list_node* sbox_list_next(sbox_list_node *cur);
 
 extern sbox_ptr sbox_hold(sbox_ptr box);
 extern void sbox_release(sbox_ptr box);
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
+
 #endif

@@ -6,6 +6,10 @@
 #ifndef __TIMER_H__
 #define __TIMER_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <pthread.h>
 
@@ -80,5 +84,9 @@ extern void timer_run(timer_ctx_t *ctx);
 
 extern uint64_t get_current_clock(void);
 
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif

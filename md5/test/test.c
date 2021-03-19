@@ -20,7 +20,7 @@ md5_test(void)
 {
     char buf[40], *bp;
     int i;
-    MD5_CTX md5_ctx;
+    md5_ctx_t md5_ctx;
     md5_u sid;
 
     static md5_test_pair data[] = {
@@ -45,10 +45,10 @@ md5_test(void)
     md5_test_pair *pdata = &data[0];
 
     while (pdata->input) {
-        MD5Init(&md5_ctx);
-        MD5Update(&md5_ctx, (const unsigned char *)pdata->input,
+        md5_init(&md5_ctx);
+        md5_update(&md5_ctx, (const unsigned char *)pdata->input,
                   strlen(pdata->input));
-        MD5Final(&md5_ctx, sid.c);
+        md5_final(&md5_ctx, sid.c);
 
         bp = buf;
         for (i = 0; i < sizeof(sid); i++) {

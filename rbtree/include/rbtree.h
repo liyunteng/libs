@@ -80,26 +80,14 @@ static inline struct page * rb_insert_page_cache(struct inode * inode,
 -----------------------------------------------------------------------
 */
 
-#ifndef RBTREE_H
-#define RBTREE_H
+#ifndef __RBTREE_H__
+#define __RBTREE_H__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+#include "macro.h"
 #include <stdlib.h>
-
-#ifndef offsetof
-#ifdef __compiler_offsetof
-#define offsetof(TYPE, MEMBER) __compiler_offset(TYPE, MEMBER)
-#else
-#define offsetof(TYPE, MEMBER) ((size_t) & ((TYPE *)0)->MEMBER)
-#endif
-#endif
-
-#ifndef container_of
-#define container_of(ptr, type, member)                                        \
-    ({                                                                         \
-        const typeof(((type *)0)->member) *__mptr = (ptr);                     \
-        (type *)((char *)__mptr - offsetof(type, member));                     \
-    })
-#endif
 
 struct rb_node {
     unsigned long rb_parent_color;
@@ -168,5 +156,9 @@ rb_link_node(struct rb_node *node, struct rb_node *parent,
 
     *rb_link = node;
 }
+
+#ifdef __cplusplus
+} /* extern "C" */
+#endif
 
 #endif

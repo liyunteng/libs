@@ -48,6 +48,8 @@ void heap_test(void)
         printf("%d: %d ", i, *n);
 		heap_pop(heap);
 	}
+    printf("\n");
+
 	assert(heap_empty(heap));
 	heap_destroy(heap);
 	printf("heap test ok\n");

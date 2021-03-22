@@ -1,11 +1,14 @@
 /*
  * twtimer.h - twtimer
  *
- * Date   : 2021/03/22
+ * Date   : 2021/03/23
  */
 #ifndef __TWTIMER_H__
 #define __TWTIMER_H__
+
+#include <bits/stdint-uintn.h>
 #include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif

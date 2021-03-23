@@ -6,7 +6,6 @@
 #ifndef __TWTIMER_H__
 #define __TWTIMER_H__
 
-#include <bits/stdint-uintn.h>
 #include <stdint.h>
 
 #ifdef __cplusplus

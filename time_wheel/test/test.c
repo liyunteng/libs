@@ -229,11 +229,10 @@ static void timer_check_remove()
 	free(timers);
 }
 
-static int ontimeout(void *param)
+static void ontimeout(void *param)
 {
     twtimer_t *timer = (twtimer_t *)param;
     printf("%lld %lld\n", timer->expire, system_clock());
-    return 0;
 }
 
 #define N 100
@@ -259,21 +258,20 @@ static void timer_simple_test()
     }
 
     for (i = 0; i < 50*N; i++) {
-        twtimer_process(wheel, system_clock());
-        system_sleep(1);
+        twtimer_process(wheel, now+i);
     }
 }
 
 void timer_test(void)
 {
-    /* srand((unsigned int)system_clock()); */
+    srand((unsigned int)system_clock());
 
     timer_simple_test();
-	/* timer_check_addmanytimes(); */
-    /* timer_check_cascade(); */
-	/* timer_check_cascade2(); */
-    /* timer_check3(); */
-	/* timer_check_remove(); */
+	timer_check_addmanytimes();
+    timer_check_cascade();
+	timer_check_cascade2();
+    timer_check3();
+	timer_check_remove();
 
     printf("timer test ok.\n");
 }

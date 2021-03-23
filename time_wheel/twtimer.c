@@ -15,9 +15,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define TIME_RESOLUTION 3  // (0xFFFFFFFF << 3) (24 * 3600 * 1000) ~= 397day
-#define TIME(clock) ((clock) >> TIME_RESOLUTION)  // per 8ms
+/* #define TIME_RESOLUTION 3  // (0xFFFFFFFF << 3)/(24 * 3600 * 1000) ~= 397day (8ms)*/
+#define TIME_RESOLUTION 0    // (0xFFFFFFFF) / (24 * 3600 * 1000) ~= 49day (1ms)
+#define TIME(clock) ((clock) >> TIME_RESOLUTION)
 
+
+/*  6bit |  6bit |   6bit |  6bit |   8bit |*/
+/* 111111  111111  111111  111111  11111111*/
 #define TVR_BITS 8
 #define TVN_BITS 6
 #define TVR_SIZE (1 << TVR_BITS)
@@ -187,29 +191,22 @@ twtimer_add(struct time_wheel *tm, struct twtimer *timer)
     diff = TIME(timer->expire - tm->clock);  // per 64ms
 
     if (timer->expire < tm->clock) {
-        printf("in tv1\n");
         tv = tm->tv1 + TVR_INDEX(tm->clock);
     } else if (diff < (1 << TVR_BITS)) {
-        printf("in tv1\n");
         tv = tm->tv1 + TVR_INDEX(timer->expire);
     } else if (diff < (1 << (TVR_BITS + TVN_BITS))) {
-        printf("in tv2\n");
         tv = tm->tv2 + TVN_INDEX(timer->expire, 0);
     } else if (diff < (1 << (TVR_BITS + 2 * TVN_BITS))) {
-        printf("in tv3\n");
         tv = tm->tv3 + TVN_INDEX(timer->expire, 1);
     } else if (diff < (1 << (TVR_BITS + 3 * TVN_BITS))) {
-        printf("in tv4\n");
         tv = tm->tv4 + TVN_INDEX(timer->expire, 2);
     } else if (diff < (1ULL << (TVR_BITS + 4 * TVN_BITS))) {
-        printf("in tv5\n");
         tv = tm->tv5 + TVN_INDEX(timer->expire, 3);
     } else {
         spinlock_unlock(&tm->locker);
         assert(0);  // exceed max timeout value
         return -1;
     }
-
 
     // list insert
     timer->pprev = &tv->first;

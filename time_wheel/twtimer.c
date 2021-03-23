@@ -86,9 +86,10 @@ bucket_dump(struct time_bucket *tv, size_t size, const char *prefix)
         timer = tv[i].first;
         count = 0;
         while (timer) {
-            printf("%s [%u][%u] %p next: %p prev: %p expire: %lld\n",
+            printf("%s [%u][%u] %p next:(%p) %p prev: (%p) %p expire: %lld\n",
                    prefix, i, count, timer,
-                   timer->next,timer->pprev ? *timer->pprev : NULL,
+                   &timer->next, timer->next,
+                   timer->pprev, *timer->pprev,
                    timer->expire);
             count++;
             timer = timer->next;

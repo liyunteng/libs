@@ -16,7 +16,7 @@ typedef struct twtimer {
     uint64_t expire;  // expire clock time
 
     struct twtimer *next;
-    struct twtimer **pprev;
+    struct twtimer **pprev; // pointer to prev node's next
 
     void (*ontimeout)(void *param);
     void *param;

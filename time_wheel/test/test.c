@@ -257,17 +257,22 @@ static void timer_simple_test()
         twtimer_start(wheel, &timers[i]);
     }
     time_wheel_dump(wheel);
-
-    for (i = 0; i < 25*N; i++) {
-        twtimer_process(wheel, now+i);
+    for (i = 0; i < N; i++) {
+        if (i % 3 == 0) {
+            twtimer_stop(wheel, &timers[i]);
+        }
     }
+    /* for (i = 0; i < 25*N; i++) {
+     *     twtimer_process(wheel, now+i);
+     * } */
     printf("===============\n");
     time_wheel_dump(wheel);
 
-    for (i = 25*N; i < 50*N; i++) {
-        twtimer_process(wheel, now+i);
-    }
+    /* for (i = 25*N; i < 50*N; i++) {
+     *     twtimer_process(wheel, now+i);
+     * } */
 
+    twtimer_process(wheel, now+50*N);
     time_wheel_destroy(wheel);
 
 }

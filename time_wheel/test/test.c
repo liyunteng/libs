@@ -232,10 +232,10 @@ static void timer_check_remove()
 static void ontimeout(void *param)
 {
     twtimer_t *timer = (twtimer_t *)param;
-    printf("%lld %lld\n", timer->expire, system_clock());
+    /* printf("%lld %lld\n", timer->expire, system_clock()); */
 }
 
-#define N 100
+#define N 0x100
 static void timer_simple_test()
 {
     int i, j;
@@ -256,10 +256,20 @@ static void timer_simple_test()
         timers[i].expire = now + 50 * i;
         twtimer_start(wheel, &timers[i]);
     }
+    time_wheel_dump(wheel);
 
-    for (i = 0; i < 50*N; i++) {
+    for (i = 0; i < 25*N; i++) {
         twtimer_process(wheel, now+i);
     }
+    printf("===============\n");
+    time_wheel_dump(wheel);
+
+    for (i = 25*N; i < 50*N; i++) {
+        twtimer_process(wheel, now+i);
+    }
+
+    time_wheel_destroy(wheel);
+
 }
 
 void timer_test(void)

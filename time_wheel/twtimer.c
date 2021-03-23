@@ -77,12 +77,43 @@ time_wheel_destroy(struct time_wheel *tm)
     // TODO:
 }
 
+static void
+bucket_dump(struct time_bucket *tv, size_t size, const char *prefix)
+{
+    uint32_t i, count;
+    struct twtimer*timer = NULL;
+    for (i = 0; i < size; i++) {
+        timer = tv[i].first;
+        count = 0;
+        while (timer) {
+            printf("%s [%u][%u] %p next: %p prev: %p expire: %lld\n",
+                   prefix, i, count, timer,
+                   timer->next,timer->pprev ? *timer->pprev : NULL,
+                   timer->expire);
+            count++;
+            timer = timer->next;
+        }
+    }
+}
+
+void
+time_wheel_dump(struct time_wheel *tm)
+{
+    bucket_dump(tm->tv1, TVR_SIZE, "tv1");
+    bucket_dump(tm->tv2, TVN_SIZE, "tv2");
+    bucket_dump(tm->tv3, TVN_SIZE, "tv3");
+    bucket_dump(tm->tv4, TVN_SIZE, "tv4");
+    bucket_dump(tm->tv5, TVN_SIZE, "tv5");
+}
+
 int
 twtimer_start(struct time_wheel *tm, struct twtimer *timer)
 {
     int r;
     assert(timer->ontimeout);
     spinlock_lock(&tm->locker);
+    /* timer->pprev = NULL; */
+    /* timer->next = NULL; */
     r = twtimer_add(tm, timer);
     spinlock_unlock(&tm->locker);
     return r;

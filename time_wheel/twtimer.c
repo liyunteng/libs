@@ -14,6 +14,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <inttypes.h>
 
 /* #define TIME_RESOLUTION 3  // (0xFFFFFFFF << 3)/(24 * 3600 * 1000) ~= 397day (8ms)*/
 #define TIME_RESOLUTION 0    // (0xFFFFFFFF) / (24 * 3600 * 1000) ~= 49day (1ms)
@@ -86,7 +87,7 @@ bucket_dump(struct time_bucket *tv, size_t size, const char *prefix)
         timer = tv[i].first;
         count = 0;
         while (timer) {
-            printf("%s [%u][%u] %p next:(%p) %p prev: (%p) %p expire: %lld\n",
+            printf("%s [%u][%u] %p next:(%p) %p prev: (%p) %p expire: %"PRIu64"\n",
                    prefix, i, count, timer,
                    &timer->next, timer->next,
                    timer->pprev, *timer->pprev,

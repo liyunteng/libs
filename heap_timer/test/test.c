@@ -8,13 +8,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #define N 100
 
 void ontime(void *param)
 {
     uint64_t *pc = (uint64_t *)param;
-    printf("counter: %lld  clock: %llu\n", *pc, system_clock());
+    printf("counter: %"PRIu64"  clock: %"PRIu64"\n", *pc, system_clock());
     *pc += 1;
 }
 
@@ -68,10 +69,10 @@ void heap_test2()
     ev = timer_event_register(ctx, ontime, &counter, 10, 10, 0);
     assert(ev);
 
-    printf("begin: %llu\n", system_clock());
+    printf("begin: %"PRIu64"\n", system_clock());
     system_sleep(N);
     heap_timer_run(ctx);
-    printf("end: %llu\n", system_clock());
+    printf("end: %"PRIu64"\n", system_clock());
 
 
     free(ev);
@@ -101,10 +102,10 @@ void heap_test3()
         timer_event_cancel(ctx, ev[i]);
     }
 
-    printf("begin: %llu\n", system_clock());
+    printf("begin: %"PRIu64"\n", system_clock());
     system_sleep(N);
     heap_timer_run(ctx);
-    printf("end: %llu\n", system_clock());
+    printf("end: %"PRIu64"\n", system_clock());
 
     for (i = 0; i < N; i++) {
         free(ev[i]);

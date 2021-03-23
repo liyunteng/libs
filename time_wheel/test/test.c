@@ -13,6 +13,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 #define TIMER 0x3FFFFF
 #define TIMER_RESOLUTION 3
@@ -154,7 +155,7 @@ static void ontimer2(void* param)
 	if (0 != lastclock)
 		assert(t->clock - lastclock > 4000);
 	lastclock = t->clock;
-    printf("clock: %llu  now: %llu\n", t->clock, system_clock());
+    printf("clock: %"PRIu64" now: %"PRIu64"\n", t->clock, system_clock());
 }
 
 static void timer_check_addmanytimes()

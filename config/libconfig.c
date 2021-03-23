@@ -5,225 +5,257 @@
  */
 #include "libconfig.h"
 
+#include <assert.h>
 #include <stdio.h>
-#include <sys/types.h>
 #include <string.h>
+#include <sys/types.h>
 
-#define CFG_PROP_LINE_MAX_LEN 512
+#define LINE_SIZE 512
 
 typedef enum {
-    PROP_STATE_SPACE,
-    PROP_STATE_SHARP,
-    PROP_STATE_KEY,
-    PROP_STATE_WAIT_EQUAL,
-    PROP_STATE_WAIT_VALUE,
-    PROP_STATE_VALUE,
-    PROP_STATE_LINEBREAK,
-    PROP_STATE_END,
+    PARSE_STATE_SPACE,
+    PARSE_STATE_SHARP,
+    PARSE_STATE_KEY,
+    PARSE_STATE_WAIT_EQUAL,
+    PARSE_STATE_WAIT_VALUE,
+    PARSE_STATE_VALUE,
+    PARSE_STATE_LINEBREAK,
+    PARSE_STATE_END,
 
-    PROP_STATE_LAST
-} CFG_PROP_STATE;
+    PARSE_STATE_LAST
+} CFG_PARSE_STATE;
 
-
-void cfg_prop_open(cfg_prop_obj_t **cfg_obj)
+cfg_ctx_t *
+cfg_create(void)
 {
-    *cfg_obj = json_object_new_object();
+    cfg_ctx_t *cfg = json_object_new_object();
+    return cfg;
 }
 
-
-void
-cfg_prop_open_from_file(char *filename, cfg_prop_obj_t **cfg_obj)
+cfg_ctx_t *
+cfg_create_from_file(const char *filename)
 {
-    FILE *fp = NULL;
-    char cfg_line[CFG_PROP_LINE_MAX_LEN] = {0};
-    char cfg_key[CFG_PROP_LINE_MAX_LEN], cfg_value[CFG_PROP_LINE_MAX_LEN];
-    int32_t i_key = 0, i_value = 0;
-    char *datap = NULL;
-    cfg_prop_obj_t *cfg_obj_p;
-    CFG_PROP_STATE state, state_last;
+    FILE *fp              = NULL;
+    cfg_ctx_t *cfg        = NULL;
+    char line[LINE_SIZE]  = {0};
+    char key[LINE_SIZE]   = {0};
+    char value[LINE_SIZE] = {0};
+    char *datap           = NULL;
+    int i_key, i_value;
+    CFG_PARSE_STATE state, last_state;
 
-    if ((fp = fopen(filename, "r")) == NULL) {
-        *cfg_obj = NULL;
-        return;
+
+    fp = fopen(filename, "r");
+    if (fp == NULL) {
+        goto failed;
     }
 
-    cfg_obj_p = json_object_new_object();
-    while (fgets(cfg_line, CFG_PROP_LINE_MAX_LEN - 1, fp) != NULL) {
-        datap = cfg_line;
-        state = PROP_STATE_SPACE;
-        state_last = PROP_STATE_SPACE;
+    cfg = json_object_new_object();
+    if (!cfg) {
+        goto failed;
+    }
 
-        while (state != PROP_STATE_END && datap != NULL) {
+    while (fgets(line, LINE_SIZE - 1, fp) != NULL) {
+        datap      = line;
+        state      = PARSE_STATE_SPACE;
+        last_state = PARSE_STATE_SPACE;
+
+        while (state != PARSE_STATE_END && datap != NULL) {
             switch (state) {
-            case PROP_STATE_SPACE:
+            case PARSE_STATE_SPACE: {
                 if (*datap != ' ' && *datap != '\t') {
                     if (*datap == '#') {
-                        state_last = state;
-                        state = PROP_STATE_SHARP;
+                        last_state = state;
+                        state      = PARSE_STATE_SHARP;
                     } else if (*datap == '\n') {
-                        state_last = state;
-                        state = PROP_STATE_LINEBREAK;
+                        last_state = state;
+                        state      = PARSE_STATE_LINEBREAK;
                     } else {
-                        memset(cfg_key, 0, sizeof(cfg_key));
-                        i_key = 0;
-                        cfg_key[i_key ++] = *datap;
+                        memset(key, 0, LINE_SIZE);
+                        i_key        = 0;
+                        key[i_key++] = *datap;
 
-                        state_last = state;
-                        state = PROP_STATE_KEY;
+                        last_state = state;
+                        state      = PARSE_STATE_KEY;
                     }
                 }
-                datap ++;
+                datap++;
                 break;
-            case PROP_STATE_SHARP:
-                state_last = state;
-                state = PROP_STATE_LINEBREAK;
-                datap ++;
+            }
+            case PARSE_STATE_SHARP: {
+                last_state = state;
+                state      = PARSE_STATE_LINEBREAK;
+                datap++;
                 break;
-            case PROP_STATE_KEY:
+            }
+            case PARSE_STATE_KEY: {
                 if (*datap == '\n') {
-                    state_last = state;
-                    state = PROP_STATE_LINEBREAK;
+                    last_state = state;
+                    state      = PARSE_STATE_LINEBREAK;
                 } else if (*datap == '=') {
-                    state_last = state;
-                    state = PROP_STATE_WAIT_VALUE;
+                    last_state = state;
+                    state      = PARSE_STATE_WAIT_VALUE;
                 } else if (*datap == ' ' || *datap == '\t') {
-                    state_last = state;
-                    state = PROP_STATE_WAIT_EQUAL;
+                    last_state = state;
+                    state      = PARSE_STATE_WAIT_EQUAL;
                 } else {
-                    cfg_key[i_key ++] = *datap;
+                    key[i_key++] = *datap;
                 }
-                datap ++;
+                datap++;
                 break;
-            case PROP_STATE_WAIT_EQUAL:
+            }
+            case PARSE_STATE_WAIT_EQUAL: {
                 if (*datap != ' ' && *datap != '\t') {
                     if (*datap == '=') {
-                        state_last = state;
-                        state = PROP_STATE_WAIT_VALUE;
+                        last_state = state;
+                        state      = PARSE_STATE_WAIT_VALUE;
                     } else {
-                        state_last = state;
-                        state = PROP_STATE_LINEBREAK;
+                        last_state = state;
+                        state      = PARSE_STATE_LINEBREAK;
                     }
                 }
-                datap ++;
+                datap++;
                 break;
-
-            case PROP_STATE_WAIT_VALUE:
+            }
+            case PARSE_STATE_WAIT_VALUE: {
                 if (*datap != ' ' && *datap != '\t') {
                     if (*datap == '\n') {
-                        state_last = state;
-                        state = PROP_STATE_LINEBREAK;
+                        last_state = state;
+                        state      = PARSE_STATE_LINEBREAK;
                     } else {
-                        memset(cfg_value, 0, sizeof(cfg_value));
-                        i_value = 0;
-                        cfg_value[i_value ++] = *datap;
+                        memset(value, 0, LINE_SIZE);
+                        i_value          = 0;
+                        value[i_value++] = *datap;
 
-                        state_last = state;
-                        state = PROP_STATE_VALUE;
+                        last_state = state;
+                        state      = PARSE_STATE_VALUE;
                     }
                 }
-                datap ++;
+                datap++;
                 break;
-
-            case PROP_STATE_VALUE:
+            }
+            case PARSE_STATE_VALUE: {
                 if (*datap == '\n') {
-                    state_last = state;
-                    state = PROP_STATE_LINEBREAK;
+                    last_state = state;
+                    state      = PARSE_STATE_LINEBREAK;
                 } else {
-                    cfg_value[i_value ++] = *datap;
+                    value[i_value++] = *datap;
                 }
-                datap ++;
+                datap++;
                 break;
-
-            case PROP_STATE_LINEBREAK:
-                if (state_last == PROP_STATE_SPACE) {
-
-                } else if (state_last == PROP_STATE_SHARP) {
-
-                } else if (state_last == PROP_STATE_KEY ||
-                           state_last == PROP_STATE_WAIT_EQUAL ||
-                           state_last == PROP_STATE_WAIT_VALUE) {
-
-                } else if (state_last == PROP_STATE_VALUE) {
-                    cfg_key[i_key] = '\0';
-                    cfg_value[i_value] = '\0';
-                    json_object_object_add(cfg_obj_p, cfg_key, json_object_new_string(cfg_value));
+            }
+            case PARSE_STATE_LINEBREAK: {
+                if (last_state == PARSE_STATE_SPACE) {
+                } else if (last_state == PARSE_STATE_SHARP) {
+                } else if (last_state == PARSE_STATE_KEY
+                           || last_state == PARSE_STATE_WAIT_EQUAL
+                           || last_state == PARSE_STATE_WAIT_VALUE) {
+                } else if (last_state == PARSE_STATE_VALUE) {
+                    key[i_key]     = '\0';
+                    value[i_value] = '\0';
+                    json_object_object_add(
+                        cfg, key, json_object_new_string(value));
                 }
-                state_last = state;
-                state = PROP_STATE_END;
-                datap ++;
+
+                last_state = state;
+                state      = PARSE_STATE_END;
+                datap++;
                 break;
+            }
             default:
-                datap ++;
+                datap++;
                 break;
             }
         }
     }
 
     fclose(fp);
-    *cfg_obj = cfg_obj_p;
+    fp = NULL;
+    return cfg;
+
+
+failed:
+    if (fp) {
+        fclose(fp);
+        fp = NULL;
+    }
+    if (cfg) {
+        json_object_put(cfg);
+        cfg = NULL;
+    }
+    return NULL;
 }
 
+
 static void
-cfg_prop_write_to_file_local(char *key, char *data, void *priv_data)
+cfg_do_write_to_file(char *key, char *data, void *priv_data)
 {
     FILE *fp = priv_data;
-    fprintf(fp, "%s=%s\n", key, data);
+    if (fp) {
+        fprintf(fp, "%s=%s\n", key, data);
+    }
 }
 
 int
-cfg_prop_write_to_file(char *filename, cfg_prop_obj_t *cfg_obj)
+cfg_write_to_file(cfg_ctx_t *cfg, const char *filename)
 {
+    assert(cfg);
+    assert(filename);
     FILE *fp = NULL;
     if ((fp = fopen(filename, "w")) == NULL) {
         return -1;
     }
 
-    cfg_prop_iter(cfg_obj, cfg_prop_write_to_file_local, fp);
+    cfg_iter(cfg, cfg_do_write_to_file, fp);
 
     fclose(fp);
     return 0;
 }
 
 void
-cfg_prop_close(cfg_prop_obj_t *cfg_obj)
+cfg_destroy(cfg_ctx_t *cfg)
 {
-    json_object_put(cfg_obj);
-    cfg_obj = NULL;
+    if (cfg) {
+        json_object_put(cfg);
+        cfg = NULL;
+    }
 }
 
 char *
-cfg_prop_get(cfg_prop_obj_t *cfg_obj, char *key)
+cfg_get(cfg_ctx_t *cfg, const char *key)
 {
-    struct json_object *val = json_object_object_get(cfg_obj, key);
-    if (!val)  {
+    assert(cfg);
+    assert(key);
+    struct json_object *val = json_object_object_get(cfg, key);
+    if (!val) {
         return NULL;
     }
     return (char *)json_object_get_string(val);
 }
 
-void
-cfg_prop_set(cfg_prop_obj_t *cfg_obj, char *key, char *data)
+int
+cfg_set(cfg_ctx_t *cfg, const char *key, const char *data)
 {
-    json_object_object_add(cfg_obj, key, json_object_new_string(data));
+    return json_object_object_add(cfg, key, json_object_new_string(data));
 }
 
 void
-cfg_prop_remove(cfg_prop_obj_t *cfg_obj, char *key)
+cfg_remove(cfg_ctx_t *cfg, const char *key)
 {
-    json_object_object_del(cfg_obj, key);
+    json_object_object_del(cfg, key);
 }
 
 void
-cfg_prop_iter(cfg_prop_obj_t *cfg_obj, cfg_prop_iter_handler handler, void *priv_data)
+cfg_iter(cfg_ctx_t *cfg, cfg_prop_iter handler, void *priv_data)
 {
     char *key;
     struct json_object *val;
     struct lh_entry *entry;
 
-    entry = json_object_get_object(cfg_obj)->head;
+    entry = json_object_get_object(cfg)->head;
     while (entry) {
-        key = (char *)entry->k;
-        val = (struct json_object*)entry->v;
+        key   = (char *)entry->k;
+        val   = (struct json_object *)entry->v;
         entry = entry->next;
 
         handler(key, (char *)json_object_get_string(val), priv_data);

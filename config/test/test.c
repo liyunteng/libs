@@ -3,51 +3,57 @@
  *
  * Date   : 2020/04/25
  */
-#include <stdio.h>
-
 #include "libconfig.h"
 
-static void print(char *key, char *data, void *priv_data)
+#include <assert.h>
+#include <stdio.h>
+
+static void
+print(char *key, char *data, void *priv_data)
 {
     printf("%s = %s\n", key, data);
 }
 
-int libconfig_test(void)
+int
+libconfig_test(void)
 {
-    cfg_prop_obj_t *cfg_obj = NULL;
+    cfg_ctx_t *cfg = NULL;
     char *filename = "test_config.cfg";
 
-    cfg_prop_open_from_file(filename, &cfg_obj);
-    cfg_prop_iter(cfg_obj, print, NULL);
+    cfg = cfg_create_from_file(filename);
+    assert(cfg);
 
+    cfg_iter(cfg, print, NULL);
+    printf("============\n");
 
-    char *url = cfg_prop_get(cfg_obj, "url");
+    char *url = cfg_get(cfg, "url");
     if (url) {
         printf("url: %s\n", url);
     }
 
-    char *abc = cfg_prop_get(cfg_obj, "abc");
+    char *abc = cfg_get(cfg, "abc");
     if (abc) {
         printf("abc: %s\n", abc);
     } else {
-        cfg_prop_set(cfg_obj, "abc", "1234");
+        cfg_set(cfg, "abc", "1234");
     }
 
-    char *cde = cfg_prop_get(cfg_obj, "cde");
+    char *cde = cfg_get(cfg, "cde");
     if (cde) {
-        cfg_prop_remove(cfg_obj, "cde");
+        cfg_remove(cfg, "cde");
     } else {
-        cfg_prop_set(cfg_obj, "cde", "3333");
+        cfg_set(cfg, "cde", "3333");
     }
 
-    cfg_prop_write_to_file(filename, cfg_obj);
+    cfg_write_to_file(cfg, filename);
 
-    cfg_prop_close(cfg_obj);
+    cfg_destroy(cfg);
 
     return 0;
 }
 
-int main(void)
+int
+main(void)
 {
     libconfig_test();
     return 0;

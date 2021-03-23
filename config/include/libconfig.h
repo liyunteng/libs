@@ -11,24 +11,19 @@
 extern "C" {
 #endif
 
-typedef struct json_object cfg_prop_obj_t;
-typedef void(*cfg_prop_iter_handler) (char *key, char *data, void *priv_data);
+typedef struct json_object cfg_ctx_t;
+typedef void (*cfg_prop_iter)(char *key, char *data, void *priv_data);
 
-void cfg_prop_open(cfg_prop_obj_t **cfg_obj);
+cfg_ctx_t *cfg_create(void);
+cfg_ctx_t *cfg_create_from_file(const char *filename);
+int cfg_write_to_file(cfg_ctx_t *cfg, const char *filename);
+void cfg_destroy(cfg_ctx_t *cfg);
 
-void cfg_prop_open_from_file(char *filename, cfg_prop_obj_t **cfg_obj);
+char *cfg_get(cfg_ctx_t *cfg, const char *key);
+int cfg_set(cfg_ctx_t *cfg, const char *key, const char *data);
+void cfg_remove(cfg_ctx_t *cfg, const char *key);
 
-int cfg_prop_write_to_file(char *filename, cfg_prop_obj_t *cfg_obj);
-
-void cfg_prop_close(cfg_prop_obj_t *cfg_obj);
-
-char * cfg_prop_get(cfg_prop_obj_t *cfg_obj, char *key);
-
-void cfg_prop_set(cfg_prop_obj_t *cfg_obj, char *key, char *data);
-
-void cfg_prop_remove(cfg_prop_obj_t *cfg_obj, char *key);
-
-void cfg_prop_iter(cfg_prop_obj_t *cfg_obj, cfg_prop_iter_handler, void *priv_data);
+void cfg_iter(cfg_ctx_t *cfg, cfg_prop_iter, void *priv_data);
 
 #ifdef __cplusplus
 } /* extern "C" */

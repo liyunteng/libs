@@ -10,13 +10,14 @@
 #include <stdint.h>
 #include <stdlib.h>
 
+#define N 20
 static int32_t total = 0;
 
 static void
 worker(void *param)
 {
     int i = 0;
-    int n = (int)param + 1;
+    int n = *(int*)param + 1;
 
     printf("[%d] start\n", n);
 
@@ -37,13 +38,15 @@ thread_pool_test(void)
 {
     int i, r;
     thread_pool_t *pool;
+    int array[N] = {0};
 
     pool = thread_pool_create(4, 10);
     assert(pool);
 
-    for (i = 0; i < 20; i++) {
+    for (i = 0; i < N; i++) {
+        array[i] = i;
         system_sleep(10); // wait for thread start
-        r = thread_pool_push(pool, worker, (void *)i);
+        r = thread_pool_push(pool, worker, &array[i]);
         assert(r == 0);
     }
 

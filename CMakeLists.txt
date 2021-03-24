@@ -124,3 +124,7 @@ add_subdirectory(uri-parse)
 add_subdirectory(urlcodec)
 add_subdirectory(uuid)
 add_subdirectory(xmlcfg)
+
+
+
+add_subdirectory(media)

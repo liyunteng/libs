@@ -18,7 +18,6 @@
 #include "syslog_output.h"
 #include "user_output.h"
 
-#include "format.h"
 #include "log_priv.h"
 
 #include <errno.h>
@@ -32,38 +31,11 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
-/* #include <fcntl.h> */
-
-#define COLOR_EMERG "\033[7;49;31m"
-#define COLOR_ALERT "\033[7;49;35m"
-#define COLOR_FATAL "\033[7;49;33m"
-#define COLOR_ERROR "\033[1;1;31m"
-#define COLOR_WARNING "\033[1;1;35m"
-#define COLOR_NOTICE "\033[1;1;33m"
-#define COLOR_INFO "\033[1;1;32m"
-#define COLOR_DEBUG "\033[1;1;37m"
-#define COLOR_VERBOSE "\033[0;0;00m"
-#define COLOR_NORMAL "\033[0;0;00m"
-
-#define DEFAULT_FORMAT "%d.%ms %c:%p [%V] %F:%U(%L) %m%n"
 
 #define BUFFER_MIN 1024 * 4
 #define BUFFER_MAX 1024 * 1024 * 4
 
-const char *const LOGLEVELSTR[] = {
-    "PANIC",  "ALERT", "FATAL", "ERROR",   "WARNING",
-    "NOTICE", "INFO",  "DEBUG", "VERBOSE",
-};
-
-const char *const loglevelstr[] = {
-    "panic",  "alert", "fatal", "error",   "warning",
-    "notice", "info",  "debug", "verbose",
-};
-
-const char *const COLORSTR[] = {
-    COLOR_EMERG,  COLOR_ALERT, COLOR_FATAL, COLOR_ERROR,   COLOR_WARNING,
-    COLOR_NOTICE, COLOR_INFO,  COLOR_DEBUG, COLOR_VERBOSE, COLOR_NORMAL,
-};
+extern char *LOGLEVELSTR[];
 
 static struct list_head output_header = {
     &output_header,
@@ -87,8 +59,8 @@ static struct log_handler *default_log_handler = NULL;
 static size_t
 log_do_format(struct log_handler *handler, struct log_rule *r)
 {
-    log_spec_t *s;
-    log_event_t *event = NULL;
+    struct log_spec *s;
+    struct log_event *event = NULL;
     int ret;
 
     if (!handler || !r) {
@@ -110,6 +82,44 @@ log_do_format(struct log_handler *handler, struct log_rule *r)
     }
     buf_seal(event->msg_buf);
     return buf_len(event->msg_buf);
+}
+
+static void
+log_event_update(struct log_event *e, struct log_handler *handler,
+                 struct log_rule *rule, int level, const char *file,
+                 const char *func, long line, const char *fmt, va_list ap)
+{
+    e->ident     = handler->ident;
+    e->ident_len = strlen(handler->ident);
+
+    e->level = level;
+    e->file  = file;
+    if (e->file) {
+        e->file_len = strlen(file);
+    }
+
+    e->func = func;
+    if (e->func) {
+        e->func_len = strlen(func);
+    }
+    e->line = line;
+
+    e->fmt = fmt;
+    va_copy(e->ap, ap);
+
+    e->pid = (pid_t)0;
+    e->tid = 0;
+
+    if (e->hostname_len == 0) {
+        if (gethostname(e->hostname, sizeof(e->hostname) - 1) < 0) {
+            ERROR_LOG("gethostname failed: (%s)\n", strerror(errno));
+        } else {
+            e->hostname_len = strlen(e->hostname);
+        }
+    }
+
+    e->hostname_len     = strlen(e->hostname);
+    e->timestamp.tv_sec = 0;
 }
 
 static int
@@ -165,7 +175,7 @@ log_format_create(const char *fmt)
 {
     struct log_format *fp = NULL;
     char *p, *q;
-    log_spec_t *s;
+    struct log_spec *s;
 
     if (!fmt) {
         ERROR_LOG("fmt is NUL\n");
@@ -488,8 +498,8 @@ log_vprintf(log_handler_t *handler, const int lvl, const char *file,
             continue;
         }
 
-        event_update(&handler->event, handler, r, level, file, func, line, fmt,
-                     ap);
+        log_event_update(&handler->event, handler, r, level, file, func, line,
+                         fmt, ap);
         len = log_do_format(handler, r);
         if (len <= 0) {
             DEBUG_LOG("len: %d\n", len);
@@ -565,9 +575,13 @@ dump_statstic(struct log_output *output)
 void
 log_dump(void)
 {
-    int i          = 0;
-    int j          = 0;
-    int rule_count = 0, format_count = 0, output_count = 0, handler_count = 0;
+    int i             = 0;
+    int j             = 0;
+    int rule_count    = 0;
+    int format_count  = 0;
+    int output_count  = 0;
+    int handler_count = 0;
+
     printf("=====================log profile==============================\n");
     struct log_rule *rule;
     list_for_each_entry (rule, &rule_header, rule_entry) {
@@ -605,7 +619,6 @@ log_dump(void)
         printf("\n");
         list_for_each_entry (rule, &handler->rules, rule) {
             j++;
-
             printf("rule: %d\n", j);
             printf("format: %s\n", rule->format->format);
             printf("level: %s -- %s\n", LOGLEVELSTR[rule->level_begin],

@@ -3,12 +3,13 @@
  *
  * Date   : 2021/01/15
  */
-#ifndef LOG_PRIV_H
-#define LOG_PRIV_H
+#ifndef __LOG_PRIV_H__
+#define __LOG_PRIV_H__
 
-#include "buf.h"
-#include "list.h"
+#include "log_buf.h"
+#include "log_format.h"
 #include "log.h"
+#include "list.h"
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -26,9 +27,9 @@
 #endif
 
 #define DEBUG_LOG(fmt, ...)
-// #define DEBUG_LOG(fmt, ...)                                           \
+// #define DEBUG_LOG(fmt, ...)                                          \
 //    fprintf(stdout, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-#define ERROR_LOG(fmt, ...)                                                    \
+#define ERROR_LOG(fmt, ...)                                             \
     fprintf(stderr, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 
 
@@ -81,43 +82,6 @@ struct log_rule {
     struct list_head rule_entry;
     struct list_head rule;
 };
-
-typedef struct log_event {
-    char *ident;
-    size_t ident_len;
-
-    int level;
-
-    const char *file;
-    size_t file_len;
-    const char *func;
-    size_t func_len;
-    long line;
-
-    const char *fmt;
-    va_list ap;
-
-    time_t ts;
-    struct timeval timestamp;
-    char time_str[64];
-    size_t time_str_len;
-
-    pid_t pid;
-    pid_t last_pid;
-    char pid_str[32];
-    size_t pid_str_len;
-
-    pthread_t tid;
-    char tid_str[32];
-    size_t tid_str_len;
-
-
-    char hostname[256];
-    size_t hostname_len;
-
-    struct log_buf *msg_buf;
-    struct log_buf *pre_msg_buf;
-} log_event_t;
 
 struct log_handler {
     pthread_mutex_t mutex;

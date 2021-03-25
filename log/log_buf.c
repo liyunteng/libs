@@ -1,9 +1,9 @@
 /*
- * buf.c - buf
+ * log_buf.c - log_buf
  *
  * Date   : 2021/01/16
  */
-#include "buf.h"
+#include "log_buf.h"
 #include "log_priv.h"
 #include <errno.h>
 #include <string.h>
@@ -261,7 +261,6 @@ buf_printf_dec32(struct log_buf *buf, uint32_t ui32, int width)
     return 0;
 }
 
-
 int
 buf_printf_dec64(struct log_buf *buf, uint64_t ui64, int width)
 {
@@ -304,7 +303,6 @@ buf_printf_dec64(struct log_buf *buf, uint64_t ui64, int width)
             *--p = (unsigned char)(ui64 % 10 + '0');
         } while (ui64 /= 10);
     }
-
 
     /* zero or space padding */
     num_len = (tmp + LOG_INT64_LEN) - p;

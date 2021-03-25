@@ -29,16 +29,16 @@ extern "C" {
 #define LOG_WARN LOG_WARNING
 
 enum LOG_OUTTYPE {
-  LOG_OUTTYPE_STDOUT = 0x0001,
-  LOG_OUTTYPE_STDERR = 0x0002,
-  LOG_OUTTYPE_FILE = 0x0004,
-  LOG_OUTTYPE_MMAP = 0x0008,
-  LOG_OUTTYPE_UDP = 0x0010,
-  LOG_OUTTYPE_TCP = 0x0020,
-  LOG_OUTTYPE_LOGCAT = 0x0040,
-  LOG_OUTTYPE_SYSLOG = 0x0080,
-  LOG_OUTTYPE_USER = 0x0100,
-  LOG_OUTTYPE_NONE = 0x0000,
+    LOG_OUTTYPE_STDOUT = 0x0001,
+    LOG_OUTTYPE_STDERR = 0x0002,
+    LOG_OUTTYPE_FILE = 0x0004,
+    LOG_OUTTYPE_MMAP = 0x0008,
+    LOG_OUTTYPE_UDP = 0x0010,
+    LOG_OUTTYPE_TCP = 0x0020,
+    LOG_OUTTYPE_LOGCAT = 0x0040,
+    LOG_OUTTYPE_SYSLOG = 0x0080,
+    LOG_OUTTYPE_USER = 0x0100,
+    LOG_OUTTYPE_NONE = 0x0000,
 };
 
 typedef struct log_handler log_handler_t;
@@ -57,27 +57,27 @@ log_handler_t *log_handler_get(const char *ident);
 int log_handler_set_default(log_handler_t *handler);
 log_handler_t *log_handler_get_default(void);
 
-//%d  YYYY-MM-DD HH:MM:SS
-//%d(%Y/%m/%d %H:%M:%S)  YYYY/MM/DD HH:MM:SS
-//%E(LOGNAME)  environment $LOGNAME
-//%ms ms
-//%us us
-//%H hostname
-//%c ident
-//%V LEVEL
-//%v level
-//%F __FILE__
-//%U __FUNCTION__
-//%L __LINE__
-//%p pid
-//%t tid
-//%T tid hex
-//%C color
-//%R color_reset
-//%n '\n'
-//%r '\r'
-//%% '%'
-//%m user message
+// %d  YYYY-MM-DD HH:MM:SS
+// %d(%Y/%m/%d %H:%M:%S)  YYYY/MM/DD HH:MM:SS
+// %E(LOGNAME)  environment $LOGNAME
+// %ms ms
+// %us us
+// %H hostname
+// %c ident
+// %V LEVEL
+// %v level
+// %F __FILE__
+// %U __FUNCTION__
+// %L __LINE__
+// %p pid
+// %t tid
+// %T tid hex
+// %C color
+// %R color_reset
+// %n '\n'
+// %r '\r'
+// %% '%'
+// %m user message
 log_format_t *log_format_create(const char *format);
 void log_format_destroy(log_format_t *format);
 
@@ -132,10 +132,10 @@ void log_vprintf(log_handler_t *handler, int level, const char *file,
                  const char *function, long line, const char *format,
                  va_list ap);
 
-#define CLOG_PRINTF(handler, level, fmt...)                                    \
-  do {                                                                         \
-    log_printf(handler, level, __FILE__, __FUNCTION__, __LINE__, fmt);         \
-  } while (0)
+#define CLOG_PRINTF(handler, level, fmt...)                             \
+    do {                                                                \
+        log_printf(handler, level, __FILE__, __FUNCTION__, __LINE__, fmt); \
+    } while (0)
 
 #define CLOGV(handler, fmt...) CLOG_PRINTF(handler, LOG_VERBOSE, fmt)
 #define CLOGD(handler, fmt...) CLOG_PRINTF(handler, LOG_DEBUG, fmt)
@@ -157,9 +157,9 @@ void log_vprintf(log_handler_t *handler, int level, const char *file,
 #define LOGA(fmt...) CLOG_PRINTF(log_handler_get_default(), LOG_ALERT, fmt)
 #define LOGP(fmt...) CLOG_PRINTF(log_handler_get_default(), LOG_PANIC, fmt)
 
-
 // just set default log_handler, simple wrapper
-int log_init(const char *dir, const char *filename, int level, int enable_stdout);
+int log_init(const char *dir, const char *filename, int level,
+             int enable_stdout);
 int log_set_level(int level);
 void log_uninit(void);
 

@@ -12,6 +12,12 @@
 
 #define DEFAULT_SYSLOG_IDENT "default"
 
+typedef struct {
+    char *ident;
+    int options;
+    int facility;
+} syslog_output_ctx;
+
 
 static void
 syslog_ctx_dump(struct log_output *output)
@@ -92,6 +98,8 @@ syslog_emit(struct log_output *output, struct log_handler *handler)
     log_buf_t *buf = NULL;
     size_t len;
     int level;
+
+    (void)output;
     if (!handler) {
         ERROR_LOG("handler is NULL\n");
         return -1;

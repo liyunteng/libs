@@ -3,8 +3,8 @@
  *
  * Date   : 2021/01/15
  */
-#ifndef OUTPUT_H
-#define OUTPUT_H
+#ifndef __OTHER_OUTPUT_H__
+#define __OTHER_OUTPUT_H__
 #include "log_priv.h"
 
 extern struct log_output_priv stderr_output_priv;

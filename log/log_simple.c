@@ -68,18 +68,16 @@ log_init(const char *dir, const char *filename, int level, int enable_stdout)
     }
 
     if (g_log_ctx.enable_file) {
-        g_log_ctx.rule[0] = log_rule_create(g_log_ctx.handler,
-                                            g_log_ctx.fmt, g_log_ctx.output[0],
-                                            level, -1);
+        g_log_ctx.rule[0] = log_rule_create(g_log_ctx.handler, g_log_ctx.fmt,
+                                            g_log_ctx.output[0], level, -1);
         if (!g_log_ctx.rule[0]) {
             goto failed;
         }
     }
 
     if (g_log_ctx.enable_stdout) {
-        g_log_ctx.rule[1] = log_rule_create(g_log_ctx.handler,
-                                            g_log_ctx.fmt, g_log_ctx.output[1],
-                                            level, -1);
+        g_log_ctx.rule[1] = log_rule_create(g_log_ctx.handler, g_log_ctx.fmt,
+                                            g_log_ctx.output[1], level, -1);
         if (!g_log_ctx.rule[1]) {
             goto failed;
         }

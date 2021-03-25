@@ -1,10 +1,10 @@
 /*
- * buf.h - buf
+ * log_buf.h - log_buf
  *
  * Date   : 2021/01/16
  */
-#ifndef BUF_H
-#define BUF_H
+#ifndef __LOG_BUF_H__
+#define __LOG_BUF_H__
 
 #include <stdarg.h>
 #include <stdint.h>
@@ -36,17 +36,17 @@ int buf_printf_dec32(log_buf_t *buf, uint32_t uii32, int width);
 int buf_printf_dec64(log_buf_t *buf, uint64_t ui64, int width);
 int buf_printf_hex(log_buf_t *buf, uint32_t ui32, int width);
 
-#define buf_restart(buf)                                                       \
-    do {                                                                       \
-        buf->tail = buf->start;                                                \
+#define buf_restart(buf)                                                \
+    do {                                                                \
+        buf->tail = buf->start;                                         \
     } while (0)
 
 #define buf_len(buf) (buf->tail - buf->start)
 #define buf_left(buf) (buf->end_plus_1 - buf->tail)
 #define buf_str(buf) (buf->start)
-#define buf_seal(buf)                                                          \
-    do {                                                                       \
-        *(buf)->tail = '\0';                                                   \
+#define buf_seal(buf)                                                   \
+    do {                                                                \
+        *(buf)->tail = '\0';                                            \
     } while (0)
 
 #endif

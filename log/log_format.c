@@ -1,30 +1,57 @@
 /*
- * foamat.c - format
+ * log_foamat.c - log_format
  *
  * Date   : 2021/01/15
  */
-#include "format.h"
+#include "log_format.h"
+#include "log_priv.h"
+#include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <pthread.h>
 
 #define DEFAULT_TIME_FORMAT "%F %T"
+#define DEFAULT_FORMAT "%d.%ms %c:%p [%V] %F:%U(%L) %m%n"
 
-extern char *LOGLEVELSTR[];
-extern char *COLORSTR[];
-extern char *loglevelstr[];
+#define COLOR_EMERG   "\033[7;49;31m"
+#define COLOR_ALERT   "\033[7;49;35m"
+#define COLOR_FATAL   "\033[7;49;33m"
+#define COLOR_ERROR   "\033[1;01;31m"
+#define COLOR_WARNING "\033[1;01;35m"
+#define COLOR_NOTICE  "\033[1;01;33m"
+#define COLOR_INFO    "\033[1;01;32m"
+#define COLOR_DEBUG   "\033[1;01;37m"
+#define COLOR_VERBOSE "\033[0;00;00m"
+#define COLOR_NORMAL  "\033[0;00;00m"
 
+const char *const LOGLEVELSTR[] = {
+    "PANIC",  "ALERT", "FATAL", "ERROR",   "WARNING",
+    "NOTICE", "INFO",  "DEBUG", "VERBOSE",
+};
+
+const char *const loglevelstr[] = {
+    "panic",  "alert", "fatal", "error",   "warning",
+    "notice", "info",  "debug", "verbose",
+};
+
+const char *const COLORSTR[] = {
+    COLOR_EMERG,  COLOR_ALERT, COLOR_FATAL, COLOR_ERROR,   COLOR_WARNING,
+    COLOR_NOTICE, COLOR_INFO,  COLOR_DEBUG, COLOR_VERBOSE, COLOR_NORMAL,
+};
 
 static int
-spec_write_str(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_str(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)e;
     return buf_append(buf, s->str, s->len);
 }
 
 static int
-spec_write_time(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_time(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
     time_t now_sec = e->timestamp.tv_sec;
     struct tm tm;
@@ -49,8 +76,9 @@ spec_write_time(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 }
 
 static int
-spec_write_ms(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_ms(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
     if (!e->timestamp.tv_sec) {
         gettimeofday(&e->timestamp, NULL);
     }
@@ -58,8 +86,9 @@ spec_write_ms(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 }
 
 static int
-spec_write_us(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_us(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
     if (!e->timestamp.tv_sec) {
         gettimeofday(&e->timestamp, NULL);
     }
@@ -67,14 +96,16 @@ spec_write_us(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 }
 
 static int
-spec_write_ident(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_ident(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
     return buf_append(buf, e->ident, e->ident_len);
 }
 
 static int
-spec_write_file(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_file(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
     if (!e->file) {
         return buf_append(buf, "(file=null)", strlen("(file=null)"));
     } else {
@@ -83,14 +114,16 @@ spec_write_file(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 }
 
 static int
-spec_write_line(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_line(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
     return buf_printf_dec64(buf, e->line, 0);
 }
 
 static int
-spec_write_func(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_func(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
     if (!e->func) {
         return buf_append(buf, "(func=null)", strlen("(func=null)"));
     } else {
@@ -99,32 +132,40 @@ spec_write_func(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 }
 
 static int
-spec_write_hostname(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_hostname(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
     return buf_append(buf, e->hostname, e->hostname_len);
 }
 
 static int
-spec_write_newline(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_newline(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
+    (void)e;
     return buf_append(buf, "\n", 1);
 }
 
 static int
-spec_write_cr(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_cr(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
+    (void)e;
     return buf_append(buf, "\r", 1);
 }
 
 static int
-spec_write_percent(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_percent(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
+    (void)e;
     return buf_append(buf, "%", 1);
 }
 
 static int
-spec_write_pid(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_pid(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
     if (!e->pid) {
         e->pid = getpid();
 
@@ -137,36 +178,41 @@ spec_write_pid(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 }
 
 static int
-spec_write_tid(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_tid(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
     e->tid_str_len = sprintf(e->tid_str, "%lu", (unsigned long)pthread_self());
     return buf_append(buf, e->tid_str, e->tid_str_len);
 }
 
 static int
-spec_write_tid_hex(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_tid_hex(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
     e->tid_str_len = sprintf(e->tid_str, "0x%x", (unsigned int)pthread_self());
     return buf_append(buf, e->tid_str, e->tid_str_len);
 }
 
 static int
-spec_write_level(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_level(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
     return buf_append(buf, LOGLEVELSTR[e->level],
                       strlen(LOGLEVELSTR[e->level]));
 }
 
 static int
-spec_write_level_lower(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_level_lower(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
     return buf_append(buf, loglevelstr[e->level],
                       strlen(loglevelstr[e->level]));
 }
 
 static int
-spec_write_message(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_message(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
     if (e->fmt) {
         return buf_vprintf(buf, e->fmt, e->ap);
     } else {
@@ -175,21 +221,25 @@ spec_write_message(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 }
 
 static int
-spec_write_color(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_color(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
     return buf_append(buf, COLORSTR[e->level], strlen(COLORSTR[e->level]));
 }
 
 static int
-spec_write_reset_color(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_reset_color(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)s;
+    (void)e;
     return buf_append(buf, COLORSTR[LOG_VERBOSE + 1],
                       strlen(COLORSTR[LOG_VERBOSE + 1]));
 }
 
 static int
-spec_write_env(log_spec_t *s, log_event_t *e, log_buf_t *buf)
+spec_write_env(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
+    (void)e;
     if (strlen(s->env_name) > 0) {
         char *env = getenv(s->env_name);
         if (env) {
@@ -206,13 +256,13 @@ spec_write_env(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 /* ********************************************************************** */
 
 static int
-spec_gen_msg_direct(log_spec_t *s, log_event_t *e)
+spec_gen_msg_direct(struct log_spec *s, struct log_event *e)
 {
     return s->write_buf(s, e, e->msg_buf);
 }
 
 static int
-spec_gen_msg_reformat(log_spec_t *s, log_event_t *e)
+spec_gen_msg_reformat(struct log_spec *s, struct log_event *e)
 {
     int ret;
 
@@ -237,7 +287,7 @@ spec_gen_msg_reformat(log_spec_t *s, log_event_t *e)
 /* ********************************************************************** */
 
 static int
-spec_parse_print_fmt(log_spec_t *s)
+spec_parse_print_fmt(struct log_spec *s)
 {
     char *p, *q;
     long i, j;
@@ -265,20 +315,20 @@ spec_parse_print_fmt(log_spec_t *s)
     return 0;
 }
 
-log_spec_t *
+struct log_spec *
 spec_create(char *pstart, char **pnext)
 {
     char *p;
     int nscan     = 0;
     int nread     = 0;
-    log_spec_t *s = NULL;
+    struct log_spec *s = NULL;
 
     if (!pstart || !pnext) {
         return NULL;
     }
 
 
-    s = calloc(1, sizeof(log_spec_t));
+    s = calloc(1, sizeof(struct log_spec));
     if (!s) {
         ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
         return NULL;
@@ -449,42 +499,4 @@ spec_create(char *pstart, char **pnext)
 failed:
     free(s);
     return NULL;
-}
-
-void
-event_update(log_event_t *e, log_handler_t *handler, log_rule_t *rule,
-             int level, const char *file, const char *func, long line,
-             const char *fmt, va_list ap)
-{
-    e->ident     = handler->ident;
-    e->ident_len = strlen(handler->ident);
-
-    e->level = level;
-    e->file  = file;
-    if (e->file) {
-        e->file_len = strlen(file);
-    }
-
-    e->func = func;
-    if (e->func) {
-        e->func_len = strlen(func);
-    }
-    e->line = line;
-
-    e->fmt = fmt;
-    va_copy(e->ap, ap);
-
-    e->pid = (pid_t)0;
-    e->tid = 0;
-
-    if (e->hostname_len == 0) {
-        if (gethostname(e->hostname, sizeof(e->hostname) - 1) < 0) {
-            ERROR_LOG("gethostname failed: (%s)\n", strerror(errno));
-        } else {
-            e->hostname_len = strlen(e->hostname);
-        }
-    }
-
-    e->hostname_len     = strlen(e->hostname);
-    e->timestamp.tv_sec = 0;
 }

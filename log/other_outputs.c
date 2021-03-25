@@ -13,10 +13,7 @@
 #include <android/log.h>
 #endif
 
-
-static void
-generic_dump(struct log_output *output)
-{
+static void generic_dump(struct log_output *output) {
     if (output) {
         printf("type: %s\n", output->priv->type_name);
 
@@ -24,12 +21,11 @@ generic_dump(struct log_output *output)
     }
 }
 
-static int
-stdout_emit(struct log_output *output, struct log_handler *handler)
-{
+static int stdout_emit(struct log_output *output, struct log_handler *handler) {
     log_buf_t *buf = NULL;
     size_t len;
 
+    (void)output;
     if (!handler) {
         ERROR_LOG("handler is NULL\n");
         return -1;
@@ -48,11 +44,11 @@ stdout_emit(struct log_output *output, struct log_handler *handler)
     return len;
 }
 
-static int
-stderr_emit(struct log_output *output, struct log_handler *handler)
-{
+static int stderr_emit(struct log_output *output, struct log_handler *handler) {
     log_buf_t *buf = NULL;
     size_t len;
+
+    (void)output;
     if (!handler) {
         ERROR_LOG("handler is NULL\n");
         return -1;
@@ -71,11 +67,11 @@ stderr_emit(struct log_output *output, struct log_handler *handler)
     return len;
 }
 
-static int
-logcat_emit(struct log_output *output, struct log_handler *handler)
-{
+static int logcat_emit(struct log_output *output, struct log_handler *handler) {
     log_buf_t *buf = NULL;
     size_t len;
+
+    (void)output;
     int level;
     if (!handler) {
         ERROR_LOG("handler is NULL\n");
@@ -87,7 +83,7 @@ logcat_emit(struct log_output *output, struct log_handler *handler)
         return -1;
     }
 
-    len   = buf_len(buf);
+    len = buf_len(buf);
     level = handler->event.level;
 
 #ifdef ANDROID

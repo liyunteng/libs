@@ -7,13 +7,19 @@
 #include <errno.h>
 #include <string.h>
 
+typedef struct {
+    log_user_callback cb;
+    void *param;
+} user_output_ctx;
+
+
 static int
 user_emit(struct log_output *output, struct log_handler *handler)
 {
     user_output_ctx *ctx = NULL;
     log_buf_t *buf       = NULL;
-    size_t len;
-    int write_len;
+    size_t len = 0;
+    int write_len = 0;
 
     if (!output) {
         ERROR_LOG("output is NULL\n");
@@ -41,7 +47,7 @@ user_emit(struct log_output *output, struct log_handler *handler)
     if (ctx->cb) {
         write_len = ctx->cb(handler->ident, handler->event.level, buf->start,
                             len, ctx->param);
-        if (write_len != len) {
+        if (write_len != (int)len) {
             ERROR_LOG("user cb failed: %d != %lu\n", write_len, len);
         }
     }

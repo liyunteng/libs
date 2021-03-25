@@ -11,12 +11,19 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
+#include <stdint.h>
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
 
 #define DEFAULT_SOCKADDR "127.0.0.1"
 #define DEFAULT_SOCKPORT 12345
+
+typedef struct {
+    char addr[256];
+    uint16_t port;
+    int sockfd;
+} sock_output_ctx;
 
 
 static int
@@ -50,8 +57,8 @@ sock_emit(struct log_output *output, struct log_handler *handler)
         return -1;
     }
 
-    int total  = 0;
     int nsend  = 0;
+    size_t total  = 0;
     size_t len = buf_len(buf);
     while (total < len) {
         nsend =

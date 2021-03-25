@@ -3,17 +3,9 @@
  *
  * Date   : 2021/01/17
  */
-#ifndef SYSLOG_OUTPUT_H
-#define SYSLOG_OUTPUT_H
+#ifndef __SYSLOG_OUTPUT_H__
+#define __SYSLOG_OUTPUT_H__
 #include "log_priv.h"
 
-typedef struct {
-    char *ident;
-    int options;
-    int facility;
-} syslog_output_ctx;
-
-
 extern struct log_output_priv syslog_output_priv;
-
 #endif

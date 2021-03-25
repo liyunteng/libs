@@ -3,12 +3,21 @@
  *
  * Date   : 2021/01/15
  */
+
 #include "file_output.h"
-#include "buf.h"
-#include "log.h"
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
+
+struct file_output_ctx {
+    char *file_path;
+    char *log_name;
+    uint16_t num_files;
+    uint32_t file_size;
+    uint16_t file_idx;
+    uint32_t data_offset;
+    FILE *fp;
+};
 
 /* pointer to environment */
 extern char **environ;
@@ -18,8 +27,8 @@ static void
 dump_environment(struct log_output *output)
 {
     static char buf[BUFSIZ];
-    int cnt              = 0;
-    file_output_ctx *ctx = (file_output_ctx *)output->ctx;
+    int cnt                     = 0;
+    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
 
     fprintf(ctx->fp, "########## LOG STARTED ##########\n\n");
 
@@ -46,14 +55,15 @@ dump_environment(struct log_output *output)
     fprintf(ctx->fp, "\n");
 }
 
-static int file_rotate(struct log_output *output)
+static int
+file_rotate(struct log_output *output)
 {
     uint32_t num, num_files, len;
     char *old_file_name, *new_file_name;
     struct stat st;
     uint32_t bak_file_num;
-    int i = 0;
-    file_output_ctx *ctx = (file_output_ctx *)output->ctx;
+    int i                       = 0;
+    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
 
     // don't rotate
     if (ctx->num_files == 0) {
@@ -122,12 +132,12 @@ static int file_rotate(struct log_output *output)
 static int
 file_open_logfile(struct log_output *output)
 {
-    char *file_name;
     uint32_t len;
     struct stat st;
+    char *file_name = NULL;
     int need_create_dir = 0;
 
-    file_output_ctx *ctx = (file_output_ctx *)output->ctx;
+    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
 
     if (ctx->fp != NULL) {
         fclose(ctx->fp);
@@ -232,13 +242,12 @@ failed:
     return -1;
 }
 
-
 static int
 file_emit(struct log_output *output, struct log_handler *handler)
 {
     int ret;
-    file_output_ctx *ctx = NULL;
-    log_buf_t *buf       = NULL;
+    struct file_output_ctx *ctx = NULL;
+    log_buf_t *buf              = NULL;
     size_t len;
 
     if (!output) {
@@ -257,7 +266,7 @@ file_emit(struct log_output *output, struct log_handler *handler)
         return -1;
     }
 
-    ctx = (file_output_ctx *)output->ctx;
+    ctx = (struct file_output_ctx *)output->ctx;
     if (!ctx) {
         ERROR_LOG("ctx is NULL\n");
         return -1;
@@ -277,7 +286,7 @@ file_emit(struct log_output *output, struct log_handler *handler)
         left = ctx->file_size - ctx->data_offset;
     }
 
-    if ((ctx->file_size > 0 && left > len) || ctx->file_size == 0) {
+    if ((ctx->file_size > 0 && left > (int)len) || ctx->file_size == 0) {
         if (fwrite(buf->start, len, 1, ctx->fp) != 1) {
             ERROR_LOG("fwrite failed: (%s) len:%lu\n", strerror(errno), len);
             return -1;
@@ -289,7 +298,7 @@ file_emit(struct log_output *output, struct log_handler *handler)
     size_t nwrite = 0;
     size_t total  = 0;
     while (total < len) {
-        if (len - total > left) {
+        if ((int)(len - total) > left) {
             nwrite = left;
         } else {
             nwrite = len - total;
@@ -326,7 +335,7 @@ file_ctx_dump(struct log_output *output)
 {
     if (output) {
         printf("type: %s\n", output->priv->type_name);
-        file_output_ctx *ctx = (file_output_ctx *)output->ctx;
+        struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
         if (ctx) {
             printf("filepath: %s\n", ctx->file_path);
             printf("logname:  %s\n", ctx->log_name);
@@ -342,12 +351,12 @@ file_ctx_dump(struct log_output *output)
 static void
 file_ctx_uninit(struct log_output *output)
 {
-    file_output_ctx *ctx = NULL;
+    struct file_output_ctx *ctx = NULL;
     if (!output) {
         ERROR_LOG("output is NULL\n");
         return;
     }
-    ctx = (file_output_ctx *)output->ctx;
+    ctx = (struct file_output_ctx *)output->ctx;
     if (!ctx) {
         return;
     }
@@ -372,20 +381,21 @@ file_ctx_uninit(struct log_output *output)
 static int
 file_ctx_init(struct log_output *output, va_list ap)
 {
-    file_output_ctx *ctx = NULL;
+    struct file_output_ctx *ctx = NULL;
     if (!output) {
         ERROR_LOG("output is NULL\n");
         return -1;
     }
 
     if (!output->ctx) {
-        output->ctx = (file_output_ctx *)calloc(1, sizeof(file_output_ctx));
+        output->ctx =
+            (struct file_output_ctx *)calloc(1, sizeof(struct file_output_ctx));
         if (!output->ctx) {
             ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
             goto failed;
         }
     }
-    ctx = (file_output_ctx *)output->ctx;
+    ctx = (struct file_output_ctx *)output->ctx;
 
     char *file_path = va_arg(ap, char *);
     ctx->file_path  = strdup(file_path);
@@ -422,10 +432,10 @@ failed:
 }
 
 struct log_output_priv file_output_priv = {
-    .type = LOG_OUTTYPE_FILE,
-    .type_name = "file",
-    .emit = file_emit,
-    .ctx_init = file_ctx_init,
+    .type       = LOG_OUTTYPE_FILE,
+    .type_name  = "file",
+    .emit       = file_emit,
+    .ctx_init   = file_ctx_init,
     .ctx_uninit = file_ctx_uninit,
-    .dump = file_ctx_dump
+    .dump       = file_ctx_dump,
 };

@@ -17,7 +17,9 @@ typedef struct {
     int facility;
 } syslog_output_ctx;
 
-static void syslog_ctx_dump(struct log_output *output) {
+static void
+syslog_ctx_dump(struct log_output *output)
+{
     if (output) {
         printf("type: %s\n", output->priv->type_name);
         syslog_output_ctx *ctx = (syslog_output_ctx *)output->ctx;
@@ -30,7 +32,9 @@ static void syslog_ctx_dump(struct log_output *output) {
     }
 }
 
-static int syslog_ctx_init(struct log_output *output, va_list ap) {
+static int
+syslog_ctx_init(struct log_output *output, va_list ap)
+{
     syslog_output_ctx *ctx = NULL;
     if (!output) {
         ERROR_LOG("output is NULL\n");
@@ -53,10 +57,10 @@ static int syslog_ctx_init(struct log_output *output, va_list ap) {
     } else {
         ctx->ident = strdup(DEFAULT_SYSLOG_IDENT);
     }
-    int options = va_arg(ap, int);
+    int options  = va_arg(ap, int);
     ctx->options = options;
 
-    int facility = va_arg(ap, int);
+    int facility  = va_arg(ap, int);
     ctx->facility = facility;
 
     openlog(ctx->ident, ctx->options, ctx->facility);
@@ -64,7 +68,9 @@ static int syslog_ctx_init(struct log_output *output, va_list ap) {
     return 0;
 }
 
-static void syslog_ctx_uninit(struct log_output *output) {
+static void
+syslog_ctx_uninit(struct log_output *output)
+{
     syslog_output_ctx *ctx = NULL;
     if (!output) {
         ERROR_LOG("output is NULL\n");
@@ -84,7 +90,9 @@ static void syslog_ctx_uninit(struct log_output *output) {
     closelog();
 }
 
-static int syslog_emit(struct log_output *output, struct log_handler *handler) {
+static int
+syslog_emit(struct log_output *output, struct log_handler *handler)
+{
     log_buf_t *buf = NULL;
     size_t len;
     int level;
@@ -100,7 +108,7 @@ static int syslog_emit(struct log_output *output, struct log_handler *handler) {
         return -1;
     }
 
-    len = buf_len(buf);
+    len   = buf_len(buf);
     level = handler->event.level;
     if (level > LOG_DEBUG) {
         level = LOG_DEBUG;
@@ -114,10 +122,10 @@ static int syslog_emit(struct log_output *output, struct log_handler *handler) {
 }
 
 struct log_output_priv syslog_output_priv = {
-    .type = LOG_OUTTYPE_SYSLOG,
-    .type_name = "syslog",
-    .emit = syslog_emit,
-    .ctx_init = syslog_ctx_init,
+    .type       = LOG_OUTTYPE_SYSLOG,
+    .type_name  = "syslog",
+    .emit       = syslog_emit,
+    .ctx_init   = syslog_ctx_init,
     .ctx_uninit = syslog_ctx_uninit,
-    .dump = syslog_ctx_dump,
+    .dump       = syslog_ctx_dump,
 };

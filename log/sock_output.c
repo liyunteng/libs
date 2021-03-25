@@ -3,16 +3,16 @@
  *
  * Date   : 2021/01/15
  */
+
 #include "sock_output.h"
-#include "log.h"
 
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-#include <stdint.h>
 #include <errno.h>
+#include <stdint.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -24,7 +24,6 @@ typedef struct {
     uint16_t port;
     int sockfd;
 } sock_output_ctx;
-
 
 static int
 sock_emit(struct log_output *output, struct log_handler *handler)
@@ -57,9 +56,9 @@ sock_emit(struct log_output *output, struct log_handler *handler)
         return -1;
     }
 
-    int nsend  = 0;
-    size_t total  = 0;
-    size_t len = buf_len(buf);
+    int nsend    = 0;
+    size_t total = 0;
+    size_t len   = buf_len(buf);
     while (total < len) {
         nsend =
             send(ctx->sockfd, buf->start + total, len - total, MSG_NOSIGNAL);
@@ -68,9 +67,7 @@ sock_emit(struct log_output *output, struct log_handler *handler)
                 continue;
             } else {
                 ERROR_LOG("%s://%s:%d send failed: (%s)\n",
-                          output->priv->type_name,
-                          ctx->addr,
-                          ctx->port,
+                          output->priv->type_name, ctx->addr, ctx->port,
                           strerror(errno));
                 close(ctx->sockfd);
                 ctx->sockfd = -1;
@@ -141,7 +138,8 @@ sock_ctx_init(struct log_output *output, va_list ap)
 
     struct hostent *host = gethostbyname(ctx->addr);
     if (host == NULL) {
-        ERROR_LOG("%s gethostbyname failed: (%s)\n", ctx->addr, strerror(errno));
+        ERROR_LOG("%s gethostbyname failed: (%s)\n", ctx->addr,
+                  strerror(errno));
         goto failed;
     }
 
@@ -161,11 +159,8 @@ sock_ctx_init(struct log_output *output, va_list ap)
     addr.sin_port   = htons(ctx->port);
     addr.sin_addr   = *(struct in_addr *)(host->h_addr_list[0]);
     if (connect(ctx->sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
-        ERROR_LOG("%s://%s:%d connect failed: (%s)\n",
-                  output->priv->type_name,
-                  ctx->addr,
-                  ctx->port,
-                  strerror(errno));
+        ERROR_LOG("%s://%s:%d connect failed: (%s)\n", output->priv->type_name,
+                  ctx->addr, ctx->port, strerror(errno));
         goto failed;
     }
 

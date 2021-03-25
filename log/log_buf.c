@@ -3,15 +3,16 @@
  *
  * Date   : 2021/01/16
  */
+
 #include "log_buf.h"
 #include "log_priv.h"
 #include <errno.h>
 #include <string.h>
 
-#define LOG_INT32_LEN (sizeof("-2147483648") - 1)
-#define LOG_INT64_LEN (sizeof("-9223372036854775808") - 1)
+#define LOG_INT32_LEN        (sizeof("-2147483648") - 1)
+#define LOG_INT64_LEN        (sizeof("-9223372036854775808") - 1)
 #define LOG_MAX_UINT32_VALUE ((uint32_t)0xffffffff)
-#define LOG_MAX_INT32_VALUE ((uint32_t)0x7fffffff)
+#define LOG_MAX_INT32_VALUE  ((uint32_t)0x7fffffff)
 
 void
 buf_destroy(struct log_buf *buf)
@@ -75,8 +76,10 @@ buf_truncate(struct log_buf *buf)
     char *p;
     size_t len;
 
-    if ((buf->truncate_str)[0] == '\0')
+    if ((buf->truncate_str)[0] == '\0') {
         return;
+    }
+
     p = (buf->tail - buf->truncate_str_len);
     if (p < buf->start)
         p = buf->start;

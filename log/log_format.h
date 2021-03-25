@@ -11,7 +11,8 @@
 
 struct log_spec;
 struct log_event;
-typedef int (*write_buf)(struct log_spec *s, struct log_event *e, log_buf_t *buf);
+typedef int (*write_buf)(struct log_spec *s, struct log_event *e,
+                         log_buf_t *buf);
 typedef int (*gen_msg)(struct log_spec *s, struct log_event *e);
 
 struct log_spec {
@@ -59,7 +60,6 @@ struct log_event {
     pthread_t tid;
     char tid_str[32];
     size_t tid_str_len;
-
 
     char hostname[256];
     size_t hostname_len;

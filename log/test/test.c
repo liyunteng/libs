@@ -152,7 +152,7 @@ test_vprintf(void)
 }
 
 void
-test_mlog(int n)
+test_mlog(void)
 {
     log_handler_t *h1      = log_handler_create("handler1");
     log_format_t *format1  = log_format_create("%d %p %c %C%V%R %F:%U:%L %m%n");

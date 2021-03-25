@@ -6,10 +6,11 @@
 #ifndef __LOG_PRIV_H__
 #define __LOG_PRIV_H__
 
+#include "list.h"
+#include "log.h"
 #include "log_buf.h"
 #include "log_format.h"
-#include "log.h"
-#include "list.h"
+
 #include <pthread.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -17,7 +18,7 @@
 #include <stdlib.h>
 
 #ifndef BOOL
-#define BOOL int8_t
+#define BOOL char
 #endif
 #ifndef TRUE
 #define TRUE 1
@@ -51,8 +52,8 @@ typedef int (*log_output_emit_fn)(struct log_output *output,
 typedef void (*log_output_dump_fn)(struct log_output *output);
 
 struct log_output_priv {
-    enum LOG_OUTTYPE type;
     char *type_name;
+    enum LOG_OUTTYPE type;
     log_output_ctx_init_fn ctx_init;
     log_output_ctx_uninit_fn ctx_uninit;
     log_output_emit_fn emit;

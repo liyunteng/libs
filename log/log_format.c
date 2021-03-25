@@ -5,17 +5,17 @@
  */
 #include "log_format.h"
 #include "log_priv.h"
-#include <stdio.h>
 #include <errno.h>
+#include <pthread.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <sys/time.h>
+#include <time.h>
 #include <unistd.h>
-#include <pthread.h>
 
 #define DEFAULT_TIME_FORMAT "%F %T"
-#define DEFAULT_FORMAT "%d.%ms %c:%p [%V] %F:%U(%L) %m%n"
+#define DEFAULT_FORMAT      "%d.%ms %c:%p [%V] %F:%U(%L) %m%n"
 
 #define COLOR_EMERG   "\033[7;49;31m"
 #define COLOR_ALERT   "\033[7;49;35m"
@@ -276,13 +276,9 @@ spec_gen_msg_reformat(struct log_spec *s, struct log_event *e)
         /* TODO: buf is full */
     }
 
-    return buf_adjust_append(e->msg_buf,
-                             buf_str(e->pre_msg_buf),
-                             buf_len(e->pre_msg_buf),
-                             s->left_adjust,
-                             s->left_fill_zeros,
-                             s->min_width,
-                             s->max_width);
+    return buf_adjust_append(e->msg_buf, buf_str(e->pre_msg_buf),
+                             buf_len(e->pre_msg_buf), s->left_adjust,
+                             s->left_fill_zeros, s->min_width, s->max_width);
 }
 /* ********************************************************************** */
 
@@ -309,7 +305,6 @@ spec_parse_print_fmt(struct log_spec *s)
     if (q)
         sscanf(q, ".%ld", &j);
 
-
     s->min_width = (size_t)i;
     s->max_width = (size_t)j;
     return 0;
@@ -319,14 +314,13 @@ struct log_spec *
 spec_create(char *pstart, char **pnext)
 {
     char *p;
-    int nscan     = 0;
-    int nread     = 0;
+    int nscan          = 0;
+    int nread          = 0;
     struct log_spec *s = NULL;
 
     if (!pstart || !pnext) {
         return NULL;
     }
-
 
     s = calloc(1, sizeof(struct log_spec));
     if (!s) {
@@ -336,7 +330,7 @@ spec_create(char *pstart, char **pnext)
     s->str = p = pstart;
 
     switch (*p) {
-    case '%':
+    case '%': {
         /* a string begin with %: %12.35d(%F %X) */
 
         /* process width and precision char in %-12.35P */
@@ -481,6 +475,7 @@ spec_create(char *pstart, char **pnext)
             goto failed;
         }
         break;
+    }
 
     default:
         /* a cont string:/home/bb */

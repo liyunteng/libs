@@ -4,7 +4,7 @@
  * Date   : 2021/01/18
  */
 #include "mmap_output.h"
-#include "log.h"
+
 #include <errno.h>
 #include <fcntl.h>
 #include <stdint.h>
@@ -17,11 +17,11 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define DEFAULT_FILEPATH "."
-#define DEFAULT_FILENAME "default"
-#define DEFAULT_BAKUP 0
-#define DEFAULT_FILESIZE 4 * 1024 * 1024
-#define DEFAULT_MAP_SIZE 4 * 1024 * 1024
+#define DEFAULT_FILEPATH       "."
+#define DEFAULT_FILENAME       "default"
+#define DEFAULT_BAKUP          0
+#define DEFAULT_FILESIZE       4 * 1024 * 1024
+#define DEFAULT_MAP_SIZE       4 * 1024 * 1024
 #define DEFAULT_MSYNC_INTERVAL 1 * 1000
 
 typedef struct {
@@ -47,20 +47,25 @@ typedef struct {
     uint32_t file_current_size;
 } mmap_output_ctx;
 
-inline static int file_getname(struct log_output *output, char *file_name,
-                               uint16_t len) {
+static inline int
+file_getname(struct log_output *output, char *file_name, uint16_t len)
+{
     mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
     snprintf(file_name, len, "%s/%s.log", ctx->file_path, ctx->log_name);
     return 0;
 }
 
-inline static uint32_t mmap_get_ms(void) {
+static inline uint32_t
+mmap_get_ms(void)
+{
     struct timeval tv;
     gettimeofday(&tv, NULL);
     return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
-inline static int mmap_msync_file(struct log_output *output) {
+static inline int
+mmap_msync_file(struct log_output *output)
+{
     uint32_t cur;
     mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
     int ret;
@@ -69,15 +74,16 @@ inline static int mmap_msync_file(struct log_output *output) {
     cur = mmap_get_ms();
 
     page_size = getpagesize();
-    if (ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset >=
-        page_size) {
-        if ((ctx->mmap_window.data_offset == ctx->mmap_window.window_size) ||
-            (cur - ctx->mmap_window.msync_time > ctx->msync_interval)) {
-            len = ((ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset) /
-                   page_size) *
-                page_size;
-            ret = msync(ctx->mmap_window.addr + ctx->mmap_window.msync_offset, len,
-                        MS_ASYNC);
+    if (ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset
+        >= page_size) {
+        if ((ctx->mmap_window.data_offset == ctx->mmap_window.window_size)
+            || (cur - ctx->mmap_window.msync_time > ctx->msync_interval)) {
+            len =
+                ((ctx->mmap_window.data_offset - ctx->mmap_window.msync_offset)
+                 / page_size)
+                * page_size;
+            ret = msync(ctx->mmap_window.addr + ctx->mmap_window.msync_offset,
+                        len, MS_ASYNC);
             if (ret < 0) {
                 ERROR_LOG("msync failed: (%s)\n", strerror(errno));
             }
@@ -85,15 +91,17 @@ inline static int mmap_msync_file(struct log_output *output) {
             ctx->mmap_window.msync_time = cur;
             ctx->mmap_window.msync_offset += len;
             if (ctx->mmap_window.data_offset == ctx->mmap_window.window_size) {
-                DEBUG_LOG("msync full: window_size: %u data_offset: %u "
-                          "msync_offset: %u len: %d\n",
-                          ctx->mmap_window.window_size, ctx->mmap_window.data_offset,
-                          ctx->mmap_window.msync_offset, len);
+                DEBUG_LOG(
+                    "msync full: window_size: %u data_offset: %u "
+                    "msync_offset: %u len: %d\n",
+                    ctx->mmap_window.window_size, ctx->mmap_window.data_offset,
+                    ctx->mmap_window.msync_offset, len);
             } else {
-                DEBUG_LOG("msync timeout: window_size: %u data_offset: %u "
-                          "mmap_window.msync_offset: %u len: %d\n",
-                          ctx->mmap_window.window_size, ctx->mmap_window.data_offset,
-                          ctx->mmap_window.msync_offset, len);
+                DEBUG_LOG(
+                    "msync timeout: window_size: %u data_offset: %u "
+                    "mmap_window.msync_offset: %u len: %d\n",
+                    ctx->mmap_window.window_size, ctx->mmap_window.data_offset,
+                    ctx->mmap_window.msync_offset, len);
             }
         }
     }
@@ -101,23 +109,27 @@ inline static int mmap_msync_file(struct log_output *output) {
     return 0;
 }
 
-static int mmap_unmap_file(struct log_output *output) {
+static int
+mmap_unmap_file(struct log_output *output)
+{
     mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
 
     if (ctx->mmap_window.addr) {
         mmap_msync_file(output);
         munmap(ctx->mmap_window.addr, ctx->mmap_window.window_size);
-        ctx->mmap_window.addr = NULL;
-        ctx->mmap_window.data_offset = 0;
-        ctx->mmap_window.window_size = 0;
+        ctx->mmap_window.addr         = NULL;
+        ctx->mmap_window.data_offset  = 0;
+        ctx->mmap_window.window_size  = 0;
         ctx->mmap_window.msync_offset = 0;
-        ctx->mmap_window.msync_time = mmap_get_ms();
+        ctx->mmap_window.msync_time   = mmap_get_ms();
         return 0;
     }
     return -1;
 }
 
-static int mmap_map_file(struct log_output *output) {
+static int
+mmap_map_file(struct log_output *output)
+{
     size_t mmap_window_size;
     int page_size;
     mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
@@ -135,13 +147,13 @@ static int mmap_map_file(struct log_output *output) {
         mmap_unmap_file(output);
     }
 
-    page_size = getpagesize();
+    page_size        = getpagesize();
     mmap_window_size = (ctx->map_size + page_size - 1) & (~(page_size - 1));
 
-    if (ctx->file_size > 0 &&
-        mmap_window_size > ctx->file_size - ctx->data_offset) {
-        mmap_window_size = (ctx->file_size - ctx->data_offset + page_size - 1) &
-            (~(page_size - 1));
+    if (ctx->file_size > 0
+        && mmap_window_size > ctx->file_size - ctx->data_offset) {
+        mmap_window_size = (ctx->file_size - ctx->data_offset + page_size - 1)
+            & (~(page_size - 1));
     }
 
     if (mmap_window_size == 0) {
@@ -164,19 +176,21 @@ static int mmap_map_file(struct log_output *output) {
     }
 
     ctx->mmap_window.offset += mmap_window_size;
-    ctx->mmap_window.window_size = mmap_window_size;
-    ctx->mmap_window.data_offset = 0;
+    ctx->mmap_window.window_size  = mmap_window_size;
+    ctx->mmap_window.data_offset  = 0;
     ctx->mmap_window.msync_offset = 0;
     return 0;
 }
 
-static int file_rotate(struct log_output *output) {
+static int
+file_rotate(struct log_output *output)
+{
     uint32_t num, num_files, len;
     char *old_file_name, *new_file_name;
     struct stat st;
     uint32_t bak_file_num = 0;
-    int i = 0;
-    mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
+    int i                 = 0;
+    mmap_output_ctx *ctx  = (mmap_output_ctx *)output->ctx;
 
     // don't rotate
     if (ctx->num_files == 0) {
@@ -206,8 +220,8 @@ static int file_rotate(struct log_output *output) {
 
     bak_file_num = 0;
     for (i = 0; i < ctx->num_files; i++) {
-        snprintf(old_file_name, len, "%s/%s.log.%u", ctx->file_path, ctx->log_name,
-                 i);
+        snprintf(old_file_name, len, "%s/%s.log.%u", ctx->file_path,
+                 ctx->log_name, i);
         if (lstat(old_file_name, &st) < 0) {
             if (errno == ENOENT) {
                 break;
@@ -222,14 +236,15 @@ static int file_rotate(struct log_output *output) {
         }
 
         if (i == 0) {
-            snprintf(old_file_name, len, "%s/%s.log", ctx->file_path, ctx->log_name);
+            snprintf(old_file_name, len, "%s/%s.log", ctx->file_path,
+                     ctx->log_name);
         } else {
             snprintf(old_file_name, len, "%s/%s.log.%u", ctx->file_path,
                      ctx->log_name, (i - 1));
         }
 
-        snprintf(new_file_name, len, "%s/%s.log.%u", ctx->file_path, ctx->log_name,
-                 i);
+        snprintf(new_file_name, len, "%s/%s.log.%u", ctx->file_path,
+                 ctx->log_name, i);
         rename(old_file_name, new_file_name);
         DEBUG_LOG("rename %s ==> %s\n", old_file_name, new_file_name);
     }
@@ -241,7 +256,9 @@ static int file_rotate(struct log_output *output) {
     return 0;
 }
 
-static int file_open_logfile(struct log_output *output) {
+static int
+file_open_logfile(struct log_output *output)
+{
     char *file_name = NULL;
     uint32_t len;
     struct stat st;
@@ -257,7 +274,8 @@ static int file_open_logfile(struct log_output *output) {
 
     if (lstat(ctx->file_path, &st) < 0) {
         if (errno != ENOENT) {
-            ERROR_LOG("lstat %s failed: (%s)\n", ctx->file_path, strerror(errno));
+            ERROR_LOG("lstat %s failed: (%s)\n", ctx->file_path,
+                      strerror(errno));
             goto failed;
         }
         need_create_dir = 1;
@@ -270,7 +288,8 @@ static int file_open_logfile(struct log_output *output) {
 
     if (need_create_dir) {
         if (mkdir(ctx->file_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) < 0) {
-            ERROR_LOG("mkdir %s failed: (%s)\n", ctx->file_path, strerror(errno));
+            ERROR_LOG("mkdir %s failed: (%s)\n", ctx->file_path,
+                      strerror(errno));
             goto failed;
         }
         DEBUG_LOG("mkdir %s\n", ctx->file_path);
@@ -297,7 +316,7 @@ static int file_open_logfile(struct log_output *output) {
                 goto failed;
             }
             DEBUG_LOG("open file(create) %s\n", file_name);
-            ctx->data_offset = 0;
+            ctx->data_offset       = 0;
             ctx->file_current_size = 0;
         } else {
             ERROR_LOG("lstat %s failed: (%s)\n", file_name, strerror(errno));
@@ -317,21 +336,25 @@ static int file_open_logfile(struct log_output *output) {
 
         if (ctx->file_size > 0 && ctx->file_size <= st.st_size) {
             // truncated
-            if ((ctx->fd = open(file_name, O_RDWR | O_CREAT | O_TRUNC, 0644)) < 0) {
-                ERROR_LOG("fopen %s failed: (%s)\n", file_name, strerror(errno));
+            if ((ctx->fd = open(file_name, O_RDWR | O_CREAT | O_TRUNC, 0644))
+                < 0) {
+                ERROR_LOG("fopen %s failed: (%s)\n", file_name,
+                          strerror(errno));
                 goto failed;
             }
             DEBUG_LOG("open file(trucated) %s\n", file_name);
-            ctx->data_offset = 0;
+            ctx->data_offset       = 0;
             ctx->file_current_size = 0;
         } else {
             // append
-            if ((ctx->fd = open(file_name, O_RDWR | O_CREAT | O_APPEND, 0644)) < 0) {
-                ERROR_LOG("fopen %s failed: (%s)\n", file_name, strerror(errno));
+            if ((ctx->fd = open(file_name, O_RDWR | O_CREAT | O_APPEND, 0644))
+                < 0) {
+                ERROR_LOG("fopen %s failed: (%s)\n", file_name,
+                          strerror(errno));
                 goto failed;
             }
             DEBUG_LOG("open file(append) %s\n", file_name);
-            ctx->data_offset = st.st_size;
+            ctx->data_offset       = st.st_size;
             ctx->file_current_size = st.st_size;
         }
     }
@@ -354,10 +377,12 @@ failed:
     return -1;
 }
 
-static int mmap_emit(struct log_output *output, struct log_handler *handler) {
+static int
+mmap_emit(struct log_output *output, struct log_handler *handler)
+{
     int ret;
     mmap_output_ctx *ctx = NULL;
-    log_buf_t *buf = NULL;
+    log_buf_t *buf       = NULL;
     size_t len, file_left, mmap_left;
 
     if (!output) {
@@ -390,7 +415,7 @@ static int mmap_emit(struct log_output *output, struct log_handler *handler) {
         }
     }
 
-    len = buf_len(buf);
+    len       = buf_len(buf);
     file_left = 0;
     if (ctx->file_size > 0) {
         file_left = ctx->file_size - ctx->data_offset;
@@ -407,9 +432,9 @@ static int mmap_emit(struct log_output *output, struct log_handler *handler) {
         return len;
     }
 
-    int nwrite = 0;
+    int nwrite   = 0;
     size_t total = 0;
-    size_t left = 0;
+    size_t left  = 0;
     while (total < len) {
         if (ctx->file_size > 0 && mmap_left > file_left) {
             left = file_left;
@@ -459,7 +484,9 @@ static int mmap_emit(struct log_output *output, struct log_handler *handler) {
     return total;
 }
 
-static void mmap_ctx_dump(struct log_output *output) {
+static void
+mmap_ctx_dump(struct log_output *output)
+{
     if (output) {
         printf("type: %s\n", output->priv->type_name);
         mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
@@ -482,7 +509,9 @@ static void mmap_ctx_dump(struct log_output *output) {
     }
 }
 
-static void mmap_ctx_uninit(struct log_output *output) {
+static void
+mmap_ctx_uninit(struct log_output *output)
+{
     mmap_output_ctx *ctx = NULL;
     if (!output) {
         ERROR_LOG("output is NULL\n");
@@ -509,11 +538,13 @@ static void mmap_ctx_uninit(struct log_output *output) {
         ctx->fd = -1;
     }
     free(ctx);
-    ctx = NULL;
+    ctx         = NULL;
     output->ctx = NULL;
 }
 
-static int mmap_ctx_init(struct log_output *output, va_list ap) {
+static int
+mmap_ctx_init(struct log_output *output, va_list ap)
+{
     mmap_output_ctx *ctx = NULL;
     if (!output) {
         ERROR_LOG("output is NULL\n");
@@ -571,7 +602,7 @@ static int mmap_ctx_init(struct log_output *output, va_list ap) {
         ctx->msync_interval = DEFAULT_MSYNC_INTERVAL;
     }
 
-    ctx->fd = -1;
+    ctx->fd       = -1;
     ctx->file_idx = 0;
 
     if (file_open_logfile(output) != 0) {
@@ -589,9 +620,11 @@ failed:
     return -1;
 }
 
-struct log_output_priv mmap_output_priv = {.type = LOG_OUTTYPE_MMAP,
-    .type_name = "file mmap",
-    .emit = mmap_emit,
-    .ctx_init = mmap_ctx_init,
+struct log_output_priv mmap_output_priv = {
+    .type       = LOG_OUTTYPE_MMAP,
+    .type_name  = "file mmap",
+    .emit       = mmap_emit,
+    .ctx_init   = mmap_ctx_init,
     .ctx_uninit = mmap_ctx_uninit,
-    .dump = mmap_ctx_dump};
+    .dump       = mmap_ctx_dump,
+};

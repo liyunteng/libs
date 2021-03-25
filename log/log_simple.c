@@ -3,7 +3,8 @@
  *
  * Date   : 2021/03/14
  */
-#include "log.h"
+#include "log_priv.h"
+
 #include <stdlib.h>
 
 #define DEFAULT_LOG_FILE_SIZE 4 * 1024 * 1024

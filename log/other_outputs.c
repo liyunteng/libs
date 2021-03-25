@@ -4,7 +4,7 @@
  * Date   : 2021/01/15
  */
 #include "other_outputs.h"
-#include "log.h"
+
 #include <errno.h>
 #include <string.h>
 #include <unistd.h>
@@ -13,7 +13,9 @@
 #include <android/log.h>
 #endif
 
-static void generic_dump(struct log_output *output) {
+static void
+generic_dump(struct log_output *output)
+{
     if (output) {
         printf("type: %s\n", output->priv->type_name);
 
@@ -21,7 +23,9 @@ static void generic_dump(struct log_output *output) {
     }
 }
 
-static int stdout_emit(struct log_output *output, struct log_handler *handler) {
+static int
+stdout_emit(struct log_output *output, struct log_handler *handler)
+{
     log_buf_t *buf = NULL;
     size_t len;
 
@@ -44,7 +48,9 @@ static int stdout_emit(struct log_output *output, struct log_handler *handler) {
     return len;
 }
 
-static int stderr_emit(struct log_output *output, struct log_handler *handler) {
+static int
+stderr_emit(struct log_output *output, struct log_handler *handler)
+{
     log_buf_t *buf = NULL;
     size_t len;
 
@@ -67,7 +73,9 @@ static int stderr_emit(struct log_output *output, struct log_handler *handler) {
     return len;
 }
 
-static int logcat_emit(struct log_output *output, struct log_handler *handler) {
+static int
+logcat_emit(struct log_output *output, struct log_handler *handler)
+{
     log_buf_t *buf = NULL;
     size_t len;
 
@@ -83,7 +91,7 @@ static int logcat_emit(struct log_output *output, struct log_handler *handler) {
         return -1;
     }
 
-    len = buf_len(buf);
+    len   = buf_len(buf);
     level = handler->event.level;
 
 #ifdef ANDROID
@@ -125,22 +133,22 @@ static int logcat_emit(struct log_output *output, struct log_handler *handler) {
 }
 
 struct log_output_priv stdout_output_priv = {
-    .type = LOG_OUTTYPE_STDOUT,
+    .type      = LOG_OUTTYPE_STDOUT,
     .type_name = "stdout",
-    .emit = stdout_emit,
-    .dump = generic_dump,
+    .emit      = stdout_emit,
+    .dump      = generic_dump,
 };
 
 struct log_output_priv stderr_output_priv = {
-    .type = LOG_OUTTYPE_STDERR,
+    .type      = LOG_OUTTYPE_STDERR,
     .type_name = "stderr",
-    .emit = stderr_emit,
-    .dump = generic_dump,
+    .emit      = stderr_emit,
+    .dump      = generic_dump,
 };
 
 struct log_output_priv logcat_output_priv = {
-    .type = LOG_OUTTYPE_LOGCAT,
+    .type      = LOG_OUTTYPE_LOGCAT,
     .type_name = "logcat",
-    .emit = logcat_emit,
-    .dump = generic_dump,
+    .emit      = logcat_emit,
+    .dump      = generic_dump,
 };

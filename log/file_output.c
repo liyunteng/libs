@@ -3,8 +3,8 @@
  *
  * Date   : 2021/01/15
  */
-
 #include "file_output.h"
+
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -134,7 +134,7 @@ file_open_logfile(struct log_output *output)
 {
     uint32_t len;
     struct stat st;
-    char *file_name = NULL;
+    char *file_name     = NULL;
     int need_create_dir = 0;
 
     struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;

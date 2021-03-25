@@ -21,7 +21,7 @@ typedef struct {
 static log_ctx_t g_log_ctx = {NULL, {NULL, NULL}, {NULL, NULL}, NULL, 0};
 
 int
-log_simple_init(const char *ident, int level)
+log_simple_init(const char *ident, int level, int enable_stdout)
 {
 
     if (g_log_ctx.fmt || g_log_ctx.output[0] || g_log_ctx.output[1]
@@ -44,6 +44,9 @@ log_simple_init(const char *ident, int level)
     }
 
     g_log_ctx.enable_stdout = 0;
+    if (enable_stdout) {
+        g_log_ctx.enable_stdout = 1;
+    }
     if (g_log_ctx.enable_stdout) {
         g_log_ctx.output[1] = log_output_create(LOG_OUTTYPE_STDOUT);
         if (!g_log_ctx.output[1]) {

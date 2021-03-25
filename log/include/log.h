@@ -51,6 +51,7 @@ typedef int (*log_user_callback)(const char *ident, int level, const char *msg,
 log_handler_t *log_handler_create(const char *ident);
 void log_handler_destroy(log_handler_t *handler);
 log_handler_t *log_handler_get(const char *ident);
+
 int log_handler_set_default(log_handler_t *handler);
 log_handler_t *log_handler_get_default(void);
 
@@ -129,7 +130,6 @@ void mlog_vprintf(log_handler_t *handler, int level, const char *file,
 void log_cleanup();
 void log_dump();
 
-
 #define MLOG_PRINTF(handler, level, fmt...)                                    \
     do {                                                                       \
         mlog_printf(handler, level, __FILE__, __FUNCTION__, __LINE__, fmt);    \
@@ -145,24 +145,19 @@ void log_dump();
 #define MLOGP(handler, fmt...) MLOG_PRINTF(handler, LOG_PANIC, fmt)
 
 
-#define LOG_PRINTF(level, fmt...)                                              \
-    do {                                                                       \
-        mlog_printf(log_handler_get_default(), level, __FILE__, __FUNCTION__,  \
-                    __LINE__, fmt);                                            \
-    } while (0)
-#define LOGV(fmt...) LOG_PRINTF(LOG_VERBOSE, fmt)
-#define LOGD(fmt...) LOG_PRINTF(LOG_DEBUG, fmt)
-#define LOGI(fmt...) LOG_PRINTF(LOG_INFO, fmt)
-#define LOGN(fmt...) LOG_PRINTF(LOG_NOTICE, fmt)
-#define LOGW(fmt...) LOG_PRINTF(LOG_WARNING, fmt)
-#define LOGE(fmt...) LOG_PRINTF(LOG_ERROR, fmt)
-#define LOGF(fmt...) LOG_PRINTF(LOG_FATAL, fmt)
-#define LOGA(fmt...) LOG_PRINTF(LOG_ALERT, fmt)
-#define LOGP(fmt...) LOG_PRINTF(LOG_PANIC, fmt)
+#define LOGV(fmt...) MLOG_PRINTF(log_handler_get_default(), LOG_VERBOSE, fmt)
+#define LOGD(fmt...) MLOG_PRINTF(log_handler_get_default(), LOG_DEBUG, fmt)
+#define LOGI(fmt...) MLOG_PRINTF(log_handler_get_default(), LOG_INFO, fmt)
+#define LOGN(fmt...) MLOG_PRINTF(log_handler_get_default(), LOG_NOTICE, fmt)
+#define LOGW(fmt...) MLOG_PRINTF(log_handler_get_default(), LOG_WARNING, fmt)
+#define LOGE(fmt...) MLOG_PRINTF(log_handler_get_default(), LOG_ERROR, fmt)
+#define LOGF(fmt...) MLOG_PRINTF(log_handler_get_default(), LOG_FATAL, fmt)
+#define LOGA(fmt...) MLOG_PRINTF(log_handler_get_default(), LOG_ALERT, fmt)
+#define LOGP(fmt...) MLOG_PRINTF(log_handler_get_default(), LOG_PANIC, fmt)
 
 
-/// simple: just for LOGX
-int log_simple_init(const char *ident, int level);
+/// simple: just for LOG*
+int log_simple_init(const char *ident, int level, int enable_stdout);
 int log_simple_set_level(int level);
 void log_simple_uninit(void);
 

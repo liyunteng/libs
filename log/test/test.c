@@ -22,7 +22,7 @@ void
 test_simple(void)
 {
     int i;
-    log_simple_init("ihi", LOG_VERBOSE);
+    log_simple_init("ihi", LOG_VERBOSE, 0);
 
 #if 0
     log_format_t *format = log_format_create("%d.%ms [%5.5V] %m%n");
@@ -96,16 +96,14 @@ test_callback(void)
 }
 
 void
-x(log_handler_t *handler, const char *file, const char *func, long line,
-  char *fmt, ...)
+x(int level,  char *tag, char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    mlog_vprintf(handler, LOG_INFO, file, func, line, fmt, ap);
+    mlog_vprintf(log_handler_get_default(), level, NULL, NULL, 0,  fmt, ap);
     va_end(ap);
 }
 
-#define X(handler, fmt...) x(handler, __FILE__, __FUNCTION__, __LINE__, fmt)
 void
 test_vprintf(void)
 {
@@ -114,9 +112,10 @@ test_vprintf(void)
     log_format_t *f  = log_format_create("%d.%ms [%5.5V] %F:%U:%L %m%n");
     log_output_t *o  = log_output_create(LOG_OUTTYPE_STDOUT);
     log_rule_t *r    = log_bind(h, -1, -1, f, o);
+    log_handler_set_default(h);
 
-    X(h, "abcdefg");
-    X(h, "this is %s len: %lu", str, 10);
+    x(LOG_INFO, "tag", "abcdefg");
+    x(LOG_INFO, "tag", "this is %s len: %lu", str, 10);
 }
 
 void
@@ -502,8 +501,8 @@ int
 main(int argc, char *argv[])
 {
     /* test_simple(); */
-    /* test_callback(); */
-    test_vprintf();
+    test_callback();
+    /* test_vprintf(); */
     /* test_mlog(); */
 
     /* test_log_thread(); */

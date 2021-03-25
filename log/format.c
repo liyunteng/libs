@@ -76,7 +76,7 @@ static int
 spec_write_file(log_spec_t *s, log_event_t *e, log_buf_t *buf)
 {
     if (!e->file) {
-        return buf_append(buf, "(file=null)", strlen("(file=null"));
+        return buf_append(buf, "(file=null)", strlen("(file=null)"));
     } else {
         return buf_append(buf, e->file, e->file_len);
     }

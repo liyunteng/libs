@@ -14,6 +14,6 @@ typedef struct {
 } syslog_output_ctx;
 
 
-struct log_output *syslog_output_create(void);
+extern struct log_output_priv syslog_output_priv;
 
 #endif

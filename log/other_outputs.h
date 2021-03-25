@@ -7,9 +7,8 @@
 #define OUTPUT_H
 #include "log_priv.h"
 
-
-struct log_output *stderr_output_create(void);
-struct log_output *stdout_output_create(void);
-struct log_output *logcat_output_create(void);
+extern struct log_output_priv stderr_output_priv;
+extern struct log_output_priv stdout_output_priv;
+extern struct log_output_priv logcat_output_priv;
 
 #endif

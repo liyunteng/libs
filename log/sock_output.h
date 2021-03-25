@@ -15,6 +15,6 @@ typedef struct {
     int sockfd;
 } sock_output_ctx;
 
-struct log_output *tcp_output_create(void);
-struct log_output *udp_output_create(void);
+extern struct log_output_priv tcp_output_priv;
+extern struct log_output_priv udp_output_priv;
 #endif

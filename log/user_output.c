@@ -53,7 +53,7 @@ static void
 user_ctx_dump(struct log_output *output)
 {
     if (output) {
-        printf("type: %s\n", output->type_name);
+        printf("type: %s\n", output->priv->type_name);
         user_output_ctx *ctx = (user_output_ctx *)output->ctx;
         if (ctx) {
             printf("callback: %p\n", ctx->cb);
@@ -118,22 +118,11 @@ user_ctx_uninit(struct log_output *output)
     return;
 }
 
-struct log_output *
-user_output_create(void)
-{
-    struct log_output *output = NULL;
-    output = (struct log_output *)calloc(1, sizeof(struct log_output));
-    if (!output) {
-        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
-        return NULL;
-    }
-
-    output->type       = LOG_OUTTYPE_USER;
-    output->type_name  = "user";
-    output->emit       = user_emit;
-    output->ctx_init   = user_ctx_init;
-    output->ctx_uninit = user_ctx_uninit;
-    output->dump       = user_ctx_dump;
-
-    return output;
-}
+struct log_output_priv user_output_priv = {
+    .type       = LOG_OUTTYPE_USER,
+    .type_name  = "user",
+    .emit       = user_emit,
+    .ctx_init   = user_ctx_init,
+    .ctx_uninit = user_ctx_uninit,
+    .dump       = user_ctx_dump,
+};

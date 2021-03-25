@@ -22,7 +22,40 @@ void
 test_simple(void)
 {
     int i;
-    log_simple_init("ihi", LOG_VERBOSE, 0);
+    log_init("logs", "ihi", -1, 1);
+
+    LOGV("this is verbose");
+    LOGD("this is debug");
+    LOGI("this is info");
+    LOGN("this is notice");
+    LOGW("this is warnning");
+    LOGE("this is error");
+    LOGF("this is fatal");
+    LOGA("this is alert");
+    LOGP("this is panic");
+
+
+    log_set_level(LOG_WARNING);
+
+    LOGV("this is verbose");
+    LOGD("this is debug");
+    LOGI("this is info");
+    LOGN("this is notice");
+    LOGW("this is warnning");
+    LOGE("this is error");
+    LOGF("this is fatal");
+    LOGA("this is alert");
+    LOGP("this is panic");
+
+    log_dump();
+    log_uninit();
+}
+
+void
+test_size(void)
+{
+    int i;
+    log_init("logs", "ihi", LOG_VERBOSE, 1);
 
 #if 0
     log_format_t *format = log_format_create("%d.%ms [%5.5V] %m%n");
@@ -68,7 +101,7 @@ test_simple(void)
      * LOGP("this is panic"); */
 
     log_dump();
-    log_simple_uninit();
+    log_uninit();
 }
 
 int
@@ -85,11 +118,11 @@ test_callback(void)
     log_handler_t *h = log_handler_create("ihi");
     log_format_t *f  = log_format_create("%d.%ms [%5.5V] %m%n");
     log_output_t *o  = log_output_create(LOG_OUTTYPE_USER, cb, priv);
-    log_rule_t *r    = log_bind(h, -1, -1, f, o);
+    log_rule_t *r    = log_rule_create(h, f, o, -1, -1);
 
-    MLOGV(h, "this is a verbose");
-    MLOGD(h, "this is a debug");
-    MLOGI(h, "this is a info");
+    CLOGV(h, "this is a verbose");
+    CLOGD(h, "this is a debug");
+    CLOGI(h, "this is a info");
 
     log_dump();
     log_cleanup();
@@ -100,7 +133,7 @@ x(int level,  char *tag, char *fmt, ...)
 {
     va_list ap;
     va_start(ap, fmt);
-    mlog_vprintf(log_handler_get_default(), level, NULL, NULL, 0,  fmt, ap);
+    log_vprintf(log_handler_get_default(), level, NULL, NULL, 0,  fmt, ap);
     va_end(ap);
 }
 
@@ -111,7 +144,7 @@ test_vprintf(void)
     log_handler_t *h = log_handler_create("ihi");
     log_format_t *f  = log_format_create("%d.%ms [%5.5V] %F:%U:%L %m%n");
     log_output_t *o  = log_output_create(LOG_OUTTYPE_STDOUT);
-    log_rule_t *r    = log_bind(h, -1, -1, f, o);
+    log_rule_t *r    = log_rule_create(h, f, o, -1, -1);
     log_handler_set_default(h);
 
     x(LOG_INFO, "tag", "abcdefg");
@@ -125,40 +158,40 @@ test_mlog(int n)
     log_format_t *format1  = log_format_create("%d %p %c %C%V%R %F:%U:%L %m%n");
     log_output_t *fileout1 = log_output_create(LOG_OUTTYPE_FILE, "logs",
                                                "handler1", 1024 * 1024 * 4, 4);
-    log_rule_t *r1         = log_bind(h1, -1, -1, format1, fileout1);
+    log_rule_t *r1         = log_rule_create(h1, format1, fileout1, -1, -1);
 
     log_handler_t *h2      = log_handler_create("handler2");
     log_format_t *format2  = log_format_create("%d.%ms [%V] %m%n");
     log_output_t *std_out  = log_output_create(LOG_OUTTYPE_STDOUT);
     log_output_t *fileout2 = log_output_create(LOG_OUTTYPE_FILE, "logs",
                                                "handler2", 1024 * 1024 * 4, 4);
-    log_rule_t *r2         = log_bind(h2, -1, -1, format2, fileout2);
+    log_rule_t *r2         = log_rule_create(h2, format2, fileout2, -1, -1);
 
-    MLOGV(h1, "this is a verbose");
-    MLOGV(h2, "this is a verbose");
+    CLOGV(h1, "this is a verbose");
+    CLOGV(h2, "this is a verbose");
 
-    MLOGD(h1, "this is a debug");
-    MLOGD(h2, "this is a debug");
+    CLOGD(h1, "this is a debug");
+    CLOGD(h2, "this is a debug");
 
-    log_unbind(h2, r2);
-    MLOGI(h1, "%s", "this is a info");
-    MLOGI(h2, "%s", "this is a info");
-    MLOGN(h1, "this is a notice");
-    MLOGN(h2, "this is a notice");
-    MLOGW(h1, "this is a warning");
-    MLOGW(h2, "this is a warning");
-    MLOGE(h1, "this is a error");
-    MLOGE(h2, "this is a error");
+    log_rule_destroy(r2);
+    CLOGI(h1, "%s", "this is a info");
+    CLOGI(h2, "%s", "this is a info");
+    CLOGN(h1, "this is a notice");
+    CLOGN(h2, "this is a notice");
+    CLOGW(h1, "this is a warning");
+    CLOGW(h2, "this is a warning");
+    CLOGE(h1, "this is a error");
+    CLOGE(h2, "this is a error");
 
-    log_rule_t *r3 = log_bind(h2, -1, -1, format1, fileout2);
-    MLOGF(h1, "this is a fatal");
-    MLOGF(h2, "this is a fatal");
+    log_rule_t *r3 = log_rule_create(h2, format1, fileout2, -1, -1);
+    CLOGF(h1, "this is a fatal");
+    CLOGF(h2, "this is a fatal");
 
-    MLOGA(h1, "this is a alert");
-    MLOGA(h2, "this is a alert");
+    CLOGA(h1, "this is a alert");
+    CLOGA(h2, "this is a alert");
 
-    MLOGP(h1, "this is a emergency");
-    MLOGP(h2, "this is a emergency");
+    CLOGP(h1, "this is a emergency");
+    CLOGP(h2, "this is a emergency");
 
 
     log_handler_set_default(h1);
@@ -206,7 +239,7 @@ test_log_thread()
                           4 * 1024 * 1024, 1000);
 #endif
 
-    log_bind(h, -1, -1, f, o);
+    log_rule_create(h, f, o, -1, -1);
     log_handler_set_default(h);
 
     pthread_create(&tid1, NULL, run, NULL);
@@ -230,29 +263,29 @@ test_mlog_benchmark()
     log_output_t *fileout = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
                                               1024 * 1024 * 1000, 10, 4);
 
-    log_bind(h1, -1, -1, format, fileout);
-    log_bind(h2, -1, -1, format, fileout);
-    log_bind(h3, -1, -1, format, fileout);
+    log_rule_create(h1, format, fileout, -1, -1);
+    log_rule_create(h2, format, fileout, -1, -1);
+    log_rule_create(h3, format, fileout, -1, -1);
 
     unsigned i;
     for (i = 0; i < 1024 * 1024 * 16; i++) {
-        MLOGD(h1, "this is a debug");
-        MLOGI(h1, "%s", "this is a info");
-        MLOGW(h1, "this is a warning");
-        MLOGE(h1, "this is a error");
-        MLOGF(h1, "this is a fatal");
+        CLOGD(h1, "this is a debug");
+        CLOGI(h1, "%s", "this is a info");
+        CLOGW(h1, "this is a warning");
+        CLOGE(h1, "this is a error");
+        CLOGF(h1, "this is a fatal");
 
-        MLOGD(h2, "this is a debug");
-        MLOGI(h2, "%s", "this is a info");
-        MLOGW(h2, "this is a warning");
-        MLOGE(h2, "this is a error");
-        MLOGF(h2, "this is a fatal");
+        CLOGD(h2, "this is a debug");
+        CLOGI(h2, "%s", "this is a info");
+        CLOGW(h2, "this is a warning");
+        CLOGE(h2, "this is a error");
+        CLOGF(h2, "this is a fatal");
 
-        MLOGD(h3, "this is a debug");
-        MLOGI(h3, "%s", "this is a info");
-        MLOGW(h3, "this is a warning");
-        MLOGE(h3, "this is a error");
-        MLOGF(h3, "this is a fatal");
+        CLOGD(h3, "this is a debug");
+        CLOGI(h3, "%s", "this is a info");
+        CLOGW(h3, "this is a warning");
+        CLOGE(h3, "this is a error");
+        CLOGF(h3, "this is a fatal");
     }
 
     log_dump();
@@ -273,7 +306,7 @@ test_log_benchmark()
                                              1024 * 1024 * 1024, 4);
 #endif
     log_handler_t *handler = log_handler_create("ihi");
-    log_bind(handler, -1, -1, format, output);
+    log_rule_create(handler, format, output, -1, -1);
     log_handler_set_default(handler);
 
     unsigned i;
@@ -321,7 +354,7 @@ test_log_big_benchmark()
                                              1024 * 1024 * 1024, 4);
 #endif
     log_handler_t *handler = log_handler_create("ihi");
-    log_bind(handler, -1, -1, format, output);
+    log_rule_create(handler, format, output, -1, -1);
     log_handler_set_default(handler);
 
     char b[1024 * 8] = {0};
@@ -363,14 +396,13 @@ test_multi_output()
     log_handler_t *handler = log_handler_create("ihi");
     log_handler_set_default(handler);
 
-    log_bind(handler, -1, -1, format, file1);
-    log_bind(handler, LOG_ERROR, -1, format1, file2);
-    log_bind(handler, -1, -1, format, sout);
-    log_bind(handler, -1, -1, format1, serr);
-    log_bind(handler, LOG_DEBUG, LOG_FATAL, format2, syslog);
-    log_bind(handler, -1, -1, format1, tcp);
-    log_bind(handler, -1, -1, format, udp);
-
+    log_rule_create(handler, format, file1, -1, -1);
+    log_rule_create(handler, format1, file2, LOG_ERROR, -1);
+    log_rule_create(handler, format, sout, -1, -1);
+    log_rule_create(handler, format1, serr, -1, -1);
+    log_rule_create(handler, format2, syslog, LOG_DEBUG, LOG_FATAL);
+    log_rule_create(handler, format1, tcp, -1, -1);
+    log_rule_create(handler, format, udp, -1, -1);
 
     for (i = 0; i < 1; i++) {
         LOGV("this is a %s", "verbose");
@@ -413,7 +445,7 @@ test_format()
         printf("handler create failed\n");
         return;
     }
-    log_rule_t *r1 = log_bind(handler, -1, -1, format, output);
+    log_rule_t *r1 = log_rule_create(handler, format, output, -1, -1);
     if (!r1) {
         printf("bind failed\n");
         return;
@@ -433,7 +465,7 @@ test_format()
     }
     log_dump();
 
-    log_unbind(handler, r1);
+    log_rule_destroy(r1);
     log_handler_destroy(handler);
     log_format_destroy(format);
     log_output_destroy(output);
@@ -473,7 +505,7 @@ test_big_buf()
         printf("handler create failed\n");
         return;
     }
-    log_rule_t *r1 = log_bind(handler, -1, -1, format, output);
+    log_rule_t *r1 = log_rule_create(handler, format, output, -1, -1);
     if (!r1) {
         printf("bind failed\n");
         return;
@@ -500,8 +532,9 @@ test_big_buf()
 int
 main(int argc, char *argv[])
 {
-    /* test_simple(); */
-    test_callback();
+    test_simple();
+    /* test_size(); */
+    /* test_callback(); */
     /* test_vprintf(); */
     /* test_mlog(); */
 

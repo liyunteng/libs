@@ -48,9 +48,20 @@ typedef void (*log_output_ctx_uninit_fn)(struct log_output *output);
 typedef int (*log_output_emit_fn)(struct log_output *output,
                                   struct log_handler *handler);
 typedef void (*log_output_dump_fn)(struct log_output *output);
-struct log_output {
+
+struct log_output_priv {
     enum LOG_OUTTYPE type;
     char *type_name;
+    log_output_ctx_init_fn ctx_init;
+    log_output_ctx_uninit_fn ctx_uninit;
+    log_output_emit_fn emit;
+    log_output_dump_fn dump;
+};
+
+struct log_output {
+    void *ctx;
+    struct log_output_priv *priv;
+
     struct list_head output_entry;
     struct {
         struct {
@@ -60,11 +71,6 @@ struct log_output {
         uint64_t count_total;
         uint64_t bytes_total;
     } stat;
-    void *ctx;
-    log_output_ctx_init_fn ctx_init;
-    log_output_ctx_uninit_fn ctx_uninit;
-    log_output_emit_fn emit;
-    log_output_dump_fn dump;
 };
 
 struct log_rule {

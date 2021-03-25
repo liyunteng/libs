@@ -17,7 +17,7 @@ static void
 syslog_ctx_dump(struct log_output *output)
 {
     if (output) {
-        printf("type: %s\n", output->type_name);
+        printf("type: %s\n", output->priv->type_name);
         syslog_output_ctx *ctx = (syslog_output_ctx *)output->ctx;
         if (ctx) {
             printf("ident:    %s\n", ctx->ident);
@@ -115,23 +115,11 @@ syslog_emit(struct log_output *output, struct log_handler *handler)
     return len;
 }
 
-struct log_output *
-syslog_output_create(void)
-{
-    struct log_output *output = NULL;
-
-    output = (struct log_output *)calloc(1, sizeof(struct log_output));
-    if (!output) {
-        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
-        return NULL;
-    }
-
-    output->type       = LOG_OUTTYPE_SYSLOG;
-    output->type_name  = "syslog";
-    output->ctx_init   = syslog_ctx_init;
-    output->ctx_uninit = syslog_ctx_uninit;
-    output->dump       = syslog_ctx_dump;
-    output->emit       = syslog_emit;
-
-    return output;
-}
+struct log_output_priv syslog_output_priv = {
+    .type       = LOG_OUTTYPE_SYSLOG,
+    .type_name  = "syslog",
+    .emit       = syslog_emit,
+    .ctx_init   = syslog_ctx_init,
+    .ctx_uninit = syslog_ctx_uninit,
+    .dump       = syslog_ctx_dump,
+};

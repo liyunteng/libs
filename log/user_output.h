@@ -13,6 +13,6 @@ typedef struct {
     void *param;
 } user_output_ctx;
 
-struct log_output *user_output_create(void);
+extern struct log_output_priv user_output_priv;
 
 #endif /* __USER_OUTPUT_H__ */

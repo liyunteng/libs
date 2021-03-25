@@ -17,6 +17,6 @@ typedef struct {
     FILE *fp;
 } file_output_ctx;
 
-struct log_output *file_output_create(void);
+extern struct log_output_priv file_output_priv;
 
 #endif

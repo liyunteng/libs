@@ -15,10 +15,10 @@
 
 
 static void
-dump_output(struct log_output *output)
+generic_dump(struct log_output *output)
 {
     if (output) {
-        printf("type: %s\n", output->type_name);
+        printf("type: %s\n", output->priv->type_name);
 
         dump_statstic(output);
     }
@@ -128,59 +128,23 @@ logcat_emit(struct log_output *output, struct log_handler *handler)
 #endif
 }
 
-struct log_output *
-stderr_output_create(void)
-{
-    struct log_output *output = NULL;
+struct log_output_priv stdout_output_priv = {
+    .type = LOG_OUTTYPE_STDOUT,
+    .type_name = "stdout",
+    .emit = stdout_emit,
+    .dump = generic_dump,
+};
 
-    output = (struct log_output *)calloc(1, sizeof(struct log_output));
-    if (!output) {
-        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
-        return NULL;
-    }
+struct log_output_priv stderr_output_priv = {
+    .type = LOG_OUTTYPE_STDERR,
+    .type_name = "stderr",
+    .emit = stderr_emit,
+    .dump = generic_dump,
+};
 
-    output->type      = LOG_OUTTYPE_STDERR;
-    output->type_name = "stderr";
-    output->dump      = dump_output;
-    output->emit      = stderr_emit;
-
-    return output;
-}
-
-struct log_output *
-stdout_output_create(void)
-{
-    struct log_output *output = NULL;
-
-    output = (struct log_output *)calloc(1, sizeof(struct log_output));
-    if (!output) {
-        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
-        return NULL;
-    }
-
-    output->type      = LOG_OUTTYPE_STDOUT;
-    output->type_name = "stdout";
-    output->dump      = dump_output;
-    output->emit      = stdout_emit;
-
-    return output;
-}
-
-struct log_output *
-logcat_output_create(void)
-{
-    struct log_output *output = NULL;
-
-    output = (struct log_output *)calloc(1, sizeof(struct log_output));
-    if (!output) {
-        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
-        return NULL;
-    }
-
-    output->type      = LOG_OUTTYPE_LOGCAT;
-    output->type_name = "logcat";
-    output->dump      = dump_output;
-    output->emit      = logcat_emit;
-
-    return output;
-}
+struct log_output_priv logcat_output_priv = {
+    .type = LOG_OUTTYPE_LOGCAT,
+    .type_name = "logcat",
+    .emit = logcat_emit,
+    .dump = generic_dump,
+};

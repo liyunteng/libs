@@ -469,7 +469,7 @@ static void
 mmap_ctx_dump(struct log_output *output)
 {
     if (output) {
-        printf("type: %s\n", output->type_name);
+        printf("type: %s\n", output->priv->type_name);
         mmap_output_ctx *ctx = (mmap_output_ctx *)output->ctx;
         if (ctx) {
             printf("filepath:       %s\n", ctx->file_path);
@@ -602,22 +602,11 @@ failed:
     return -1;
 }
 
-struct log_output *
-mmap_output_create(void)
-{
-    struct log_output *output = NULL;
-    output = (struct log_output *)calloc(1, sizeof(struct log_output));
-    if (!output) {
-        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
-        return NULL;
-    }
-
-    output->type       = LOG_OUTTYPE_MMAP;
-    output->type_name  = "file mmap";
-    output->emit       = mmap_emit;
-    output->ctx_init   = mmap_ctx_init;
-    output->ctx_uninit = mmap_ctx_uninit;
-    output->dump       = mmap_ctx_dump;
-
-    return output;
-}
+struct log_output_priv mmap_output_priv = {
+    .type = LOG_OUTTYPE_MMAP,
+    .type_name = "file mmap",
+    .emit = mmap_emit,
+    .ctx_init = mmap_ctx_init,
+    .ctx_uninit = mmap_ctx_uninit,
+    .dump = mmap_ctx_dump
+};

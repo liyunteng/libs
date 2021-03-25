@@ -214,46 +214,51 @@ log_output_create_v(enum LOG_OUTTYPE type, va_list ap)
 {
     struct log_output *output = NULL;
 
+    output = calloc(1, sizeof(struct log_output));
+    if (!output) {
+        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
+        return NULL;
+    }
     switch (type) {
     case LOG_OUTTYPE_STDOUT:
-        output = stdout_output_create();
+        output->priv = &stdout_output_priv;
         break;
     case LOG_OUTTYPE_STDERR:
-        output = stderr_output_create();
+        output->priv = &stderr_output_priv;
         break;
     case LOG_OUTTYPE_LOGCAT:
-        output = logcat_output_create();
+        output->priv = &logcat_output_priv;
         break;
     case LOG_OUTTYPE_SYSLOG:
-        output = syslog_output_create();
+        output->priv = &syslog_output_priv;
         break;
     case LOG_OUTTYPE_FILE:
-        output = file_output_create();
+        output->priv = &file_output_priv;
         break;
     case LOG_OUTTYPE_MMAP:
-        output = mmap_output_create();
+        output->priv = &mmap_output_priv;
         break;
     case LOG_OUTTYPE_TCP:
-        output = tcp_output_create();
+        output->priv = &tcp_output_priv;
         break;
     case LOG_OUTTYPE_UDP:
-        output = udp_output_create();
+        output->priv = &udp_output_priv;
         break;
     case LOG_OUTTYPE_USER:
-        output = user_output_create();
+        output->priv = &user_output_priv;
         break;
     default:
         ERROR_LOG("invalid type: %d\n", type);
         break;
     }
 
-    if (!output) {
+    if (!output->priv) {
         goto failed;
     }
 
-    if (output->ctx_init) {
-        if (output->ctx_init(output, ap) != 0) {
-            ERROR_LOG("%s ctx_init failed\n", output->type_name);
+    if (output->priv->ctx_init) {
+        if (output->priv->ctx_init(output, ap) != 0) {
+            ERROR_LOG("%s ctx_init failed\n", output->priv->type_name);
             goto failed;
         }
     }
@@ -287,9 +292,11 @@ log_output_destroy(struct log_output *output)
     /* TODO: delete from rule's list */
     list_del(&output->output_entry);
 
-    if (output->ctx_uninit) {
-        output->ctx_uninit(output);
+
+    if (output->priv->ctx_uninit) {
+        output->priv->ctx_uninit(output);
     }
+    output->priv = NULL;
 
     free(output);
     output = NULL;
@@ -386,38 +393,31 @@ log_handler_get_default(void)
 }
 
 int
-log_set_level(struct log_handler *handler, struct log_rule *rule,
-              int level_begin, int level_end)
+log_rule_set_level(struct log_rule *rule, int level_begin, int level_end)
 {
-    if (!handler || !rule) {
+    if (!rule) {
         ERROR_LOG("invalid argument\n");
         return -1;
     }
-    struct log_rule *r = NULL;
-    list_for_each_entry (r, &handler->rules, rule) {
-        if (r == rule) {
 
-            if (level_begin >= LOG_EMERG && level_begin <= LOG_VERBOSE) {
-                rule->level_begin = level_begin;
-            } else {
-                rule->level_begin = LOG_VERBOSE;
-            }
-
-            if (level_end >= LOG_EMERG && level_end <= LOG_VERBOSE) {
-                rule->level_end = level_end;
-            } else {
-                rule->level_end = LOG_EMERG;
-            }
-
-            return 0;
-        }
+    if (level_begin >= LOG_EMERG && level_begin <= LOG_VERBOSE) {
+        rule->level_begin = level_begin;
+    } else {
+        rule->level_begin = LOG_VERBOSE;
     }
-    return -1;
+
+    if (level_end >= LOG_EMERG && level_end <= LOG_VERBOSE) {
+        rule->level_end = level_end;
+    } else {
+        rule->level_end = LOG_EMERG;
+    }
+
+    return 0;
 }
 
-struct log_rule*
-log_bind(struct log_handler *handler, int level_begin, int level_end,
-         struct log_format *format, struct log_output *output)
+struct log_rule *
+log_rule_create(struct log_handler *handler, struct log_format *format,
+                struct log_output *output, int level_begin, int level_end)
 {
     if (handler == NULL || format == NULL || output == NULL) {
         ERROR_LOG("invalid argument\n");
@@ -450,32 +450,20 @@ log_bind(struct log_handler *handler, int level_begin, int level_end,
     return r;
 }
 
-int
-log_unbind(struct log_handler *handler, struct log_rule *rule)
+void
+log_rule_destroy(struct log_rule *rule)
 {
-    if (handler == NULL || rule == NULL) {
-        ERROR_LOG("invalid argument\n");
-        return -1;
+    if (rule) {
+        list_del(&rule->rule);
+        list_del(&rule->rule_entry);
+        free(rule);
+        rule = NULL;
     }
-
-    log_rule_t *r;
-    list_for_each_entry (r, &(handler->rules), rule) {
-        if (r == rule) {
-            list_del(&r->rule);
-            list_del(&r->rule_entry);
-            free(r);
-            r = NULL;
-            return 0;
-        }
-    }
-
-    ERROR_LOG("rule not found\n");
-    return -1;
 }
 
 void
-mlog_vprintf(log_handler_t *handler, const int lvl, const char *file,
-             const char *func, const long line, const char *fmt, va_list ap)
+log_vprintf(log_handler_t *handler, const int lvl, const char *file,
+            const char *func, const long line, const char *fmt, va_list ap)
 {
     uint16_t i;
     int ret;
@@ -508,7 +496,7 @@ mlog_vprintf(log_handler_t *handler, const int lvl, const char *file,
             continue;
         }
 
-        ret = r->output->emit(r->output, handler);
+        ret = r->output->priv->emit(r->output, handler);
         if (ret >= 0) {
             r->output->stat.stats[level].count++;
             r->output->stat.stats[level].bytes += len;
@@ -520,13 +508,13 @@ mlog_vprintf(log_handler_t *handler, const int lvl, const char *file,
 }
 
 void
-mlog_printf(struct log_handler *handler, int level, const char *file,
-            const char *function, long line, const char *fmt, ...)
+log_printf(struct log_handler *handler, int level, const char *file,
+           const char *function, long line, const char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    mlog_vprintf(handler, level, file, function, line, fmt, ap);
+    log_vprintf(handler, level, file, function, line, fmt, ap);
     va_end(ap);
 
     return;
@@ -623,8 +611,8 @@ log_dump(void)
             printf("level: %s -- %s\n", LOGLEVELSTR[rule->level_begin],
                    LOGLEVELSTR[rule->level_end]);
 
-            if (rule->output->dump) {
-                rule->output->dump(rule->output);
+            if (rule->output->priv->dump) {
+                rule->output->priv->dump(rule->output);
             }
 
             printf("\n");

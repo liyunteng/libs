@@ -325,7 +325,7 @@ static void
 file_ctx_dump(struct log_output *output)
 {
     if (output) {
-        printf("type: %s\n", output->type_name);
+        printf("type: %s\n", output->priv->type_name);
         file_output_ctx *ctx = (file_output_ctx *)output->ctx;
         if (ctx) {
             printf("filepath: %s\n", ctx->file_path);
@@ -421,23 +421,11 @@ failed:
     return -1;
 }
 
-
-struct log_output *
-file_output_create(void)
-{
-    struct log_output *output = NULL;
-    output = (struct log_output *)calloc(1, sizeof(struct log_output));
-    if (!output) {
-        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
-        return NULL;
-    }
-
-    output->type       = LOG_OUTTYPE_FILE;
-    output->type_name  = "file";
-    output->emit       = file_emit;
-    output->ctx_init   = file_ctx_init;
-    output->ctx_uninit = file_ctx_uninit;
-    output->dump       = file_ctx_dump;
-
-    return output;
-}
+struct log_output_priv file_output_priv = {
+    .type = LOG_OUTTYPE_FILE,
+    .type_name = "file",
+    .emit = file_emit,
+    .ctx_init = file_ctx_init,
+    .ctx_uninit = file_ctx_uninit,
+    .dump = file_ctx_dump
+};

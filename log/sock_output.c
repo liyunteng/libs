@@ -61,7 +61,7 @@ sock_emit(struct log_output *output, struct log_handler *handler)
                 continue;
             } else {
                 ERROR_LOG("%s://%s:%d send failed: (%s)\n",
-                          output->type_name,
+                          output->priv->type_name,
                           ctx->addr,
                           ctx->port,
                           strerror(errno));
@@ -85,7 +85,7 @@ static void
 sock_ctx_dump(struct log_output *output)
 {
     if (output) {
-        printf("type: %s\n", output->type_name);
+        printf("type: %s\n", output->priv->type_name);
         sock_output_ctx *ctx = (sock_output_ctx *)output->ctx;
         if (ctx) {
             printf("addr: %s:%d\n", ctx->addr, ctx->port);
@@ -138,7 +138,7 @@ sock_ctx_init(struct log_output *output, va_list ap)
         goto failed;
     }
 
-    if (output->type == LOG_OUTTYPE_TCP) {
+    if (output->priv->type == LOG_OUTTYPE_TCP) {
         ctx->sockfd = socket(AF_INET, SOCK_STREAM, 0);
     } else {
         ctx->sockfd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -155,7 +155,7 @@ sock_ctx_init(struct log_output *output, va_list ap)
     addr.sin_addr   = *(struct in_addr *)(host->h_addr_list[0]);
     if (connect(ctx->sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0) {
         ERROR_LOG("%s://%s:%d connect failed: (%s)\n",
-                  output->type_name,
+                  output->priv->type_name,
                   ctx->addr,
                   ctx->port,
                   strerror(errno));
@@ -198,44 +198,20 @@ sock_ctx_uninit(struct log_output *output)
     output->ctx = NULL;
 }
 
-struct log_output *
-tcp_output_create(void)
-{
-    struct log_output *output = NULL;
+struct log_output_priv tcp_output_priv = {
+    .type       = LOG_OUTTYPE_TCP,
+    .type_name  = "tcp",
+    .emit       = sock_emit,
+    .ctx_init   = sock_ctx_init,
+    .ctx_uninit = sock_ctx_uninit,
+    .dump       = sock_ctx_dump,
+};
 
-    output = (struct log_output *)calloc(1, sizeof(struct log_output));
-    if (!output) {
-        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
-        return NULL;
-    }
-
-    output->type       = LOG_OUTTYPE_TCP;
-    output->type_name  = "tcp";
-    output->emit       = sock_emit;
-    output->ctx_init   = sock_ctx_init;
-    output->ctx_uninit = sock_ctx_uninit;
-    output->dump       = sock_ctx_dump;
-
-    return output;
-}
-
-struct log_output *
-udp_output_create(void)
-{
-    struct log_output *output = NULL;
-
-    output = (struct log_output *)calloc(1, sizeof(struct log_output));
-    if (!output) {
-        ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
-        return NULL;
-    }
-
-    output->type       = LOG_OUTTYPE_UDP;
-    output->type_name  = "udp";
-    output->emit       = sock_emit;
-    output->ctx_init   = sock_ctx_init;
-    output->ctx_uninit = sock_ctx_uninit;
-    output->dump       = sock_ctx_dump;
-
-    return output;
-}
+struct log_output_priv udp_output_priv = {
+    .type       = LOG_OUTTYPE_UDP,
+    .type_name  = "udp",
+    .emit       = sock_emit,
+    .ctx_init   = sock_ctx_init,
+    .ctx_uninit = sock_ctx_uninit,
+    .dump       = sock_ctx_dump,
+};

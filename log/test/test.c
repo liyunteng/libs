@@ -10,9 +10,9 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/syslog.h>
 #include <unistd.h>
-#include <string.h>
 
 const char *module_name = "abc";
 
@@ -38,8 +38,8 @@ test_simple(void)
     log_handler_set_default(handler);
 #endif
 
-    char buf[1024 - 32] = { 0 };
-    memset(buf, 'a', 1024-33);
+    char buf[1024 - 32] = {0};
+    memset(buf, 'a', 1024 - 33);
 
     for (i = 0; i < 1024; i++) {
         LOGV("%s", buf);
@@ -71,6 +71,54 @@ test_simple(void)
     log_simple_uninit();
 }
 
+int
+cb(const char *ident, int level, const char *msg, int msg_len, void *priv_data)
+{
+    printf("%s  %s  %s", ident, (char *)priv_data, msg);
+    return msg_len;
+}
+
+void
+test_callback(void)
+{
+    const char *priv = "xxxxxx";
+    log_handler_t *h = log_handler_create("ihi");
+    log_format_t *f  = log_format_create("%d.%ms [%5.5V] %m%n");
+    log_output_t *o  = log_output_create(LOG_OUTTYPE_USER, cb, priv);
+    log_rule_t *r    = log_bind(h, -1, -1, f, o);
+
+    MLOGV(h, "this is a verbose");
+    MLOGD(h, "this is a debug");
+    MLOGI(h, "this is a info");
+
+    log_dump();
+    log_cleanup();
+}
+
+void
+x(log_handler_t *handler, const char *file, const char *func, long line,
+  char *fmt, ...)
+{
+    va_list ap;
+    va_start(ap, fmt);
+    mlog_vprintf(handler, LOG_INFO, file, func, line, fmt, ap);
+    va_end(ap);
+}
+
+#define X(handler, fmt...) x(handler, __FILE__, __FUNCTION__, __LINE__, fmt)
+void
+test_vprintf(void)
+{
+    const char *str  = "zzzz";
+    log_handler_t *h = log_handler_create("ihi");
+    log_format_t *f  = log_format_create("%d.%ms [%5.5V] %F:%U:%L %m%n");
+    log_output_t *o  = log_output_create(LOG_OUTTYPE_STDOUT);
+    log_rule_t *r    = log_bind(h, -1, -1, f, o);
+
+    X(h, "abcdefg");
+    X(h, "this is %s len: %lu", str, 10);
+}
+
 void
 test_mlog(int n)
 {
@@ -78,14 +126,14 @@ test_mlog(int n)
     log_format_t *format1  = log_format_create("%d %p %c %C%V%R %F:%U:%L %m%n");
     log_output_t *fileout1 = log_output_create(LOG_OUTTYPE_FILE, "logs",
                                                "handler1", 1024 * 1024 * 4, 4);
-    log_rule_t *r1 = log_bind(h1, -1, -1, format1, fileout1);
+    log_rule_t *r1         = log_bind(h1, -1, -1, format1, fileout1);
 
     log_handler_t *h2      = log_handler_create("handler2");
     log_format_t *format2  = log_format_create("%d.%ms [%V] %m%n");
     log_output_t *std_out  = log_output_create(LOG_OUTTYPE_STDOUT);
     log_output_t *fileout2 = log_output_create(LOG_OUTTYPE_FILE, "logs",
                                                "handler2", 1024 * 1024 * 4, 4);
-    log_rule_t *r2 = log_bind(h2, -1, -1, format2, fileout2);
+    log_rule_t *r2         = log_bind(h2, -1, -1, format2, fileout2);
 
     MLOGV(h1, "this is a verbose");
     MLOGV(h2, "this is a verbose");
@@ -219,11 +267,11 @@ test_log_benchmark()
     log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
 #if 1
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 1024 * 1024 * 1024, 4,
-                          4 * 1024 * 1024, 1000);
+        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 1024 * 1024 * 1024,
+                          4, 4 * 1024 * 1024, 1000);
 #else
-    log_output_t *output  = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
-                                              1024 * 1024 * 1024, 4);
+    log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
+                                             1024 * 1024 * 1024, 4);
 #endif
     log_handler_t *handler = log_handler_create("ihi");
     log_bind(handler, -1, -1, format, output);
@@ -267,11 +315,11 @@ test_log_big_benchmark()
 
 #if 1
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 1024 * 1024 * 1024, 4,
-                          4 * 1024 * 1024, 1 * 1000);
+        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 1024 * 1024 * 1024,
+                          4, 4 * 1024 * 1024, 1 * 1000);
 #else
-    log_output_t *output =
-        log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", 1024 * 1024 * 1024, 4);
+    log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
+                                             1024 * 1024 * 1024, 4);
 #endif
     log_handler_t *handler = log_handler_create("ihi");
     log_bind(handler, -1, -1, format, output);
@@ -300,13 +348,12 @@ test_multi_output()
         log_format_create("%d.%ms %H %c %F:%U:%L %p:%t [%V] %m%n");
     log_format_t *format1 = log_format_create("%m%n");
     log_format_t *format2 = log_format_create("%m");
-    log_output_t *file1 =
-        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 8 * 1024 * 1024, 50,
-                          4 * 1024, 100);
-    log_output_t *file2 =
-        log_output_create(LOG_OUTTYPE_FILE, "logs", "test", 8 * 1024 * 1024, 50);
-    log_output_t *sout = log_output_create(LOG_OUTTYPE_STDOUT);
-    log_output_t *serr = log_output_create(LOG_OUTTYPE_STDERR);
+    log_output_t *file1   = log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi",
+                                            8 * 1024 * 1024, 50, 4 * 1024, 100);
+    log_output_t *file2   = log_output_create(LOG_OUTTYPE_FILE, "logs", "test",
+                                            8 * 1024 * 1024, 50);
+    log_output_t *sout    = log_output_create(LOG_OUTTYPE_STDOUT);
+    log_output_t *serr    = log_output_create(LOG_OUTTYPE_STDERR);
 
     log_output_t *syslog = log_output_create(
         LOG_OUTTYPE_SYSLOG, "ihi", LOG_NDELAY | LOG_NOWAIT | LOG_PID, LOG_USER);
@@ -454,7 +501,9 @@ test_big_buf()
 int
 main(int argc, char *argv[])
 {
-    test_simple();
+    /* test_simple(); */
+    /* test_callback(); */
+    test_vprintf();
     /* test_mlog(); */
 
     /* test_log_thread(); */

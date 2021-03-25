@@ -16,6 +16,7 @@
 #include "other_outputs.h"
 #include "sock_output.h"
 #include "syslog_output.h"
+#include "user_output.h"
 
 #include "format.h"
 #include "log_priv.h"
@@ -237,6 +238,9 @@ log_output_create_v(enum LOG_OUTTYPE type, va_list ap)
         break;
     case LOG_OUTTYPE_UDP:
         output = udp_output_create();
+        break;
+    case LOG_OUTTYPE_USER:
+        output = user_output_create();
         break;
     default:
         ERROR_LOG("invalid type: %d\n", type);
@@ -469,7 +473,7 @@ log_unbind(struct log_handler *handler, struct log_rule *rule)
     return -1;
 }
 
-static void
+void
 mlog_vprintf(log_handler_t *handler, const int lvl, const char *file,
              const char *func, const long line, const char *fmt, va_list ap)
 {
@@ -520,24 +524,10 @@ mlog_printf(struct log_handler *handler, int level, const char *file,
             const char *function, long line, const char *fmt, ...)
 {
     va_list ap;
-    if (handler) {
-        va_start(ap, fmt);
-        mlog_vprintf(handler, level, file, function, line, fmt, ap);
-        va_end(ap);
-    }
-    return;
-}
 
-void
-log_printf(int level, const char *file, const char *function, long line,
-           const char *fmt, ...)
-{
-    va_list ap;
-    if (default_log_handler) {
-        va_start(ap, fmt);
-        mlog_vprintf(default_log_handler, level, file, function, line, fmt, ap);
-        va_end(ap);
-    }
+    va_start(ap, fmt);
+    mlog_vprintf(handler, level, file, function, line, fmt, ap);
+    va_end(ap);
 
     return;
 }

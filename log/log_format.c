@@ -80,7 +80,7 @@ spec_write_ms(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
     (void)s;
     if (!e->timestamp.tv_sec) {
-        gettimeofday(&e->timestamp, NULL);
+        gettimeofday(&(e->timestamp), NULL);
     }
     return buf_printf_dec32(buf, (e->timestamp.tv_usec / 1000), 3);
 }

@@ -13,33 +13,35 @@ extern "C" {
 #include <stdarg.h>
 #include <stdint.h>
 
-#define LOG_EMERG 0
-#define LOG_ALERT 1
-#define LOG_CRIT 2
-#define LOG_ERR 3
+#define LOG_EMERG   0
+#define LOG_ALERT   1
+#define LOG_CRIT    2
+#define LOG_ERR     3
 #define LOG_WARNING 4
-#define LOG_NOTICE 5
-#define LOG_INFO 6
-#define LOG_DEBUG 7
+#define LOG_NOTICE  5
+#define LOG_INFO    6
+#define LOG_DEBUG   7
 #define LOG_VERBOSE 8
 
 #define LOG_ERROR LOG_ERR
 #define LOG_FATAL LOG_CRIT
 #define LOG_PANIC LOG_EMERG
-#define LOG_WARN LOG_WARNING
+#define LOG_WARN  LOG_WARNING
 
 enum LOG_OUTTYPE {
     LOG_OUTTYPE_STDOUT = 0x0001,
     LOG_OUTTYPE_STDERR = 0x0002,
-    LOG_OUTTYPE_FILE = 0x0004,
-    LOG_OUTTYPE_MMAP = 0x0008,
-    LOG_OUTTYPE_UDP = 0x0010,
-    LOG_OUTTYPE_TCP = 0x0020,
+    LOG_OUTTYPE_FILE   = 0x0004,
+    LOG_OUTTYPE_MMAP   = 0x0008,
+    LOG_OUTTYPE_UDP    = 0x0010,
+    LOG_OUTTYPE_TCP    = 0x0020,
     LOG_OUTTYPE_LOGCAT = 0x0040,
     LOG_OUTTYPE_SYSLOG = 0x0080,
-    LOG_OUTTYPE_USER = 0x0100,
-    LOG_OUTTYPE_NONE = 0x0000,
+    LOG_OUTTYPE_USER   = 0x0100,
+    LOG_OUTTYPE_NONE   = 0x0000,
 };
+
+enum { ROTATE_POLICE_BY_SIZE, ROTATE_POLICE_BY_TIME };
 
 typedef struct log_handler log_handler_t;
 typedef struct log_format log_format_t;
@@ -56,6 +58,7 @@ log_handler_t *log_handler_get(const char *ident);
 // set default log_handler, used by LOGX
 int log_handler_set_default(log_handler_t *handler);
 log_handler_t *log_handler_get_default(void);
+
 
 // %d  YYYY-MM-DD HH:MM:SS
 // %d(%Y/%m/%d %H:%M:%S)  YYYY/MM/DD HH:MM:SS
@@ -91,15 +94,19 @@ void log_format_destroy(log_format_t *format);
 //
 // LOG_OUTTYPE_FILE    char *file_path
 //                     char *log_name
-//                     size_t file_size
-//                     int bakup_num
+//                          ROTATE_POLICE_BY_SIZE
+//                              uint64_t file_size
+//                              int bakup_num
+//                          ROTATE_POLICE_BY_TIME
 //
 // LOG_OUTTYPE_MMAP    char *file_path
 //                     char *log_name
-//                     size_t file_size
-//                     int bakup_num
-//                     size_t map_size
-//                     size_t msync_interval
+//                          ROTATE_POLICE_BY_SIZE
+//                              uint64_t file_size
+//                              int bakup_num
+//                          ROTATE_POLICE_BY_TIME
+//                     uint32_t map_size
+//                     uint32_t msync_interval
 //
 // LOG_OUTTYPE_UDP
 // LOG_OUTTYPE_TCP     char *addr
@@ -132,9 +139,9 @@ void log_vprintf(log_handler_t *handler, int level, const char *file,
                  const char *function, long line, const char *format,
                  va_list ap);
 
-#define CLOG_PRINTF(handler, level, fmt...)                             \
-    do {                                                                \
-        log_printf(handler, level, __FILE__, __FUNCTION__, __LINE__, fmt); \
+#define CLOG_PRINTF(handler, level, fmt...)                                    \
+    do {                                                                       \
+        log_printf(handler, level, __FILE__, __FUNCTION__, __LINE__, fmt);     \
     } while (0)
 
 #define CLOGV(handler, fmt...) CLOG_PRINTF(handler, LOG_VERBOSE, fmt)

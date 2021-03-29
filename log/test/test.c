@@ -59,12 +59,13 @@ test_size(void)
 
 #if 0
     log_format_t *format = log_format_create("%d.%ms [%5.5V] %m%n");
+
 #if 1
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 4 *1024*1024, 0,
+        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", ROTATE_POLICE_BY_SIZE, 4 *1024*1024, 0,
                           4 * 1024, 1000);
 #else
-    log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", 4*1024*1024, 4);
+    log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", ROTATE_POLICE_BY_SIZE, 4*1024*1024, 4);
 #endif
     log_handler_t *handler = log_handler_create("ihi");
     log_bind(handler, -1, -1, format, output);
@@ -157,14 +158,14 @@ test_mlog(void)
     log_handler_t *h1      = log_handler_create("handler1");
     log_format_t *format1  = log_format_create("%d %p %c %C%V%R %F:%U:%L %m%n");
     log_output_t *fileout1 = log_output_create(LOG_OUTTYPE_FILE, "logs",
-                                               "handler1", 1024 * 1024 * 4, 4);
+                                               "handler1", ROTATE_POLICE_BY_TIME);
     log_rule_t *r1         = log_rule_create(h1, format1, fileout1, -1, -1);
 
     log_handler_t *h2      = log_handler_create("handler2");
     log_format_t *format2  = log_format_create("%d.%ms [%V] %m%n");
     log_output_t *std_out  = log_output_create(LOG_OUTTYPE_STDOUT);
     log_output_t *fileout2 = log_output_create(LOG_OUTTYPE_FILE, "logs",
-                                               "handler2", 1024 * 1024 * 4, 4);
+                                               "handler2", 0, 1024 * 1024 * 4, 4);
     log_rule_t *r2         = log_rule_create(h2, format2, fileout2, -1, -1);
 
     CLOGV(h1, "this is a verbose");
@@ -232,10 +233,10 @@ test_log_thread()
     log_format_t *f  = log_format_create("%d.%ms %c:%T [%-5.5V] %m%n");
 #if 0
     log_output_t *o =
-        log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", 1024 * 1024 * 4, 4);
+        log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", ROTATE_POLICE_BY_SIZE, 1024 * 1024 * 4, 4);
 #else
     log_output_t *o =
-        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 1024 * 1024 * 4, 4,
+        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", ROTATE_POLICE_BY_SIZE, 1024 * 1024 * 4, 4,
                           4 * 1024 * 1024, 1000);
 #endif
 
@@ -261,7 +262,7 @@ test_mlog_benchmark()
     log_handler_t *h3     = log_handler_create("h3");
     log_format_t *format  = log_format_create("%d %p %c %V %F:%U:%L %m%n");
     log_output_t *fileout = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
-                                              1024 * 1024 * 1000, 10, 4);
+                                              ROTATE_POLICE_BY_SIZE, 1024 * 1024 * 1000, 10, 4);
 
     log_rule_create(h1, format, fileout, -1, -1);
     log_rule_create(h2, format, fileout, -1, -1);
@@ -299,10 +300,15 @@ test_log_benchmark()
     log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
 #if 1
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 1024 * 1024 * 1024,
-                          4, 4 * 1024 * 1024, 1000);
+        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi",
+                          ROTATE_POLICE_BY_TIME, 4*1024, 100);
+        /* log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi",
+         *                   ROTATE_POLICE_BY_SIZE,
+         *                   1024 * 1024 * 1024,
+         *                   4, 4 * 1024 * 1024, 1000); */
 #else
     log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
+                                             ROTATE_POLICE_BY_SIZE,
                                              1024 * 1024 * 1024, 4);
 #endif
     log_handler_t *handler = log_handler_create("ihi");
@@ -347,10 +353,13 @@ test_log_big_benchmark()
 
 #if 1
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 1024 * 1024 * 1024,
+        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi",
+                          ROTATE_POLICE_BY_SIZE,
+                          1024 * 1024 * 1024,
                           4, 4 * 1024 * 1024, 1 * 1000);
 #else
     log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
+                                             ROTATE_POLICE_BY_SIZE,
                                              1024 * 1024 * 1024, 4);
 #endif
     log_handler_t *handler = log_handler_create("ihi");
@@ -381,9 +390,9 @@ test_multi_output()
     log_format_t *format1 = log_format_create("%m%n");
     log_format_t *format2 = log_format_create("%m");
     log_output_t *file1   = log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi",
-                                            8 * 1024 * 1024, 50, 4 * 1024, 100);
+                                              ROTATE_POLICE_BY_SIZE, 8 * 1024 * 1024, 50, 4 * 1024, 100);
     log_output_t *file2   = log_output_create(LOG_OUTTYPE_FILE, "logs", "test",
-                                            8 * 1024 * 1024, 50);
+                                              ROTATE_POLICE_BY_SIZE, 8 * 1024 * 1024, 50);
     log_output_t *sout    = log_output_create(LOG_OUTTYPE_STDOUT);
     log_output_t *serr    = log_output_create(LOG_OUTTYPE_STDERR);
 
@@ -430,7 +439,8 @@ test_format()
         "%d(%y/%m/%d %H:%M:%S).%ms us(%us) %E(LOGNAME)@%H %c %p:tid<%t>:%T "
         "[%-5.5V]%C[%-5.5v]%R %.10F:%.5U:%L %m%n");
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", 1024 * 1024 * 4, 4);
+        /* log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", ROTATE_POLICE_BY_TIME, 4*1024, 100); */
+        log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", ROTATE_POLICE_BY_SIZE, 1024 * 1024 * 4, 4);
     log_handler_t *handler = log_handler_create("default");
     if (!format) {
         printf("format create failed\n");
@@ -452,7 +462,7 @@ test_format()
     }
     log_handler_set_default(handler);
 
-    for (i = 0; i < 10; i++) {
+    for (i = 0; i < 1024; i++) {
         LOGV("this is a %s", "verbose");
         LOGD("this is a %s", "debug");
         LOGI("this is a info");
@@ -475,7 +485,7 @@ test_format()
 }
 
 DEPRECATED_API void
-test_big_buf()
+test_big_buf(void)
 {
     char *buf   = NULL;
     size_t size = 1024 * 1024 * 7;
@@ -483,13 +493,15 @@ test_big_buf()
     int i;
 
     log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
-#if 0
-    log_output_t *output =
-        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", 3 * 1024 * 1024, 5,
-                          4 * 1024, 100);
+#if 1
+    /* log_output_t *output =
+     *     log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", ROTATE_POLICE_BY_SIZE, 3 * 1024 * 1024, 5,
+     *                       4 * 1024, 100);
+     */
+    log_output_t *output = log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", ROTATE_POLICE_BY_TIME, 4*1024, 100);
 #else
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", 1024 * 1024 * 3, 5);
+        log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", ROTATE_POLICE_BY_SIZE, 1024 * 1024 * 3, 5);
 #endif
     log_handler_t *handler = log_handler_create("ihi");
     if (!format) {
@@ -532,7 +544,7 @@ test_big_buf()
 int
 main(int argc, char *argv[])
 {
-    test_simple();
+    /* test_simple(); */
     /* test_size(); */
     /* test_callback(); */
     /* test_vprintf(); */
@@ -545,7 +557,7 @@ main(int argc, char *argv[])
     /* test_big_buf(); */
 
     /* test_mlog_benchmark(); */
-    /* test_log_benchmark(); */
+    test_log_benchmark();
     /* test_log_big_benchmark(); */
 
     return 0;

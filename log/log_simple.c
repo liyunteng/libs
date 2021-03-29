@@ -44,6 +44,7 @@ log_init(const char *dir, const char *filename, int level, int enable_stdout)
         g_log_ctx.output[0] = log_output_create(LOG_OUTTYPE_FILE,
                                                 dir,
                                                 filename,
+                                                0,
                                                 DEFAULT_LOG_FILE_SIZE,
                                                 DEFAULT_LOG_BAKUP_NUM);
         if (!g_log_ctx.output[0]) {

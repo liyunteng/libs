@@ -8,14 +8,21 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/time.h>
+
+#define MAX_FILE_PATH 256
 
 struct file_output_ctx {
     char *file_path;
     char *log_name;
+
+    int rotate_police;
     uint16_t num_files;
-    uint32_t file_size;
     uint16_t file_idx;
-    uint32_t data_offset;
+    uint64_t file_size;
+    uint64_t data_offset;
+    uint64_t file_timestamp;
+
     FILE *fp;
 };
 
@@ -55,11 +62,121 @@ dump_environment(struct log_output *output)
     fprintf(ctx->fp, "\n");
 }
 
-static int
-file_rotate(struct log_output *output)
+static inline uint64_t
+file_get_ms(void)
 {
-    uint32_t num, num_files, len;
-    char *old_file_name, *new_file_name;
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec * 1e3 + tv.tv_usec / 1e3;
+}
+
+static size_t
+check_can_write_bytes(struct log_output *output, struct log_handler *handler)
+{
+    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
+    uint64_t ts;
+    int left = buf_len(handler->event.msg_buf);
+
+    if (ctx->rotate_police == ROTATE_POLICE_BY_SIZE) {
+        if (ctx->file_size > 0) {
+            left = ctx->file_size - ctx->data_offset;
+        }
+    } else if (ctx->rotate_police == ROTATE_POLICE_BY_TIME) {
+        if (handler->event.timestamp.tv_sec != 0) {
+            ts = handler->event.timestamp.tv_sec * 1e3
+                 + handler->event.timestamp.tv_usec / 1e3;
+        } else {
+            ts = file_get_ms();
+        }
+
+        if (ts - ctx->file_timestamp > 60 * 60 * 1e3) {
+            left = 0;
+        }
+    }
+    return left;
+}
+
+static int
+do_file_rotate_by_time(struct log_output *output)
+{
+    char old_file_name[MAX_FILE_PATH] = {0};
+    char new_file_name[MAX_FILE_PATH] = {0};
+    struct tm tm;
+    char time[128] = {0};
+    struct stat st;
+    int i                       = 0;
+    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
+
+    snprintf(old_file_name, MAX_FILE_PATH - 1, "%s/%s.log", ctx->file_path,
+             ctx->log_name);
+
+    if (lstat(old_file_name, &st) < 0) {
+        ERROR_LOG("lstat failed: (%s)\n", strerror(errno));
+        return -1;
+    }
+
+    localtime_r(&(st.st_atime), &tm);
+    strftime(time, 127, "%04Y%02m%02d%02H%02M%02S", &tm);
+    snprintf(new_file_name, MAX_FILE_PATH - 1, "%s/%s.log.%s", ctx->file_path,
+             ctx->log_name, time);
+    rename(old_file_name, new_file_name);
+    DEBUG_LOG("rename %s ==> %s\n", old_file_name, new_file_name);
+
+    return 0;
+}
+
+static int
+file_rotate_by_time(struct log_output *output)
+{
+    char file_name[MAX_FILE_PATH] = {0};
+    struct stat st;
+    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
+
+    snprintf(file_name, MAX_FILE_PATH - 1, "%s/%s.log", ctx->file_path,
+             ctx->log_name);
+
+    if (lstat(file_name, &st) < 0) {
+        if (errno == ENOENT) {
+            // create new file
+            if ((ctx->fp = fopen(file_name, "w")) == NULL) {
+                ERROR_LOG("fopen %s failed: (%s)\n", file_name,
+                          strerror(errno));
+                return -1;
+            }
+            DEBUG_LOG("open file(new) %s\n", file_name);
+            ctx->file_timestamp = file_get_ms();
+            ctx->data_offset    = 0;
+            return 0;
+        }
+
+        ERROR_LOG("lstat %s failed: (%s)\n", file_name, strerror(errno));
+        return -1;
+    }
+
+    // rotate
+    if (do_file_rotate_by_time(output) < 0) {
+        ERROR_LOG("rename %s failed\n", file_name);
+        return -1;
+    }
+
+    if ((ctx->fp = fopen(file_name, "w")) == NULL) {
+        ERROR_LOG("fopen %s failed: (%s)\n", file_name, strerror(errno));
+        return -1;
+    }
+    DEBUG_LOG("open file(truncated) %s\n", file_name);
+    ctx->file_timestamp = file_get_ms();
+    ctx->data_offset    = 0;
+
+    ++ctx->file_idx;
+
+    return 0;
+}
+
+static int
+do_file_rotate_by_size(struct log_output *output)
+{
+    char old_file_name[MAX_FILE_PATH] = {0};
+    char new_file_name[MAX_FILE_PATH] = {0};
     struct stat st;
     uint32_t bak_file_num;
     int i                       = 0;
@@ -70,37 +187,20 @@ file_rotate(struct log_output *output)
         return 0;
     }
 
-    for (num = 0, num_files = ctx->num_files; num_files; num_files /= 10) {
-        ++num;
-    }
-
-    len = strlen(ctx->file_path);
-    len += 1; /* "/" */
-
-    len += strlen(ctx->log_name);
-    len += 4;         /* ".log" */
-    len += (num + 1); /* ".<digit>" */
-    len += 1;         /* NULL char */
-
-    old_file_name = malloc(len * sizeof(char));
-    new_file_name = malloc(len * sizeof(char));
-    if (!old_file_name || !new_file_name) {
-        ERROR_LOG("malloc failed: (%s)\n", strerror(errno));
-        free(old_file_name);
-        free(new_file_name);
-        return -1;
-    }
-
+    // rotate
     bak_file_num = 0;
-    for (i = 0; i < ctx->num_files; i++) {
-        snprintf(old_file_name, len, "%s/%s.log.%u", ctx->file_path,
-                 ctx->log_name, i);
+    for (i = 0;; i++) {
+        snprintf(old_file_name, MAX_FILE_PATH - 1, "%s/%s.log.%u",
+                 ctx->file_path, ctx->log_name, i);
         if (lstat(old_file_name, &st) < 0) {
             if (errno == ENOENT) {
                 break;
             }
         }
         bak_file_num++;
+        if (ctx->num_files > 0 && bak_file_num >= ctx->num_files) {
+            break;
+        }
     }
 
     for (i = bak_file_num; i >= 0; i--) {
@@ -109,32 +209,88 @@ file_rotate(struct log_output *output)
         }
 
         if (i == 0) {
-            snprintf(old_file_name, len, "%s/%s.log", ctx->file_path,
-                     ctx->log_name);
+            snprintf(old_file_name, MAX_FILE_PATH - 1, "%s/%s.log",
+                     ctx->file_path, ctx->log_name);
         } else {
-            snprintf(old_file_name, len, "%s/%s.log.%u", ctx->file_path,
-                     ctx->log_name, (i - 1));
+            snprintf(old_file_name, MAX_FILE_PATH - 1, "%s/%s.log.%u",
+                     ctx->file_path, ctx->log_name, (i - 1));
         }
 
-        snprintf(new_file_name, len, "%s/%s.log.%u", ctx->file_path,
-                 ctx->log_name, i);
+        snprintf(new_file_name, MAX_FILE_PATH - 1, "%s/%s.log.%u",
+                 ctx->file_path, ctx->log_name, i);
         rename(old_file_name, new_file_name);
         DEBUG_LOG("rename %s ==> %s\n", old_file_name, new_file_name);
     }
 
     ++ctx->file_idx;
-    free(old_file_name);
-    free(new_file_name);
 
     return 0;
 }
 
 static int
+file_rotate_by_size(struct log_output *output)
+{
+    char file_name[MAX_FILE_PATH] = {0};
+    struct stat st;
+    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
+
+    snprintf(file_name, MAX_FILE_PATH - 1, "%s/%s.log", ctx->file_path,
+             ctx->log_name);
+
+    if (lstat(file_name, &st) < 0) {
+        if (errno == ENOENT) {
+            // create new file
+            if ((ctx->fp = fopen(file_name, "w")) == NULL) {
+                ERROR_LOG("fopen %s failed: (%s)\n", file_name,
+                          strerror(errno));
+                return -1;
+            }
+            DEBUG_LOG("open file(new) %s\n", file_name);
+            ctx->data_offset    = 0;
+            ctx->file_timestamp = file_get_ms();
+            return 0;
+        }
+
+        ERROR_LOG("lstat %s failed: (%s)\n", file_name, strerror(errno));
+        return -1;
+    }
+
+    // rotate
+    if (ctx->file_size > 0) {
+        if (ctx->num_files != 0) {
+            if (do_file_rotate_by_size(output) < 0) {
+                ERROR_LOG("rename %s failed\n", file_name);
+                return -1;
+            }
+        }
+
+        // truncated
+        if ((ctx->fp = fopen(file_name, "w")) == NULL) {
+            ERROR_LOG("fopen %s failed: (%s)\n", file_name, strerror(errno));
+            return -1;
+        }
+        DEBUG_LOG("open file(truncated) %s\n", file_name);
+        ctx->data_offset    = 0;
+        ctx->file_timestamp = file_get_ms();
+        return 0;
+    }
+
+    // append
+    if ((ctx->fp = fopen(file_name, "a+")) == NULL) {
+        ERROR_LOG("fopen %s(append) failed: (%s)\n", file_name,
+                  strerror(errno));
+        return -1;
+    }
+    ctx->data_offset    = st.st_size;
+    ctx->file_timestamp = file_get_ms();
+    return 0;
+}
+
+
+static int
 file_open_logfile(struct log_output *output)
 {
-    uint32_t len;
     struct stat st;
-    char *file_name     = NULL;
     int need_create_dir = 0;
 
     struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
@@ -167,68 +323,17 @@ file_open_logfile(struct log_output *output)
         DEBUG_LOG("mkdir %s\n", ctx->file_path);
     }
 
-    len = strlen(ctx->file_path);
-    len += 1; /* "/" */
-    len += strlen(ctx->log_name);
-    len += 4; /* ".log" */
-    len += 1; /* NULL char */
-
-    file_name = malloc(len * sizeof(char));
-    if (!file_name) {
-        ERROR_LOG("malloc failed: (%s)\n", strerror(errno));
-        return -1;
-    }
-
-    snprintf(file_name, len, "%s/%s.log", ctx->file_path, ctx->log_name);
-
-    if (lstat(file_name, &st) < 0) {
-        if (errno == ENOENT) {
-            // create new file
-            if ((ctx->fp = fopen(file_name, "w")) == NULL) {
-                ERROR_LOG("fopen %s failed: (%s)\n", file_name,
-                          strerror(errno));
-                goto failed;
-            }
-            DEBUG_LOG("open file(create) %s\n", file_name);
-            ctx->data_offset = 0;
-        } else {
-            ERROR_LOG("lstat %s failed: (%s)\n", file_name, strerror(errno));
+    if (ctx->rotate_police == ROTATE_POLICE_BY_SIZE) {
+        if (file_rotate_by_size(output) < 0) {
+            ERROR_LOG("file rotate by size failed\n");
             goto failed;
         }
-    } else {
-        // file exits
-
-        // rotate
-        if (ctx->file_size > 0 && ctx->num_files > 0) {
-            if (file_rotate(output) < 0) {
-                ERROR_LOG("rename %s failed\n", file_name);
-                goto failed;
-            }
-            DEBUG_LOG("create file %s\n", file_name);
-            st.st_size = 0;
-        }
-
-        if (ctx->file_size > 0 && ctx->file_size <= st.st_size) {
-            // truncated
-            if ((ctx->fp = fopen(file_name, "w")) == NULL) {
-                ERROR_LOG("fopen %s failed: (%s)\n", file_name,
-                          strerror(errno));
-                goto failed;
-            }
-            DEBUG_LOG("open file(truncated) %s\n", file_name);
-            ctx->data_offset = 0;
-        } else {
-            // append
-            if ((ctx->fp = fopen(file_name, "a+")) == NULL) {
-                ERROR_LOG("fopen %s(append) failed: (%s)\n", file_name,
-                          strerror(errno));
-                goto failed;
-            }
-            ctx->data_offset = st.st_size;
+    } else if (ctx->rotate_police == ROTATE_POLICE_BY_TIME) {
+        if (file_rotate_by_time(output) < 0) {
+            ERROR_LOG("file rotate by time failed\n");
+            goto failed;
         }
     }
-
-    free(file_name);
     return 0;
 
 failed:
@@ -236,11 +341,9 @@ failed:
         fclose(ctx->fp);
         ctx->fp = NULL;
     }
-    if (file_name) {
-        free(file_name);
-    }
     return -1;
 }
+
 
 static int
 file_emit(struct log_output *output, struct log_handler *handler)
@@ -281,12 +384,8 @@ file_emit(struct log_output *output, struct log_handler *handler)
     }
 
     len      = buf_len(buf);
-    int left = 0;
-    if (ctx->file_size > 0) {
-        left = ctx->file_size - ctx->data_offset;
-    }
-
-    if ((ctx->file_size > 0 && left > (int)len) || ctx->file_size == 0) {
+    int file_left = check_can_write_bytes(output, handler);
+    if (file_left >= len) {
         if (fwrite(buf->start, len, 1, ctx->fp) != 1) {
             ERROR_LOG("fwrite failed: (%s) len:%lu\n", strerror(errno), len);
             return -1;
@@ -295,39 +394,35 @@ file_emit(struct log_output *output, struct log_handler *handler)
         return len;
     }
 
-    size_t nwrite = 0;
-    size_t total  = 0;
-    while (total < len) {
-        if ((int)(len - total) > left) {
-            nwrite = left;
-        } else {
-            nwrite = len - total;
-        }
+    size_t nwrite      = 0;
+    size_t total_write = 0;
+    while (total_write < len) {
+        nwrite = (len - total_write) > file_left ? file_left : (len - total_write);
 
         if (nwrite > 0) {
-            if (fwrite(buf->start + total, nwrite, 1, ctx->fp) != 1) {
+            if (fwrite(buf->start + total_write, nwrite, 1, ctx->fp) != 1) {
                 ERROR_LOG(
                     "fwrite failed: (%s) nwrite: %lu total: %lu len: %lu left: "
                     "%d\n",
-                    strerror(errno), nwrite, total, len, left);
+                    strerror(errno), nwrite, total_write, len, file_left);
                 return -1;
             }
             ctx->data_offset += nwrite;
-            total += nwrite;
+            total_write += nwrite;
         }
 
-        if (total >= len) {
+        if (total_write >= len) {
             break;
         }
 
         ret = file_open_logfile(output);
         if (ret != 0) {
             ERROR_LOG("open logfile failed\n");
-            return total;
+            return total_write;
         }
-        left = ctx->file_size;
+        file_left = ctx->file_size;
     }
-    return total;
+    return total_write;
 }
 
 static void
@@ -339,10 +434,13 @@ file_ctx_dump(struct log_output *output)
         if (ctx) {
             printf("filepath: %s\n", ctx->file_path);
             printf("logname:  %s\n", ctx->log_name);
-            printf("filesize: %d\n", ctx->file_size);
+            printf("filesize: %lu\n", ctx->file_size);
             printf("bakup:    %d\n", ctx->num_files);
+            printf("offset:   %lu\n", ctx->data_offset);
             printf("idx:      %d\n", ctx->file_idx);
-            printf("offset:   %u\n", ctx->data_offset);
+            printf("rotate:   %s\n",
+                   ctx->rotate_police == ROTATE_POLICE_BY_SIZE ? "size" :
+                                                                 "time");
         }
         dump_statstic(output);
     }
@@ -405,13 +503,17 @@ file_ctx_init(struct log_output *output, va_list ap)
     ctx->log_name   = strdup(file_name);
     DEBUG_LOG("ctx->log_name: %s\n", ctx->log_name);
 
-    unsigned long file_size = va_arg(ap, unsigned long);
-    ctx->file_size          = file_size;
-    DEBUG_LOG("ctx->file_size: %u\n", ctx->file_size);
+    ctx->rotate_police = va_arg(ap, int);
+    if (ctx->rotate_police == ROTATE_POLICE_BY_SIZE) {
+        ctx->file_size = va_arg(ap, uint64_t);
+        DEBUG_LOG("ctx->file_size: %lu\n", ctx->file_size);
 
-    int num_files  = va_arg(ap, int);
-    ctx->num_files = num_files;
-    DEBUG_LOG("ctx->num_files: %d\n", ctx->num_files);
+        ctx->num_files = va_arg(ap, int);
+        DEBUG_LOG("ctx->num_files: %d\n", ctx->num_files);
+
+    } else if (ctx->rotate_police == ROTATE_POLICE_BY_TIME) {
+        ;
+    }
 
     ctx->fp       = NULL;
     ctx->file_idx = 0;

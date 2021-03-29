@@ -28,8 +28,8 @@
 #endif
 
 #define DEBUG_LOG(fmt, ...)
-// #define DEBUG_LOG(fmt, ...)                                          \
-//    fprintf(stdout, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+// #define DEBUG_LOG(fmt, ...)                                             \
+//     fprintf(stdout, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 #define ERROR_LOG(fmt, ...)                                             \
     fprintf(stderr, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 

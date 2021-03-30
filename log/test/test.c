@@ -301,15 +301,17 @@ test_log_benchmark()
 #if 1
     log_output_t *output =
         log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi",
-                          ROTATE_POLICE_BY_TIME, 4*1024, 100);
+                          ROTATE_POLICE_BY_TIME, 4*1024*1024, 1000);
         /* log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi",
          *                   ROTATE_POLICE_BY_SIZE,
          *                   1024 * 1024 * 1024,
          *                   4, 4 * 1024 * 1024, 1000); */
 #else
     log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
-                                             ROTATE_POLICE_BY_SIZE,
-                                             1024 * 1024 * 1024, 4);
+                                             ROTATE_POLICE_BY_TIME);
+    /* log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
+     *                                          ROTATE_POLICE_BY_SIZE,
+     *                                          1024 * 1024 * 1024, 4); */
 #endif
     log_handler_t *handler = log_handler_create("ihi");
     log_rule_create(handler, format, output, -1, -1);

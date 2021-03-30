@@ -6,9 +6,11 @@
 #include "file_output.h"
 
 #include <errno.h>
+#include <inttypes.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <time.h>
 
 #define MAX_FILE_PATH 256
 
@@ -67,7 +69,7 @@ file_get_ms(void)
 {
     struct timeval tv;
     gettimeofday(&tv, NULL);
-    return tv.tv_sec * 1e3 + tv.tv_usec / 1e3;
+    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
 }
 
 static size_t
@@ -83,13 +85,15 @@ check_can_write_bytes(struct log_output *output, struct log_handler *handler)
         }
     } else if (ctx->rotate_police == ROTATE_POLICE_BY_TIME) {
         if (handler->event.timestamp.tv_sec != 0) {
-            ts = handler->event.timestamp.tv_sec * 1e3
-                 + handler->event.timestamp.tv_usec / 1e3;
+            ts = handler->event.timestamp.tv_sec * 1000
+                 + handler->event.timestamp.tv_usec / 1000;
         } else {
             ts = file_get_ms();
         }
 
-        if (ts - ctx->file_timestamp > 60 * 60 * 1e3) {
+        if (ts > ctx->file_timestamp && ts - ctx->file_timestamp > 60 * 1000) {
+            DEBUG_LOG("ts: %" PRIu64 "  ctx->file_timestamp: %" PRIu64 "\n", ts,
+                      ctx->file_timestamp);
             left = 0;
         }
     }
@@ -116,7 +120,7 @@ do_file_rotate_by_time(struct log_output *output)
     }
 
     localtime_r(&(st.st_atime), &tm);
-    strftime(time, 127, "%04Y%02m%02d%02H%02M%02S", &tm);
+    strftime(time, 127, "%Y%m%d_%H%M%S", &tm);
     snprintf(new_file_name, MAX_FILE_PATH - 1, "%s/%s.log.%s", ctx->file_path,
              ctx->log_name, time);
     rename(old_file_name, new_file_name);
@@ -144,8 +148,8 @@ file_rotate_by_time(struct log_output *output)
                 return -1;
             }
             DEBUG_LOG("open file(new) %s\n", file_name);
-            ctx->file_timestamp = file_get_ms();
             ctx->data_offset    = 0;
+            ctx->file_timestamp = file_get_ms();
             return 0;
         }
 
@@ -164,8 +168,8 @@ file_rotate_by_time(struct log_output *output)
         return -1;
     }
     DEBUG_LOG("open file(truncated) %s\n", file_name);
-    ctx->file_timestamp = file_get_ms();
     ctx->data_offset    = 0;
+    ctx->file_timestamp = file_get_ms();
 
     ++ctx->file_idx;
 
@@ -383,8 +387,8 @@ file_emit(struct log_output *output, struct log_handler *handler)
         }
     }
 
-    len      = buf_len(buf);
-    int file_left = check_can_write_bytes(output, handler);
+    len              = buf_len(buf);
+    size_t file_left = check_can_write_bytes(output, handler);
     if (file_left >= len) {
         if (fwrite(buf->start, len, 1, ctx->fp) != 1) {
             ERROR_LOG("fwrite failed: (%s) len:%lu\n", strerror(errno), len);
@@ -397,13 +401,14 @@ file_emit(struct log_output *output, struct log_handler *handler)
     size_t nwrite      = 0;
     size_t total_write = 0;
     while (total_write < len) {
-        nwrite = (len - total_write) > file_left ? file_left : (len - total_write);
+        nwrite =
+            (len - total_write) > file_left ? file_left : (len - total_write);
 
         if (nwrite > 0) {
             if (fwrite(buf->start + total_write, nwrite, 1, ctx->fp) != 1) {
                 ERROR_LOG(
                     "fwrite failed: (%s) nwrite: %lu total: %lu len: %lu left: "
-                    "%d\n",
+                    "%lu\n",
                     strerror(errno), nwrite, total_write, len, file_left);
                 return -1;
             }
@@ -420,7 +425,8 @@ file_emit(struct log_output *output, struct log_handler *handler)
             ERROR_LOG("open logfile failed\n");
             return total_write;
         }
-        file_left = ctx->file_size;
+
+        file_left = check_can_write_bytes(output, handler);
     }
     return total_write;
 }
@@ -434,9 +440,9 @@ file_ctx_dump(struct log_output *output)
         if (ctx) {
             printf("filepath: %s\n", ctx->file_path);
             printf("logname:  %s\n", ctx->log_name);
-            printf("filesize: %lu\n", ctx->file_size);
+            printf("filesize: %" PRIu64 "\n", ctx->file_size);
             printf("bakup:    %d\n", ctx->num_files);
-            printf("offset:   %lu\n", ctx->data_offset);
+            printf("offset:   %" PRIu64 "\n", ctx->data_offset);
             printf("idx:      %d\n", ctx->file_idx);
             printf("rotate:   %s\n",
                    ctx->rotate_police == ROTATE_POLICE_BY_SIZE ? "size" :

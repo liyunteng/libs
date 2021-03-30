@@ -8,6 +8,8 @@
 #include "list.h"
 #include "log_buf.h"
 #include <stdint.h>
+#include <time.h>
+#include <pthread.h>
 
 struct log_spec;
 struct log_event;

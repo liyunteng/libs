@@ -8,6 +8,7 @@
 #include "mpeg-ts.h"
 #include "mpeg-ts-proto.h"
 #include "mpeg4-avc.h"
+#include "mpeg4-hevc.h"
 #include "mov-reader.h"
 #include "mov-format.h"
 #include <assert.h>
@@ -20,6 +21,7 @@ const struct mov_buffer_t *mov_file_buffer(void);
 static uint8_t s_packet[2 * 1024 * 1024];
 static uint8_t s_buffer[4 * 1024 * 1024];
 static struct mpeg4_avc_t s_avc;
+static struct mpeg4_hevc_t s_hevc;
 
 typedef struct mpeg_ts_multi_program_test_t
 {
@@ -29,6 +31,7 @@ typedef struct mpeg_ts_multi_program_test_t
 		int pn;
 		int track;
 		int stream;
+        int codecid;
 	} pn[4];
 
 	void* ts;
@@ -53,13 +56,25 @@ static int ts_write(void* param, const void* packet, size_t bytes)
 static void onread(void* param, uint32_t track, const void* data, size_t bytes, int64_t pts, int64_t dts, int flags)
 {
 	mpeg_ts_multi_program_test_t* ctx = (mpeg_ts_multi_program_test_t*)param;
+    int n;
 	for (int i = 0; i < ctx->count; i++)
 	{
 		if (ctx->pn[i].track == track)
 		{
-            int n = h264_mp4toannexb(&s_avc, data, bytes, s_packet, sizeof(s_packet));
-			/* assert(0 == mpeg_ts_write(ctx->ts, ctx->pn[i].stream, (flags & MOV_AV_FLAG_KEYFREAME) ? 1 : 0, pts * 90, dts * 90, data, bytes)); */
-			assert(0 == mpeg_ts_write(ctx->ts, ctx->pn[i].stream, (flags & MOV_AV_FLAG_KEYFREAME) ? 1 : 0, pts * 90, dts * 90, s_packet, n));
+            switch (ctx->pn[i].codecid) {
+            case PSI_STREAM_H264:
+                n = h264_mp4toannexb(&s_avc, data, bytes, s_packet, sizeof(s_packet));
+                assert(0 == mpeg_ts_write(ctx->ts, ctx->pn[i].stream, (flags & MOV_AV_FLAG_KEYFREAME) ? 1 : 0, pts * 90, dts * 90, s_packet, n));
+                break;
+            case PSI_STREAM_H265:
+                n = h265_mp4toannexb(&s_hevc, data, bytes, s_packet, sizeof(s_packet));
+                assert(0 == mpeg_ts_write(ctx->ts, ctx->pn[i].stream, (flags & MOV_AV_FLAG_KEYFREAME) ? 1 : 0, pts * 90, dts * 90, s_packet, n));
+                break;
+            default:
+                assert(0 == mpeg_ts_write(ctx->ts, ctx->pn[i].stream, (flags & MOV_AV_FLAG_KEYFREAME) ? 1 : 0, pts * 90, dts * 90, data, bytes));
+                break;
+            }
+
 			return;
 		}
 	}
@@ -67,15 +82,19 @@ static void onread(void* param, uint32_t track, const void* data, size_t bytes, 
 
 static void mov_video_info(void* param, uint32_t track, uint8_t object, int width, int height, const void* extra, size_t bytes)
 {
-	assert(MOV_OBJECT_H264 == object || MOV_OBJECT_HEVC == object || MOV_OBJECT_AV1 == object || MOV_OBJECT_VP9 == object);
+	assert(MOV_OBJECT_H264 == object || MOV_OBJECT_HEVC == object);
 	mpeg_ts_multi_program_test_t* ctx = (mpeg_ts_multi_program_test_t*)param;
 	ctx->pn[ctx->count].pn = ctx->count + 1;
 	ctx->pn[ctx->count].track = track;
-    printf("ctx->pn[%d].pn = %d\n", ctx->count, ctx->count+1);
-    printf("ctx->pn[%d].track = %d\n", ctx->count, track);
-    mpeg4_avc_decoder_configuration_record_load((const uint8_t*)extra, bytes, &s_avc);
+    ctx->pn[ctx->count].codecid = (object == MOV_OBJECT_H264 ? PSI_STREAM_H264 : PSI_STREAM_H265);
+    if (object == MOV_OBJECT_H264) {
+        mpeg4_avc_decoder_configuration_record_load((const uint8_t*)extra, bytes, &s_avc);
+    } else {
+        mpeg4_hevc_decoder_configuration_record_load((const uint8_t *)extra, bytes, &s_hevc);
+    }
+
 	assert(0 == mpeg_ts_add_program(ctx->ts, ctx->pn[ctx->count].pn, NULL, 0));
-	ctx->pn[ctx->count].stream = mpeg_ts_add_program_stream(ctx->ts, ctx->pn[ctx->count].pn, PSI_STREAM_H264, NULL, 0);
+	ctx->pn[ctx->count].stream = mpeg_ts_add_program_stream(ctx->ts, ctx->pn[ctx->count].pn, MOV_OBJECT_H264 == object ? PSI_STREAM_H264 : PSI_STREAM_H265, NULL, 0);
 	ctx->count++;
 }
 
@@ -85,6 +104,7 @@ static void mov_audio_info(void* param, uint32_t track, uint8_t object, int chan
 	mpeg_ts_multi_program_test_t* ctx = (mpeg_ts_multi_program_test_t*)param;
 	ctx->pn[ctx->count].pn = ctx->count + 1;
 	ctx->pn[ctx->count].track = track;
+    ctx->pn[ctx->count].codecid = (object == MOV_OBJECT_AAC ? PSI_STREAM_AAC : PSI_STREAM_AUDIO_OPUS);
 	assert(0 == mpeg_ts_add_program(ctx->ts, ctx->pn[ctx->count].pn, NULL, 0));
 	ctx->pn[ctx->count].stream = mpeg_ts_add_program_stream(ctx->ts, ctx->pn[ctx->count].pn, MOV_OBJECT_AAC == object ? PSI_STREAM_AAC : PSI_STREAM_AUDIO_OPUS, NULL, 0);
 	ctx->count++;

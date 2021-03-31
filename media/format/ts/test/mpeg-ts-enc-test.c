@@ -7,6 +7,7 @@
 #include "mpeg-ts-proto.h"
 #include "mpeg-ts.h"
 #include "mpeg4-avc.h"
+#include "mpeg4-aac.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,9 +19,10 @@ static uint8_t s_extra_data[64 * 1024];
 struct mpeg_ts_enc_test_t {
     void *ts;
     struct mpeg4_avc_t avc;
-    uint8_t *ptr;
+    struct mpeg4_aac_t aac;
+    uint8_t *vptr;
 
-    int track;
+    int vtrack, atrack;
     int pts, dts;
     int vcl;
 };
@@ -65,6 +67,37 @@ ts_write(void *param, const void *packet, size_t bytes)
                                                           ferror((FILE *)param);
 }
 
+static void adts_reader(struct mpeg_ts_enc_test_t *ctx, const uint8_t *data, size_t bytes)
+{
+    int64_t pts = 0;
+    while (data && bytes > 7) {
+        int n = mpeg4_aac_adts_frame_length(data, bytes);
+        if (n < 0)
+            break;
+
+        if (n > bytes)
+            break;
+
+        if (-1 == ctx->atrack) {
+            uint8_t asc[16];
+            assert(7 == mpeg4_aac_adts_load(data, bytes, &ctx->aac));
+            int len = mpeg4_aac_audio_specific_config_save(&ctx->aac, asc, sizeof(asc));
+            assert(len > 0 && len <= sizeof(asc));
+            /* assert(0 == mpeg_ts_add_program(ctx->ts, 1, NULL, 0)); */
+            /* ctx->atrack = mpeg_ts_add_program_stream(ctx->ts, 1, PSI_STREAM_AAC, NULL, 0); */
+            ctx->atrack = mpeg_ts_add_stream(ctx->ts, PSI_STREAM_AAC, NULL, 0);
+            assert(ctx->atrack > 0);
+            printf("audio track: %d\n", ctx->atrack);
+        }
+
+        assert(0 == mpeg_ts_write(ctx->ts, ctx->atrack, MPEG_FLAG_IDR_FRAME,
+                                  pts, pts, data+7, bytes-7));
+        data += n;
+        bytes -= n;
+        pts += 1024 * 1000 / ctx->aac.sampling_frequency;
+    }
+}
+
 static int
 h264_write(struct mpeg_ts_enc_test_t *ctx, const void *data, int bytes)
 {
@@ -72,7 +105,7 @@ h264_write(struct mpeg_ts_enc_test_t *ctx, const void *data, int bytes)
     int update = 0;
     int n = h264_annexbtomp4(&ctx->avc, data, bytes, s_packet, sizeof(s_packet),
                              &vcl, &update);
-    if (ctx->track < 0) {
+    if (ctx->vtrack < 0) {
         if (ctx->avc.nb_sps < 1 || ctx->avc.nb_pps < 1) {
             printf("waiting sps/pps\n");
             return -2;
@@ -93,18 +126,19 @@ h264_write(struct mpeg_ts_enc_test_t *ctx, const void *data, int bytes)
         }
         printf("\n");
 
-        assert(0 == mpeg_ts_add_program(ctx->ts, 1, NULL, 0));
-        ctx->track =
-            mpeg_ts_add_program_stream(ctx->ts, 1, PSI_STREAM_H264, NULL, 0);
-        if (ctx->track < 0) {
+        /* assert(0 == mpeg_ts_add_program(ctx->ts, 1, NULL, 0));
+         * ctx->vtrack =
+         *     mpeg_ts_add_program_stream(ctx->ts, 1, PSI_STREAM_H264, NULL, 0); */
+        ctx->vtrack = mpeg_ts_add_stream(ctx->ts, PSI_STREAM_H264, NULL, 0);
+        if (ctx->vtrack < 0) {
             assert(0);
             return -1;
         }
-        printf("track: %d\n", ctx->track);
+        printf("video track: %d\n", ctx->vtrack);
     }
 
-    printf("write %d%s\n",  n, 1 == vcl ? "  [I]" : "");
-    assert(0 == mpeg_ts_write(ctx->ts, ctx->track,
+    /* printf("write %d%s\n",  n, 1 == vcl ? "  [I]" : ""); */
+    assert(0 == mpeg_ts_write(ctx->ts, ctx->vtrack,
                             1 == vcl ? MPEG_FLAG_IDR_FRAME : 0, ctx->pts * 90,
                               ctx->dts * 90, data, bytes));
     ctx->pts += 40;
@@ -116,18 +150,18 @@ static void
 h264_handler(void *param, const uint8_t *nalu, int bytes)
 {
     struct mpeg_ts_enc_test_t *ctx = (struct mpeg_ts_enc_test_t *)param;
-    assert(ctx->ptr < nalu);
+    assert(ctx->vptr < nalu);
 
     const uint8_t *ptr = nalu - 3;
     uint8_t nalutype   = nalu[0] & 0x1f;
     printf("type: %d bytes: %d\n", nalutype, bytes);
 
     if (ctx->vcl > 0 && h264_is_new_access_unit(nalu, bytes)) {
-        int r = h264_write(ctx, ctx->ptr, ptr - ctx->ptr);
+        int r = h264_write(ctx, ctx->vptr, ptr - ctx->vptr);
         if (r == -1)
             return; // wait for more data
 
-        ctx->ptr = ptr;
+        ctx->vptr = ptr;
         ctx->vcl = 0;
     }
 
@@ -136,11 +170,12 @@ h264_handler(void *param, const uint8_t *nalu, int bytes)
 }
 
 void
-mpeg_ts_enc_test(const char *h264)
+mpeg_ts_enc_test(const char *h264, const char *aac)
 {
     struct mpeg_ts_enc_test_t ctx;
     memset(&ctx, 0, sizeof(ctx));
-    ctx.track = -1;
+    ctx.vtrack = -1;
+    ctx.atrack = -1;
 
     char output[256] = {0};
     snprintf(output, sizeof(output), "%s.ts", h264);
@@ -155,12 +190,18 @@ mpeg_ts_enc_test(const char *h264)
     assert(ctx.ts);
 
     long bytes   = 0;
+
     uint8_t *ptr = file_read(h264, &bytes);
     assert(ptr);
-    ctx.ptr = ptr;
+    ctx.vptr = ptr;
     mpeg4_h264_annexb_nalu(ptr, bytes, h264_handler, &ctx);
+
+    uint8_t *aptr = file_read(aac, &bytes);
+    assert(aptr);
+    adts_reader(&ctx, aptr, bytes);
 
     mpeg_ts_destroy(ctx.ts);
     free(ptr);
+    free(aptr);
     fclose(fp);
 }

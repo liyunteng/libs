@@ -47,7 +47,7 @@ const struct mov_buffer_t* mov_file_buffer(void)
 extern void mpeg_ts_test(const char *input);
 extern void mpeg_ts_multi_program_test(const char *mp4);
 extern void mpeg_ts_dec_test(const char *file);
-extern void mpeg_ts_enc_test(const char *h264);
+extern void mpeg_ts_enc_test(const char *h264, const char *aac);
 
 int main(void)
 {
@@ -55,7 +55,7 @@ int main(void)
     /* mpeg_ts_test("/home/lyt/abc.ts"); */
     /* mpeg_ts_dec_test("/home/lyt/abc.ts"); */
     /* mpeg_ts_multi_program_test("/home/lyt/abc.mp4"); */
-    mpeg_ts_enc_test("/home/lyt/abc.h264");
+    mpeg_ts_enc_test("/home/lyt/abc.h264", "/home/lyt/abc.aac");
     mpeg_ts_test("/home/lyt/abc.h264.ts");
 
     return 0;

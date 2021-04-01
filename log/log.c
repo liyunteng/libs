@@ -192,8 +192,6 @@ log_format_create(const char *fmt)
 
     INIT_LIST_HEAD(&fp->callbacks);
     for (p = fp->format; *p != '\0'; p = q) {
-
-        /* TODO: memleak */
         s = spec_create(p, &q);
         if (s == NULL) {
             ERROR_LOG("spec create failed\n");
@@ -213,8 +211,13 @@ log_format_destroy(struct log_format *format)
         ERROR_LOG("format is NULL\n");
         return;
     }
-    /* TODO: delete from rule */
     list_del(&format->format_entry);
+    struct log_spec *ps, *tmp;
+    list_for_each_entry_safe(ps, tmp, &format->callbacks, spec_entry) {
+        list_del(&ps->spec_entry);
+        free(ps);
+        ps = NULL;
+    }
     free(format);
     format = NULL;
 }
@@ -299,7 +302,6 @@ log_output_destroy(struct log_output *output)
         ERROR_LOG("output is NULL\n");
         return;
     }
-    /* TODO: delete from rule's list */
     list_del(&output->output_entry);
 
 

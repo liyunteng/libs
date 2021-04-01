@@ -571,7 +571,7 @@ mmap_ctx_dump(struct log_output *output)
             printf("currentsize:    %" PRIu64 "\n", ctx->file_current_size);
             printf("bakup:          %d\n", ctx->num_files);
             printf("idx:            %d\n", ctx->file_idx);
-            printf("rotate          %s\n",
+            printf("rotate:         %s\n",
                    ctx->rotate_police == ROTATE_POLICE_BY_SIZE ? "size" :
                                                                  "time");
             printf("map_size:       %u\n", ctx->map_size);

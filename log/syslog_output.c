@@ -11,18 +11,18 @@
 
 #define DEFAULT_SYSLOG_IDENT "default"
 
-typedef struct {
+struct syslog_output_ctx {
     char *ident;
     int options;
     int facility;
-} syslog_output_ctx;
+};
 
 static void
 syslog_ctx_dump(struct log_output *output)
 {
     if (output) {
         printf("type: %s\n", output->priv->type_name);
-        syslog_output_ctx *ctx = (syslog_output_ctx *)output->ctx;
+        struct syslog_output_ctx *ctx = (struct syslog_output_ctx *)output->ctx;
         if (ctx) {
             printf("ident:    %s\n", ctx->ident);
             printf("options:  0x%x\n", ctx->options);
@@ -35,28 +35,25 @@ syslog_ctx_dump(struct log_output *output)
 static int
 syslog_ctx_init(struct log_output *output, va_list ap)
 {
-    syslog_output_ctx *ctx = NULL;
+    struct syslog_output_ctx *ctx = NULL;
     if (!output) {
         ERROR_LOG("output is NULL\n");
         return -1;
     }
 
     if (output->ctx == NULL) {
-        output->ctx = (syslog_output_ctx *)calloc(1, sizeof(syslog_output_ctx));
+        output->ctx = (struct syslog_output_ctx *)calloc(1, sizeof(struct syslog_output_ctx));
         if (!output->ctx) {
             ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
             return -1;
         }
     }
 
-    ctx = (syslog_output_ctx *)output->ctx;
+    ctx = (struct syslog_output_ctx *)output->ctx;
 
     char *ident = va_arg(ap, char *);
-    if (ident && strlen(ident) > 0) {
-        ctx->ident = strdup(ident);
-    } else {
-        ctx->ident = strdup(DEFAULT_SYSLOG_IDENT);
-    }
+    ctx->ident = strdup(ident);
+
     int options  = va_arg(ap, int);
     ctx->options = options;
 
@@ -71,13 +68,13 @@ syslog_ctx_init(struct log_output *output, va_list ap)
 static void
 syslog_ctx_uninit(struct log_output *output)
 {
-    syslog_output_ctx *ctx = NULL;
+    struct syslog_output_ctx *ctx = NULL;
     if (!output) {
         ERROR_LOG("output is NULL\n");
         return;
     }
 
-    ctx = (syslog_output_ctx *)output->ctx;
+    ctx = (struct syslog_output_ctx *)output->ctx;
     if (!ctx) {
         return;
     }

@@ -19,23 +19,23 @@
 #define DEFAULT_SOCKADDR "127.0.0.1"
 #define DEFAULT_SOCKPORT 12345
 
-typedef struct {
+struct sock_output_ctx {
     char addr[256];
     uint16_t port;
     int sockfd;
-} sock_output_ctx;
+};
 
 static int
 sock_emit(struct log_output *output, struct log_handler *handler)
 {
-    sock_output_ctx *ctx = NULL;
+    struct sock_output_ctx *ctx = NULL;
     log_buf_t *buf       = NULL;
 
     if (!output) {
         ERROR_LOG("output is NULL\n");
         return -1;
     }
-    ctx = (sock_output_ctx *)output->ctx;
+    ctx = (struct sock_output_ctx *)output->ctx;
     if (!ctx) {
         ERROR_LOG("ctx is NULL\n");
         return -1;
@@ -90,7 +90,7 @@ sock_ctx_dump(struct log_output *output)
 {
     if (output) {
         printf("type: %s\n", output->priv->type_name);
-        sock_output_ctx *ctx = (sock_output_ctx *)output->ctx;
+        struct sock_output_ctx *ctx = (struct sock_output_ctx *)output->ctx;
         if (ctx) {
             printf("addr: %s:%d\n", ctx->addr, ctx->port);
         }
@@ -101,35 +101,27 @@ sock_ctx_dump(struct log_output *output)
 static int
 sock_ctx_init(struct log_output *output, va_list ap)
 {
-    sock_output_ctx *ctx = NULL;
+    struct sock_output_ctx *ctx = NULL;
     if (!output) {
         ERROR_LOG("output is NULL\n");
         return -1;
     }
 
     if (output->ctx == NULL) {
-        output->ctx = (sock_output_ctx *)calloc(1, sizeof(sock_output_ctx));
+        output->ctx = (struct sock_output_ctx *)calloc(1, sizeof(struct sock_output_ctx));
         if (!output->ctx) {
             ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
             goto failed;
         }
-        ((sock_output_ctx *)(output->ctx))->sockfd = -1;
+        ((struct sock_output_ctx *)(output->ctx))->sockfd = -1;
     }
-    ctx = (sock_output_ctx *)output->ctx;
+    ctx = (struct sock_output_ctx *)output->ctx;
 
     char *addr_str = va_arg(ap, char *);
-    if (addr_str && strlen(addr_str) > 0) {
-        strncpy(ctx->addr, addr_str, sizeof(ctx->addr));
-    } else {
-        strncpy(ctx->addr, DEFAULT_SOCKADDR, sizeof(ctx->addr));
-    }
+    strncpy(ctx->addr, addr_str, sizeof(ctx->addr));
 
     unsigned port = va_arg(ap, unsigned);
-    if (port > 0 && port < 65535) {
-        ctx->port = port;
-    } else {
-        ctx->port = DEFAULT_SOCKPORT;
-    }
+    ctx->port = port;
 
     if (ctx->sockfd != -1) {
         close(ctx->sockfd);
@@ -181,12 +173,12 @@ failed:
 static void
 sock_ctx_uninit(struct log_output *output)
 {
-    sock_output_ctx *ctx = NULL;
+    struct sock_output_ctx *ctx = NULL;
     if (!output) {
         ERROR_LOG("output is NULL\n");
         return;
     }
-    ctx = (sock_output_ctx *)output->ctx;
+    ctx = (struct sock_output_ctx *)output->ctx;
     if (ctx == NULL) {
         return;
     }

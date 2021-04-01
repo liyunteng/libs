@@ -20,7 +20,7 @@ typedef struct log_buf {
     size_t size_max;
     size_t size_real;
 
-    char truncate_str[64];
+    char truncate_str[32];
     size_t truncate_str_len;
 } log_buf_t;
 

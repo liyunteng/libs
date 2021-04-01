@@ -8,16 +8,16 @@
 #include <errno.h>
 #include <string.h>
 
-typedef struct {
+struct user_output_ctx {
     log_user_callback cb;
     void *param;
-} user_output_ctx;
+};
 
 
 static int
 user_emit(struct log_output *output, struct log_handler *handler)
 {
-    user_output_ctx *ctx = NULL;
+    struct user_output_ctx *ctx = NULL;
     log_buf_t *buf       = NULL;
     size_t len = 0;
     int write_len = 0;
@@ -27,7 +27,7 @@ user_emit(struct log_output *output, struct log_handler *handler)
         return -1;
     }
 
-    ctx = (user_output_ctx *)output->ctx;
+    ctx = (struct user_output_ctx *)output->ctx;
     if (!ctx) {
         ERROR_LOG("ctx is NULL\n");
         return -1;
@@ -61,7 +61,7 @@ user_ctx_dump(struct log_output *output)
 {
     if (output) {
         printf("type: %s\n", output->priv->type_name);
-        user_output_ctx *ctx = (user_output_ctx *)output->ctx;
+        struct user_output_ctx *ctx = (struct user_output_ctx *)output->ctx;
         if (ctx) {
             printf("callback: %p\n", ctx->cb);
             printf("param: %p\n", ctx->param);
@@ -73,30 +73,26 @@ user_ctx_dump(struct log_output *output)
 static int
 user_ctx_init(struct log_output *output, va_list ap)
 {
-    user_output_ctx *ctx = NULL;
+    struct user_output_ctx *ctx = NULL;
     if (!output) {
         ERROR_LOG("output is NULL\n");
         return -1;
     }
 
     if (output->ctx == NULL) {
-        output->ctx = (user_output_ctx *)calloc(1, sizeof(user_output_ctx));
+        output->ctx = (struct user_output_ctx *)calloc(1, sizeof(struct user_output_ctx));
         if (!output->ctx) {
             ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
             goto failed;
         }
     }
 
-    ctx = (user_output_ctx *)output->ctx;
+    ctx = (struct user_output_ctx *)output->ctx;
     log_user_callback cb = va_arg(ap, log_user_callback);
-    if (cb) {
-        ctx->cb = cb;
-    }
+    ctx->cb = cb;
 
     void *param = va_arg(ap, void *);
-    if (param) {
-        ctx->param = param;
-    }
+    ctx->param = param;
 
     return 0;
 

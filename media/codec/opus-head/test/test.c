@@ -7,6 +7,18 @@
 #include "opus-head.h"
 #include <stdint.h>
 #include <assert.h>
+#include <string.h>
+
+static const uint8_t opus_channel_map[8][8] = {
+    { 0 },
+    { 0,1 },
+    { 0,2,1 },
+    { 0,1,2,3 },
+    { 0,4,1,2,3 },
+    { 0,4,1,2,3,5 },
+    { 0,4,1,2,3,5,6 },
+    { 0,6,1,2,3,4,5,7 },
+};
 
 static int opus_onframe(uint8_t toc, const void* frame, int size)
 {

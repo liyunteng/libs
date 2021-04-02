@@ -6,6 +6,7 @@
 #include "mp3-header.h"
 #include <stdint.h>
 #include <assert.h>
+#include <string.h>
 
 void mp3_header_test(void)
 {

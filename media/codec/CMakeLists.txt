@@ -1,3 +1,8 @@
+add_subdirectory(amf)
+add_subdirectory(aom-av1)
+add_subdirectory(mp3-header)
 add_subdirectory(mpeg4-aac)
 add_subdirectory(mpeg4-avc)
 add_subdirectory(mpeg4-hevc)
+add_subdirectory(opus-head)
+add_subdirectory(webm-vpx)

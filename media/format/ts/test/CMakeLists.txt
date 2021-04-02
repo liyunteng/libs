@@ -3,22 +3,16 @@ include_directories(../../../codec/mpeg4-avc/include)
 include_directories(../../../codec/mpeg4-hevc/include)
 include_directories(../../mov/include)
 
-aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} OBJ_SRC)
-# add_compile_options(-std=c99 -Wall)
 get_filename_component(name ${CMAKE_CURRENT_SOURCE_DIR} PATH)
 get_filename_component(name ${name} NAME)
+
+aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} src_list)
+
 set(exe  ${name}_test)
-set(libname ${name})
-add_executable(${exe} ${OBJ_SRC})
-# add_executable(${exe} test.c
-#   mov-file-buffer.c)
-target_link_libraries(${exe} ${libname}_shared)
+add_executable(${exe} ${src_list})
+# add_compile_options(-std=c99 -Wall)
+target_link_libraries(${exe} ${name})
 target_link_libraries(${exe} mpeg4-aac)
 target_link_libraries(${exe} mpeg4-avc)
 target_link_libraries(${exe} mpeg4-hevc)
 target_link_libraries(${exe} mov)
-
-if (BUILDSTATIC)
-  add_executable(${exe}_static ${OBJ_SRC})
-  target_link_libraries(${exe}_static ${libname}_static)
-endif()

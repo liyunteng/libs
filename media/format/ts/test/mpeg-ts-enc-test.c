@@ -161,7 +161,7 @@ h264_handler(void *param, const uint8_t *nalu, int bytes)
         if (r == -1)
             return; // wait for more data
 
-        ctx->vptr = ptr;
+        ctx->vptr = (uint8_t *)ptr;
         ctx->vcl = 0;
     }
 

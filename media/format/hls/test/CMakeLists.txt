@@ -13,9 +13,9 @@ add_executable(${exe} ${OBJ_SRC})
 # add_executable(${exe} test.c
 #   mov-file-buffer.c)
 target_link_libraries(${exe} ${libname}_shared)
-target_link_libraries(${exe} libmpeg4-aac)
-target_link_libraries(${exe} libmpeg4-avc)
-target_link_libraries(${exe} libmpeg4-hevc)
+target_link_libraries(${exe} mpeg4-aac)
+target_link_libraries(${exe} mpeg4-avc)
+target_link_libraries(${exe} mpeg4-hevc)
 target_link_libraries(${exe} mov)
 target_link_libraries(${exe} ts)
 

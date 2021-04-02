@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdint.h>
+#include <inttypes.h>
 
 static FILE* vfp;
 static FILE* afp;
@@ -37,7 +38,7 @@ static int on_ts_packet(void* param, int program, int stream, int avtype, int fl
         if (PTS_NO_VALUE == dts)
             dts = pts;
 		//assert(0 == a_dts || dts >= a_dts);
-		printf("[A][%d:%d] pts: %s(%lld), dts: %s(%lld), diff: %03d/%03d, bytes: %u\n", program, stream, ftimestamp(pts, s_pts), pts, ftimestamp(dts, s_dts), dts, (int)(pts - a_pts) / 90, (int)(dts - a_dts) / 90, (unsigned int)bytes);
+		printf("[A][%d:%d] pts: %s(%"PRId64"), dts: %s(%"PRId64"), diff: %03d/%03d, bytes: %u\n", program, stream, ftimestamp(pts, s_pts), pts, ftimestamp(dts, s_dts), dts, (int)(pts - a_pts) / 90, (int)(dts - a_dts) / 90, (unsigned int)bytes);
 		a_pts = pts;
 		a_dts = dts;
 
@@ -47,7 +48,7 @@ static int on_ts_packet(void* param, int program, int stream, int avtype, int fl
 	{
 		static int64_t v_pts = 0, v_dts = 0;
 		//assert(0 == v_dts || dts >= v_dts);
-		printf("[V][%d:%d] pts: %s(%lld), dts: %s(%lld), diff: %03d/%03d, bytes: %u%s\n", program, stream, ftimestamp(pts, s_pts), pts, ftimestamp(dts, s_dts), dts, (int)(pts - v_pts) / 90, (int)(dts - v_dts) / 90, (unsigned int)bytes, flags ? " [I]":"");
+		printf("[V][%d:%d] pts: %s(%"PRId64"), dts: %s(%"PRId64"), diff: %03d/%03d, bytes: %u%s\n", program, stream, ftimestamp(pts, s_pts), pts, ftimestamp(dts, s_dts), dts, (int)(pts - v_pts) / 90, (int)(dts - v_dts) / 90, (unsigned int)bytes, flags ? " [I]":"");
 		v_pts = pts;
 		v_dts = dts;
 
@@ -57,7 +58,7 @@ static int on_ts_packet(void* param, int program, int stream, int avtype, int fl
 	{
 		static int64_t x_pts = 0, x_dts = 0;
 		//assert(0 == x_dts || dts >= x_dts);
-		printf("[%d][%d:%d] pts: %s(%lld), dts: %s(%lld), diff: %03d/%03d%s\n", avtype, program, stream, ftimestamp(pts, s_pts), pts, ftimestamp(dts, s_dts), dts, (int)(pts - x_pts) / 90, (int)(dts - x_dts) / 90, flags ? " [I]" : "");
+		printf("[%d][%d:%d] pts: %s(%"PRId64"), dts: %s(%"PRId64"), diff: %03d/%03d%s\n", avtype, program, stream, ftimestamp(pts, s_pts), pts, ftimestamp(dts, s_dts), dts, (int)(pts - x_pts) / 90, (int)(dts - x_dts) / 90, flags ? " [I]" : "");
 		x_pts = pts;
 		x_dts = dts;
 		//assert(0);

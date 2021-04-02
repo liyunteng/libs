@@ -1,10 +1,13 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(MAIN)
-set (PROJECT_VERSION 1.0)
+project(libs)
+set(PROJECT_VERSION 1.0.0)
+set(PROJECT_DESCRIPTION "MY BASE LIB")
+set(PROJECT_HOMEPAGE_URL "https://github.com")
 
 set(BUILD_SHARED_LIBS true)
 
+message("#################### INFO ####################")
 ############################## SYSTEM INFO ##############################
 # cmake_host_system_information(RESULT HOSTNAME QUERY HOSTNAME)
 # cmake_host_system_information(RESULT FQDN QUERY FQDN)
@@ -111,7 +114,7 @@ message("")
 # message("CMAKE_LIBRARY_PATH = " ${CMAKE_LIBRARY_PATH})
 message("BUILD_SHARED_LIBS = " ${BUILD_SHARED_LIBS})
 message("BUILD_CONFIGURATION = " ${BUILD_CONFIGURATION})
-message("")
+message("##############################################\n")
 
 ######################################################################
 # set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)

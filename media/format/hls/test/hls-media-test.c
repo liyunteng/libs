@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 static int
 hls_segment(void *m3u8, const void *data, size_t bytes, int64_t pts,
@@ -23,7 +24,7 @@ hls_segment(void *m3u8, const void *data, size_t bytes, int64_t pts,
 	int discontinue = -1 != s_dts ? 0 : (dts > s_dts + HLS_DURATION / 2 ? 1 : 0);
 	s_dts = dts;
 
-    printf("hls pts: %ld dts: %ld durtaion: %ld\n", pts, dts, duration);
+    printf("hls pts: %"PRId64" dts: %"PRId64" durtaion: %"PRId64"\n", pts, dts, duration);
 	static int i = 0;
 	char name[128] = {0};
     snprintf(name, sizeof(name), "/home/lyt/segment-%03d.ts", i++);
@@ -47,7 +48,7 @@ on_ts_packet(void *param, int program, int stream, int avtype, int flags,
     assert(ctx);
     int key = 0;
 
-    printf("pts: %ld dts: %ld bytes: %lu flags: %d\n", pts, dts, bytes, flags);
+    printf("pts: %"PRId64" dts: %"PRId64" bytes: %lu flags: %d\n", pts, dts, bytes, flags);
     switch (avtype) {
     case PSI_STREAM_AAC:
         return hls_media_input(ctx, STREAM_AUDIO_AAC, data, bytes, pts, dts, 0);

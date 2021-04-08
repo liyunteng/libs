@@ -5,6 +5,7 @@
  */
 
 #include "log.h"
+#include "simple_log.h"
 #include "macro.h"
 
 #include <pthread.h>
@@ -22,7 +23,7 @@ void
 test_simple(void)
 {
     int i;
-    log_init("logs", "ihi", -1, 1);
+    simple_log_init("logs", "ihi", LOG_VERBOSE);
 
     LOGV("this is verbose");
     LOGD("this is debug");
@@ -35,7 +36,7 @@ test_simple(void)
     LOGP("this is panic");
 
 
-    log_set_level(LOG_WARNING);
+    simple_log_set_level(LOG_WARNING);
 
     LOGV("this is verbose");
     LOGD("this is debug");
@@ -48,14 +49,14 @@ test_simple(void)
     LOGP("this is panic");
 
     log_dump();
-    log_uninit();
+    simple_log_uninit();
 }
 
 void
 test_size(void)
 {
     int i;
-    log_init("logs", "ihi", LOG_VERBOSE, 1);
+    simple_log_init("logs", "ihi", LOG_VERBOSE);
 
 #if 0
     log_format_t *format = log_format_create("%d.%ms [%5.5V] %m%n");
@@ -102,7 +103,7 @@ test_size(void)
      * LOGP("this is panic"); */
 
     log_dump();
-    log_uninit();
+    simple_log_uninit();
 }
 
 int
@@ -546,7 +547,7 @@ test_big_buf(void)
 int
 main(int argc, char *argv[])
 {
-    /* test_simple(); */
+    test_simple();
     /* test_size(); */
     /* test_callback(); */
     /* test_vprintf(); */
@@ -559,7 +560,7 @@ main(int argc, char *argv[])
     /* test_big_buf(); */
 
     /* test_mlog_benchmark(); */
-    test_log_benchmark();
+    /* test_log_benchmark(); */
     /* test_log_big_benchmark(); */
 
     return 0;

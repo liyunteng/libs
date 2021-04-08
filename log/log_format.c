@@ -17,16 +17,16 @@
 #define DEFAULT_TIME_FORMAT "%F %T"
 #define DEFAULT_FORMAT      "%d.%ms %c:%p [%V] %F:%U(%L) %m%n"
 
-#define COLOR_EMERG   "\033[7;49;31m"
-#define COLOR_ALERT   "\033[7;49;35m"
-#define COLOR_FATAL   "\033[7;49;33m"
-#define COLOR_ERROR   "\033[1;01;31m"
-#define COLOR_WARNING "\033[1;01;35m"
-#define COLOR_NOTICE  "\033[1;01;33m"
-#define COLOR_INFO    "\033[1;01;32m"
-#define COLOR_DEBUG   "\033[1;01;37m"
+#define COLOR_EMERG   "\033[7;01;91m"
+#define COLOR_ALERT   "\033[7;01;93m"
+#define COLOR_FATAL   "\033[7;01;95m"
+#define COLOR_ERROR   "\033[0;01;91m"
+#define COLOR_WARNING "\033[0;01;95m"
+#define COLOR_NOTICE  "\033[0;00;93m"
+#define COLOR_INFO    "\033[0;00;92m"
+#define COLOR_DEBUG   "\033[0;00;97m"
 #define COLOR_VERBOSE "\033[0;00;00m"
-#define COLOR_NORMAL  "\033[0;00;00m"
+#define COLOR_RESET   "\033[0;00;00m"
 
 const char *const LOGLEVELSTR[] = {
     "PANIC",  "ALERT", "FATAL", "ERROR",   "WARNING",
@@ -40,7 +40,7 @@ const char *const loglevelstr[] = {
 
 const char *const COLORSTR[] = {
     COLOR_EMERG,  COLOR_ALERT, COLOR_FATAL, COLOR_ERROR,   COLOR_WARNING,
-    COLOR_NOTICE, COLOR_INFO,  COLOR_DEBUG, COLOR_VERBOSE, COLOR_NORMAL,
+    COLOR_NOTICE, COLOR_INFO,  COLOR_DEBUG, COLOR_VERBOSE, COLOR_RESET,
 };
 
 static int
@@ -232,8 +232,7 @@ spec_write_reset_color(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
     (void)s;
     (void)e;
-    return buf_append(buf, COLORSTR[LOG_VERBOSE + 1],
-                      strlen(COLORSTR[LOG_VERBOSE + 1]));
+    return buf_append(buf, COLOR_RESET, strlen(COLOR_RESET));
 }
 
 static int

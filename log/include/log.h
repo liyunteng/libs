@@ -50,15 +50,6 @@ typedef struct log_rule log_rule_t;
 typedef int (*log_user_callback)(const char *ident, int level, const char *msg,
                                  int msg_len, void *priv_data);
 
-// create log_handler by identify
-log_handler_t *log_handler_create(const char *ident);
-void log_handler_destroy(log_handler_t *handler);
-// get log_handler by identify
-log_handler_t *log_handler_get(const char *ident);
-// set default log_handler, used by LOGX
-int log_handler_set_default(log_handler_t *handler);
-log_handler_t *log_handler_get_default(void);
-
 
 // %d  YYYY-MM-DD HH:MM:SS
 // %d(%Y/%m/%d %H:%M:%S)  YYYY/MM/DD HH:MM:SS
@@ -83,6 +74,7 @@ log_handler_t *log_handler_get_default(void);
 // %m user message
 log_format_t *log_format_create(const char *format);
 void log_format_destroy(log_format_t *format);
+
 
 // LOG_OUTTYPE_STDERR
 // LOG_OUTTYPE_STDOUT
@@ -118,6 +110,16 @@ void log_format_destroy(log_format_t *format);
 log_output_t *log_output_create(enum LOG_OUTTYPE type, ...);
 void log_output_destroy(log_output_t *output);
 
+
+// create log_handler by identify
+log_handler_t *log_handler_create(const char *ident);
+void log_handler_destroy(log_handler_t *handler);
+log_handler_t *log_handler_get(const char *ident);
+// set default log_handler, used by LOGX
+int log_handler_set_default(log_handler_t *handler);
+log_handler_t *log_handler_get_default(void);
+
+
 // level_begin  -1 == LOG_VERBOSE
 // level_en     -1 == LOG_EMERG
 // This will bind handler's log to output, use format, when loglevel between
@@ -128,6 +130,7 @@ log_rule_t *log_rule_create(log_handler_t *handler, log_format_t *format,
 void log_rule_destroy(log_rule_t *rule);
 // reset rule's loglevel
 int log_rule_set_level(log_rule_t *rule, int level_begin, int level_end);
+
 
 // clean all
 void log_cleanup();
@@ -163,12 +166,6 @@ void log_vprintf(log_handler_t *handler, int level, const char *file,
 #define LOGF(fmt...) CLOG_PRINTF(log_handler_get_default(), LOG_FATAL, fmt)
 #define LOGA(fmt...) CLOG_PRINTF(log_handler_get_default(), LOG_ALERT, fmt)
 #define LOGP(fmt...) CLOG_PRINTF(log_handler_get_default(), LOG_PANIC, fmt)
-
-// just set default log_handler, simple wrapper
-int log_init(const char *dir, const char *filename, int level,
-             int enable_stdout);
-int log_set_level(int level);
-void log_uninit(void);
 
 #ifdef __cplusplus
 }

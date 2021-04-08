@@ -298,7 +298,7 @@ test_log_benchmark()
 {
     /* log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n"); */
     log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
-#if 1
+#if 0
     log_output_t *output =
         log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi",
                           ROTATE_POLICE_BY_TIME, 4*1024*1024, 1000);

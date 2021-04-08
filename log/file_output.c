@@ -91,15 +91,16 @@ check_can_write_bytes(struct log_output *output, struct log_handler *handler)
             ts = file_get_ms();
         }
 
-        if (ts > ctx->file_timestamp && ts - ctx->file_timestamp > 60 * 1000) {
-            DEBUG_LOG("ts: %" PRIu64 "  ctx->file_timestamp: %" PRIu64 "\n", ts,
-                      ctx->file_timestamp);
+        // every 1 hour
+        if (ts > ctx->file_timestamp && ts % (60 * 60 * 1000) == 0) {
+            DEBUG_LOG("ts: %" PRIu64 "\n", ts);
             left = 0;
         }
     }
     return left;
 }
 
+#if 0
 static int
 do_file_rotate_by_time(struct log_output *output)
 {
@@ -128,28 +129,52 @@ do_file_rotate_by_time(struct log_output *output)
 
     return 0;
 }
+#endif
 
 static int
 file_rotate_by_time(struct log_output *output)
 {
-    char file_name[MAX_FILE_PATH] = {0};
+    time_t t;
+    struct tm tm;
     struct stat st;
-    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
+    char file_name[MAX_FILE_PATH] = {0};
+    char file_path[MAX_FILE_PATH] = {0};
+    struct file_output_ctx *ctx   = (struct file_output_ctx *)output->ctx;
 
-    snprintf(file_name, MAX_FILE_PATH - 1, "%s/%s.log", ctx->file_path,
-             ctx->log_name);
+    // create date directory
+    t = (time_t)(file_get_ms() / 1000);
+    localtime_r(&t, &tm);
+    snprintf(file_path, MAX_FILE_PATH - 1, "%s/%04d%02d%02d", ctx->file_path,
+             tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
+    if (lstat(file_path, &st) < 0) {
+        if (errno == ENOENT) {
+            if (mkdir(file_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) < 0) {
+                ERROR_LOG("mkdir %s failed: (%s)\n", file_path,
+                          strerror(errno));
+                return -1;
+            }
+            DEBUG_LOG("mkdir %s\n", file_path);
+        } else {
+            if ((st.st_mode & S_IFMT) != S_IFDIR) {
+                ERROR_LOG("%s is not directory\n", file_path);
+                return -1;
+            }
+        }
+    }
 
+    // create log file
+    snprintf(file_name, MAX_FILE_PATH - 1, "%s/%02d.log", file_path, tm.tm_hour);
     if (lstat(file_name, &st) < 0) {
         if (errno == ENOENT) {
             // create new file
-            if ((ctx->fp = fopen(file_name, "w")) == NULL) {
-                ERROR_LOG("fopen %s failed: (%s)\n", file_name,
-                          strerror(errno));
+            if ((ctx->fp = fopen(file_name, "w+")) < 0) {
+                ERROR_LOG("open %s failed: (%s)\n", file_name, strerror(errno));
                 return -1;
             }
             DEBUG_LOG("open file(new) %s\n", file_name);
             ctx->data_offset    = 0;
             ctx->file_timestamp = file_get_ms();
+
             return 0;
         }
 
@@ -157,18 +182,20 @@ file_rotate_by_time(struct log_output *output)
         return -1;
     }
 
+#if 0
     // rotate
     if (do_file_rotate_by_time(output) < 0) {
         ERROR_LOG("rename %s failed\n", file_name);
         return -1;
     }
+#endif
 
-    if ((ctx->fp = fopen(file_name, "w")) == NULL) {
+    if ((ctx->fp = fopen(file_name, "w+")) == NULL) {
         ERROR_LOG("fopen %s failed: (%s)\n", file_name, strerror(errno));
         return -1;
     }
-    DEBUG_LOG("open file(truncated) %s\n", file_name);
-    ctx->data_offset    = 0;
+    DEBUG_LOG("open file(append) %s\n", file_name);
+    ctx->data_offset    = st.st_size;
     ctx->file_timestamp = file_get_ms();
 
     ++ctx->file_idx;

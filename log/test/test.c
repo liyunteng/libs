@@ -306,7 +306,7 @@ test_log_benchmark()
         log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi",
                           ROTATE_POLICE_BY_SIZE,
                           1024 * 1024 * 1024,
-                          4, 128 * 1024, 1000);
+                          4, 1 * 1024 * 1024, 1000);
 #else
     /* log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
      *                                          ROTATE_POLICE_BY_TIME); */
@@ -319,7 +319,7 @@ test_log_benchmark()
     log_handler_set_default(handler);
 
     unsigned i;
-    for (i = 0; i < 1024 * 1024 * 16; i++) {
+    for (i = 0; i <  16 * 1024 * 1024; i++) {
         LOGV("this is a verbose");
         /* usleep(1000*1000); */
         LOGD("this is a debug");

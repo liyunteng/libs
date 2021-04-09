@@ -107,6 +107,8 @@ mmap_unmap_file(struct log_output *output)
         mmap_msync_file(output);
         munmap(ctx->mmap_window.addr, ctx->mmap_window.window_size);
 
+        // ftruncate(ctx->fd, ctx->mmap_offset - ctx->mmap_window.window_size + ctx->mmap_window.data_offset);
+
         ctx->mmap_window.addr         = NULL;
         ctx->mmap_window.data_offset  = 0;
         ctx->mmap_window.window_size  = 0;
@@ -136,6 +138,7 @@ mmap_map_file(struct log_output *output)
 
     page_size        = getpagesize();
     mmap_window_size = (ctx->map_size + page_size - 1) & (~(page_size - 1));
+    ctx->mmap_offset = (ctx->mmap_offset + page_size - 1) & (~(page_size - 1));
 
     if (ctx->file_size > 0
         && (mmap_window_size > ctx->file_size - ctx->mmap_offset)) {
@@ -146,7 +149,6 @@ mmap_map_file(struct log_output *output)
         ERROR_LOG("mmap_window_size == 0\n");
         return -1;
     }
-
 
     /* lseek(ctx->fd, ctx->mmap_offset + mmap_window_size, SEEK_SET); */
     if (ftruncate(ctx->fd, ctx->mmap_offset + mmap_window_size) != 0) {

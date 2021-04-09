@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/prctl.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
@@ -17,14 +18,14 @@
 #define DEFAULT_TIME_FORMAT "%F %T"
 #define DEFAULT_FORMAT      "%d.%ms %c:%p [%V] %F:%U(%L) %m%n"
 
-#define COLOR_EMERG   "\033[7;01;91m"
-#define COLOR_ALERT   "\033[7;01;93m"
-#define COLOR_FATAL   "\033[7;01;95m"
-#define COLOR_ERROR   "\033[0;01;91m"
-#define COLOR_WARNING "\033[0;01;95m"
-#define COLOR_NOTICE  "\033[0;00;93m"
-#define COLOR_INFO    "\033[0;00;92m"
-#define COLOR_DEBUG   "\033[0;00;97m"
+#define COLOR_EMERG   "\033[7;01;31m"
+#define COLOR_ALERT   "\033[7;01;33m"
+#define COLOR_FATAL   "\033[7;01;35m"
+#define COLOR_ERROR   "\033[0;01;31m"
+#define COLOR_WARNING "\033[0;01;35m"
+#define COLOR_NOTICE  "\033[0;00;33m"
+#define COLOR_INFO    "\033[0;00;32m"
+#define COLOR_DEBUG   "\033[0;00;37m"
 #define COLOR_VERBOSE "\033[0;00;00m"
 #define COLOR_RESET   "\033[0;00;00m"
 
@@ -106,10 +107,10 @@ static int
 spec_write_file(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
     (void)s;
-    if (!e->file) {
-        return buf_append(buf, "(file=null)", strlen("(file=null)"));
-    } else {
+    if (e->file_len > 0) {
         return buf_append(buf, e->file, e->file_len);
+    } else {
+        return buf_append(buf, "(file=null)", strlen("(file=null)"));
     }
 }
 
@@ -124,10 +125,10 @@ static int
 spec_write_func(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
     (void)s;
-    if (!e->func) {
-        return buf_append(buf, "(func=null)", strlen("(func=null)"));
-    } else {
+    if (e->func_len > 0) {
         return buf_append(buf, e->func, e->func_len);
+    } else {
+        return buf_append(buf, "(func=null)", strlen("(func=null)"));
     }
 }
 
@@ -135,7 +136,11 @@ static int
 spec_write_hostname(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
     (void)s;
-    return buf_append(buf, e->hostname, e->hostname_len);
+    if (e->hostname_len > 0) {
+        return buf_append(buf, e->hostname, e->hostname_len);
+    } else {
+        return buf_append(buf, "(hostname=null)", strlen("(hostname=null)"));
+    }
 }
 
 static int
@@ -174,6 +179,7 @@ spec_write_pid(struct log_spec *s, struct log_event *e, log_buf_t *buf)
             e->pid_str_len = sprintf(e->pid_str, "%u", e->pid);
         }
     }
+
     return buf_append(buf, e->pid_str, e->pid_str_len);
 }
 
@@ -181,7 +187,8 @@ static int
 spec_write_tid(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
     (void)s;
-    e->tid_str_len = sprintf(e->tid_str, "%lu", (unsigned long)pthread_self());
+    e->tid = pthread_self();
+    e->tid_str_len = sprintf(e->tid_str, "%lu", e->tid);
     return buf_append(buf, e->tid_str, e->tid_str_len);
 }
 
@@ -189,8 +196,17 @@ static int
 spec_write_tid_hex(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
     (void)s;
-    e->tid_str_len = sprintf(e->tid_str, "0x%x", (unsigned int)pthread_self());
+    e->tid = pthread_self();
+    e->tid_str_len = sprintf(e->tid_str, "0x%lx", (unsigned long)e->tid);
     return buf_append(buf, e->tid_str, e->tid_str_len);
+}
+
+static int
+spec_write_thread_name(struct log_spec *s, struct log_event *e, log_buf_t *buf)
+{
+    (void)s;
+    prctl(PR_GET_NAME, e->tid_name, 0, 0, 0);
+    return buf_append(buf, e->tid_name, strlen(e->tid_name));
 }
 
 static int
@@ -444,6 +460,9 @@ spec_create(char *pstart, char **pnext)
             break;
         case 'T': /* tid hex */
             s->write_buf = spec_write_tid_hex;
+            break;
+        case 'N': /* thread name */
+            s->write_buf = spec_write_thread_name;
             break;
         case 'V': /* LEVEL */
             s->write_buf = spec_write_level;

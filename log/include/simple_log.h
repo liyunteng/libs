@@ -16,7 +16,8 @@ extern "C" {
 int simple_log_init(const char *dir, const char *filename, int level);
 int simple_log_set_level(int level);
 void simple_log_uninit(void);
-
+void simple_log_enable_file(int enable);
+void simple_log_enable_stdout(int enable);
 
 #ifdef __cplusplus
 } /* extern "C" */

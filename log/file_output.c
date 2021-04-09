@@ -7,12 +7,15 @@
 
 #include <errno.h>
 #include <inttypes.h>
+#include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <time.h>
 
-#define MAX_FILE_PATH 256
+#define MAX_FILE_PATH   256
+#define FLUSH_INTERVAL  500               // ms
+#define ROTATE_INTERVAL (60 * 60 * 1000)  // ms
 
 struct file_output_ctx {
     char *file_path;
@@ -24,7 +27,7 @@ struct file_output_ctx {
     uint64_t file_size;
     uint64_t data_offset;
     uint64_t file_timestamp;
-
+    uint64_t flush_timestamp;
     FILE *fp;
 };
 
@@ -91,8 +94,9 @@ check_can_write_bytes(struct log_output *output, struct log_handler *handler)
             ts = file_get_ms();
         }
 
-        // every 1 hour
-        if (ts > ctx->file_timestamp && ts % (60 * 60 * 1000) == 0) {
+        if (ts > ctx->file_timestamp
+            && ts - ctx->file_timestamp / ROTATE_INTERVAL * ROTATE_INTERVAL
+                   > ROTATE_INTERVAL) {
             DEBUG_LOG("ts: %" PRIu64 "\n", ts);
             left = 0;
         }
@@ -163,11 +167,21 @@ file_rotate_by_time(struct log_output *output)
     }
 
     // create log file
-    snprintf(file_name, MAX_FILE_PATH - 1, "%s/%02d.log", file_path, tm.tm_hour);
+    if (ROTATE_INTERVAL >= 60 * 60 * 1000) {
+        snprintf(file_name, MAX_FILE_PATH - 1, "%s/%s.%02d.log", file_path,
+                 ctx->log_name, tm.tm_hour);
+    } else if (ROTATE_INTERVAL >= 60 * 1000) {
+        snprintf(file_name, MAX_FILE_PATH - 1, "%s/%s.%02d%02d.log", file_path,
+                 ctx->log_name, tm.tm_hour, tm.tm_min);
+    } else {
+        snprintf(file_name, MAX_FILE_PATH - 1, "%s/%s.%02d%02d%02d.log",
+                 file_path, ctx->log_name, tm.tm_hour, tm.tm_min, tm.tm_sec);
+    }
+
     if (lstat(file_name, &st) < 0) {
         if (errno == ENOENT) {
             // create new file
-            if ((ctx->fp = fopen(file_name, "w+")) < 0) {
+            if ((ctx->fp = fopen(file_name, "a+")) < 0) {
                 ERROR_LOG("open %s failed: (%s)\n", file_name, strerror(errno));
                 return -1;
             }
@@ -190,7 +204,7 @@ file_rotate_by_time(struct log_output *output)
     }
 #endif
 
-    if ((ctx->fp = fopen(file_name, "w+")) == NULL) {
+    if ((ctx->fp = fopen(file_name, "a+")) == NULL) {
         ERROR_LOG("fopen %s failed: (%s)\n", file_name, strerror(errno));
         return -1;
     }
@@ -271,7 +285,7 @@ file_rotate_by_size(struct log_output *output)
     if (lstat(file_name, &st) < 0) {
         if (errno == ENOENT) {
             // create new file
-            if ((ctx->fp = fopen(file_name, "w")) == NULL) {
+            if ((ctx->fp = fopen(file_name, "a+")) == NULL) {
                 ERROR_LOG("fopen %s failed: (%s)\n", file_name,
                           strerror(errno));
                 return -1;
@@ -286,24 +300,37 @@ file_rotate_by_size(struct log_output *output)
         return -1;
     }
 
-    // rotate
     if (ctx->file_size > 0) {
-        if (ctx->num_files != 0) {
+        // rotate
+        if (ctx->num_files != 0 && ctx->file_size <= st.st_size) {
             if (do_file_rotate_by_size(output) < 0) {
                 ERROR_LOG("rename %s failed\n", file_name);
                 return -1;
             }
+
+            if ((ctx->fp = fopen(file_name, "w+")) == NULL) {
+                ERROR_LOG("fopen %s failed: (%s)\n", file_name,
+                          strerror(errno));
+                return -1;
+            }
+            DEBUG_LOG("open file(new) %s\n", file_name);
+            ctx->data_offset    = 0;
+            ctx->file_timestamp = file_get_ms();
+            return 0;
         }
 
         // truncated
-        if ((ctx->fp = fopen(file_name, "w")) == NULL) {
-            ERROR_LOG("fopen %s failed: (%s)\n", file_name, strerror(errno));
-            return -1;
+        if (ctx->num_files == 0 && ctx->file_size <= st.st_size) {
+            if ((ctx->fp = fopen(file_name, "w")) == NULL) {
+                ERROR_LOG("fopen %s failed: (%s)\n", file_name,
+                          strerror(errno));
+                return -1;
+            }
+            DEBUG_LOG("open file(truncated) %s\n", file_name);
+            ctx->data_offset    = 0;
+            ctx->file_timestamp = file_get_ms();
+            return 0;
         }
-        DEBUG_LOG("open file(truncated) %s\n", file_name);
-        ctx->data_offset    = 0;
-        ctx->file_timestamp = file_get_ms();
-        return 0;
     }
 
     // append
@@ -312,6 +339,7 @@ file_rotate_by_size(struct log_output *output)
                   strerror(errno));
         return -1;
     }
+    DEBUG_LOG("open file(append) %s\n", file_name);
     ctx->data_offset    = st.st_size;
     ctx->file_timestamp = file_get_ms();
     return 0;
@@ -365,6 +393,9 @@ file_open_logfile(struct log_output *output)
             goto failed;
         }
     }
+
+    // TODO: line buffer - low write speed
+    // setvbuf(ctx->fp, NULL, _IOLBF, 0);
     return 0;
 
 failed:
@@ -422,6 +453,13 @@ file_emit(struct log_output *output, struct log_handler *handler)
             return -1;
         }
         ctx->data_offset += len;
+
+        // flush
+        uint64_t ts = file_get_ms();
+        if (ts - ctx->flush_timestamp >= FLUSH_INTERVAL) {
+            fflush(ctx->fp);
+            ctx->flush_timestamp = ts;
+        }
         return len;
     }
 

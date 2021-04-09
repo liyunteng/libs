@@ -94,12 +94,14 @@ void heap_test3()
     ev = (timer_event_t **)calloc(N, sizeof(timer_event_t*));
     assert(ev);
     for (i = 0; i < N; i++) {
-        ev[i] = timer_event_register(ctx, ontime, &counter, i, i, i);
+        ev[i] = timer_event_register(ctx, ontime, &counter, 5, N, 1);
         assert(ev[i]);
     }
 
-    for (i = 0; i < N / 2; i++) {
-        timer_event_cancel(ctx, ev[i]);
+    for (i = 0; i < N; i++) {
+        if (i % 2 == 0) {
+            timer_event_cancel(ctx, ev[i]);
+        }
     }
 
     printf("begin: %"PRIu64"\n", system_clock());

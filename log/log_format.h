@@ -56,11 +56,12 @@ struct log_event {
 
     pid_t pid;
     pid_t last_pid;
-    char pid_str[32];
+    char pid_str[16];
     size_t pid_str_len;
 
     pthread_t tid;
-    char tid_str[32];
+    char tid_str[16];
+    char tid_name[16];
     size_t tid_str_len;
 
     char hostname[256];

@@ -66,6 +66,7 @@ typedef int (*log_user_callback)(const char *ident, int level, const char *msg,
 // %p pid
 // %t tid
 // %T tid hex
+// %N thread name
 // %C color
 // %R color_reset
 // %n '\n'
@@ -128,7 +129,6 @@ log_rule_t *log_rule_create(log_handler_t *handler, log_format_t *format,
                             log_output_t *output, int level_begin,
                             int level_end);
 void log_rule_destroy(log_rule_t *rule);
-// reset rule's loglevel
 int log_rule_set_level(log_rule_t *rule, int level_begin, int level_end);
 
 

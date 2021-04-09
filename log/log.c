@@ -85,10 +85,11 @@ log_do_format(struct log_handler *handler, struct log_rule *r)
 }
 
 static void
-log_event_update(struct log_event *e, struct log_handler *handler,
+log_event_update(struct log_handler *handler,
                  struct log_rule *rule, int level, const char *file,
                  const char *func, long line, const char *fmt, va_list ap)
 {
+    struct log_event *e = &handler->event;
     e->ident     = handler->ident;
     e->ident_len = strlen(handler->ident);
 
@@ -500,8 +501,7 @@ log_vprintf(log_handler_t *handler, const int lvl, const char *file,
             continue;
         }
 
-        log_event_update(&handler->event, handler, r, level, file, func, line,
-                         fmt, ap);
+        log_event_update(handler, r, level, file, func, line, fmt, ap);
         len = log_do_format(handler, r);
         if (len <= 0) {
             DEBUG_LOG("len: %d\n", len);

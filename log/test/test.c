@@ -14,6 +14,7 @@
 #include <string.h>
 #include <sys/syslog.h>
 #include <unistd.h>
+#include <sys/prctl.h>
 
 const char *module_name = "abc";
 
@@ -24,29 +25,43 @@ test_simple(void)
 {
     int i;
     simple_log_init("logs", "ihi", LOG_VERBOSE);
+    simple_log_enable_file(0);
 
-    LOGV("this is verbose");
-    LOGD("this is debug");
-    LOGI("this is info");
-    LOGN("this is notice");
-    LOGW("this is warnning");
-    LOGE("this is error");
-    LOGF("this is fatal");
-    LOGA("this is alert");
-    LOGP("this is panic");
+    LOGV("stdout this is verbose");
+    LOGD("stdout this is debug");
+    LOGI("stdout this is info");
+    LOGW("stdout this is warnning");
+    LOGE("stdout this is error");
+    LOGF("stdout this is fatal");
 
+    simple_log_enable_stdout(0);
+    simple_log_enable_file(1);
 
-    simple_log_set_level(LOG_WARNING);
+    LOGV("file this is verbose");
+    LOGD("file this is debug");
+    LOGI("file this is info");
+    LOGW("file this is warnning");
+    LOGE("file this is error");
+    LOGF("file this is fatal");
 
-    LOGV("this is verbose");
-    LOGD("this is debug");
-    LOGI("this is info");
-    LOGN("this is notice");
-    LOGW("this is warnning");
-    LOGE("this is error");
-    LOGF("this is fatal");
-    LOGA("this is alert");
-    LOGP("this is panic");
+    simple_log_enable_stdout(1);
+    simple_log_enable_file(1);
+
+    LOGV("both this is verbose");
+    LOGD("both this is debug");
+    LOGI("both this is info");
+    LOGW("both this is warnning");
+    LOGE("both this is error");
+    LOGF("both this is fatal");
+
+    simple_log_set_level(LOG_INFO);
+
+    LOGV("level this is verbose");
+    LOGD("level this is debug");
+    LOGI("level this is info");
+    LOGW("level this is warnning");
+    LOGE("level this is error");
+    LOGF("level this is fatal");
 
     log_dump();
     simple_log_uninit();
@@ -56,22 +71,18 @@ void
 test_size(void)
 {
     int i;
-    simple_log_init("logs", "ihi", LOG_VERBOSE);
-
-#if 0
     log_format_t *format = log_format_create("%d.%ms [%5.5V] %m%n");
 
 #if 1
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", ROTATE_POLICE_BY_SIZE, 4 *1024*1024, 0,
+        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", ROTATE_POLICE_BY_SIZE, 4*1024*1024, 4,
                           4 * 1024, 1000);
 #else
     log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", ROTATE_POLICE_BY_SIZE, 4*1024*1024, 4);
 #endif
     log_handler_t *handler = log_handler_create("ihi");
-    log_bind(handler, -1, -1, format, output);
+    log_rule_create(handler, format, output, -1, -1);
     log_handler_set_default(handler);
-#endif
 
     char buf[1024 - 32] = {0};
     memset(buf, 'a', 1024 - 33);
@@ -79,31 +90,9 @@ test_size(void)
     for (i = 0; i < 1024; i++) {
         LOGV("%s", buf);
     }
-    /* LOGV("this is verbose");
-     * LOGD("this is debug");
-     * LOGI("this is info");
-     * LOGN("this is notice");
-     * LOGW("this is warnning");
-     * LOGE("this is error");
-     * LOGF("this is fatal");
-     * LOGA("this is alert");
-     * LOGP("this is panic");
-     *
-     *
-     * log_simple_set_level(LOG_WARNING);
-     *
-     * LOGV("this is verbose");
-     * LOGD("this is debug");
-     * LOGI("this is info");
-     * LOGN("this is notice");
-     * LOGW("this is warnning");
-     * LOGE("this is error");
-     * LOGF("this is fatal");
-     * LOGA("this is alert");
-     * LOGP("this is panic"); */
 
     log_dump();
-    simple_log_uninit();
+    log_cleanup();
 }
 
 int
@@ -156,17 +145,17 @@ test_vprintf(void)
 void
 test_mlog(void)
 {
-    log_handler_t *h1      = log_handler_create("handler1");
-    log_format_t *format1  = log_format_create("%d %p %c %C%V%R %F:%U:%L %m%n");
+    log_handler_t *h1      = log_handler_create("ident1");
+    log_format_t *format1  = log_format_create("%d %c %5.5V %U:%L %C%m%R%n");
     log_output_t *fileout1 = log_output_create(LOG_OUTTYPE_FILE, "logs",
-                                               "handler1", ROTATE_POLICE_BY_TIME);
+                                               "ident1", ROTATE_POLICE_BY_TIME);
     log_rule_t *r1         = log_rule_create(h1, format1, fileout1, -1, -1);
 
-    log_handler_t *h2      = log_handler_create("handler2");
-    log_format_t *format2  = log_format_create("%d.%ms [%V] %m%n");
+    log_handler_t *h2      = log_handler_create("ident2");
+    log_format_t *format2  = log_format_create("%d.%ms %c [%5.5V] %m%n");
     log_output_t *std_out  = log_output_create(LOG_OUTTYPE_STDOUT);
     log_output_t *fileout2 = log_output_create(LOG_OUTTYPE_FILE, "logs",
-                                               "handler2", 0, 1024 * 1024 * 4, 4);
+                                               "ident2", 0, 1024 * 1024 * 4, 4);
     log_rule_t *r2         = log_rule_create(h2, format2, fileout2, -1, -1);
 
     CLOGV(h1, "this is a verbose");
@@ -177,13 +166,9 @@ test_mlog(void)
 
     log_rule_destroy(r2);
     CLOGI(h1, "%s", "this is a info");
-    CLOGI(h2, "%s", "this is a info");
     CLOGN(h1, "this is a notice");
-    CLOGN(h2, "this is a notice");
-    CLOGW(h1, "this is a warning");
-    CLOGW(h2, "this is a warning");
     CLOGE(h1, "this is a error");
-    CLOGE(h2, "this is a error");
+    CLOGE(h2, "!!! this should not be there");
 
     log_rule_t *r3 = log_rule_create(h2, format1, fileout2, -1, -1);
     CLOGF(h1, "this is a fatal");
@@ -194,7 +179,6 @@ test_mlog(void)
 
     CLOGP(h1, "this is a emergency");
     CLOGP(h2, "this is a emergency");
-
 
     log_handler_set_default(h1);
     LOGV("this is a verbose");
@@ -215,13 +199,21 @@ void *
 run(void *arg)
 {
     unsigned i;
-    for (i = 0; i < 10; i++) {
-        LOGV("this is a verbose");
-        LOGD("this is a debug");
-        LOGI("this is a info");
-        LOGW("this is a warning");
-        LOGE("this is a error");
-        LOGF("this is a fatal");
+    log_handler_t *h = (log_handler_t *)arg;
+    for (i = 0; i < 1; i++) {
+        CLOGV(h, "this is a verbose");
+        CLOGD(h, "this is a debug");
+        CLOGI(h, "this is a info");
+        CLOGW(h, "this is a warning");
+        CLOGE(h, "this is a error");
+        CLOGF(h, "this is a fatal");
+
+        /* LOGV("this is a verbose");
+         * LOGD("this is a debug");
+         * LOGI("this is a info");
+         * LOGW("this is a warning");
+         * LOGE("this is a error");
+         * LOGF("this is a fatal"); */
     }
     return (void *)0;
 }
@@ -229,10 +221,13 @@ run(void *arg)
 void
 test_log_thread()
 {
-    pthread_t tid1, tid2, tid3;
-    log_handler_t *h = log_handler_create("ihi");
+#define N 50
+    int i;
+    pthread_t tids[N];
+    log_handler_t *hs[N];
+    char ident[16];
     log_format_t *f  = log_format_create("%d.%ms %c:%T [%-5.5V] %m%n");
-#if 0
+#if 1
     log_output_t *o =
         log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi", ROTATE_POLICE_BY_SIZE, 1024 * 1024 * 4, 4);
 #else
@@ -241,15 +236,20 @@ test_log_thread()
                           4 * 1024 * 1024, 1000);
 #endif
 
-    log_rule_create(h, f, o, -1, -1);
-    log_handler_set_default(h);
+    for (i = 0; i < ARRAY_SIZE(tids); i++) {
+        snprintf(ident, 16, "ihi-%d", i);
+        hs[i]= log_handler_create(ident);
+        log_rule_create(hs[i], f, o, -1, -1);
+    }
+    /* log_handler_set_default(hs[0]); */
 
-    pthread_create(&tid1, NULL, run, NULL);
-    pthread_create(&tid2, NULL, run, NULL);
-    pthread_create(&tid3, NULL, run, NULL);
-    pthread_join(tid1, NULL);
-    pthread_join(tid2, NULL);
-    pthread_join(tid3, NULL);
+    for (i = 0; i < ARRAY_SIZE(tids); i++) {
+        pthread_create(&tids[i], NULL, run, hs[i]);
+    }
+
+    for (i = 0; i < ARRAY_SIZE(tids); i++) {
+        pthread_join(tids[i], NULL);
+    }
 
     log_dump();
     log_cleanup();
@@ -298,18 +298,18 @@ void
 test_log_benchmark()
 {
     /* log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n"); */
-    log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n");
-#if 0
+    log_format_t *format = log_format_create("%d.%ms %c [%5.5V] %m%n");
+#if 1
     log_output_t *output =
-        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi",
-                          ROTATE_POLICE_BY_TIME, 4*1024*1024, 1000);
         /* log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi",
-         *                   ROTATE_POLICE_BY_SIZE,
-         *                   1024 * 1024 * 1024,
-         *                   4, 4 * 1024 * 1024, 1000); */
+         *                   ROTATE_POLICE_BY_TIME, 4*1024, 1000); */
+        log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi",
+                          ROTATE_POLICE_BY_SIZE,
+                          1024 * 1024 * 1024,
+                          4, 128 * 1024, 1000);
 #else
-    log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
-                                             ROTATE_POLICE_BY_TIME);
+    /* log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
+     *                                          ROTATE_POLICE_BY_TIME); */
     /* log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
      *                                          ROTATE_POLICE_BY_SIZE,
      *                                          1024 * 1024 * 1024, 4); */
@@ -320,27 +320,23 @@ test_log_benchmark()
 
     unsigned i;
     for (i = 0; i < 1024 * 1024 * 16; i++) {
-#if 0
-        MLOGV(handler, "this is a verbose");
-        MLOGD(handler, "this is a debug");
-        MLOGI(handler, "this is a info");
-        MLOGN(handler, "this is a notice");
-        MLOGW(handler, "this is a warning");
-        MLOGE(handler, "this is a error");
-        MLOGF(handler, "this is a fatal");
-        MLOGA(handler, "this is a alert");
-        MLOGP(handler, "this is a emerge");
-#else
         LOGV("this is a verbose");
+        /* usleep(1000*1000); */
         LOGD("this is a debug");
+        /* usleep(1000*1000); */
         LOGI("this is a info");
+        /* usleep(1000*1000); */
         LOGN("this is a notice");
+        /* usleep(1000*1000); */
         LOGW("this is a warning");
+        /* usleep(1000*1000); */
         LOGE("this is a error");
+        /* usleep(1000*1000); */
         LOGF("this is a fatal");
+        /* usleep(1000*1000); */
         LOGA("this is a alert");
+        /* usleep(1000*1000); */
         LOGP("this is a emerge");
-#endif
         /* usleep(10*1000); */
     }
     LOGP("this end");
@@ -547,7 +543,7 @@ test_big_buf(void)
 int
 main(int argc, char *argv[])
 {
-    test_simple();
+    /* test_simple(); */
     /* test_size(); */
     /* test_callback(); */
     /* test_vprintf(); */
@@ -560,7 +556,7 @@ main(int argc, char *argv[])
     /* test_big_buf(); */
 
     /* test_mlog_benchmark(); */
-    /* test_log_benchmark(); */
+    test_log_benchmark();
     /* test_log_big_benchmark(); */
 
     return 0;

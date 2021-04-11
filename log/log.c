@@ -85,25 +85,28 @@ log_do_format(struct log_handler *handler, struct log_rule *r)
 }
 
 static void
-log_event_update(struct log_handler *handler,
-                 struct log_rule *rule, int level, const char *file,
-                 const char *func, long line, const char *fmt, va_list ap)
+log_event_update(struct log_handler *handler, struct log_rule *rule, int level,
+                 const char *file, const char *func, long line, const char *tag,
+                 const char *fmt, va_list ap)
 {
     struct log_event *e = &handler->event;
-    e->ident     = handler->ident;
-    e->ident_len = strlen(handler->ident);
+    e->ident            = handler->ident;
+    e->ident_len        = strlen(handler->ident);
 
     e->level = level;
     e->file  = file;
     if (e->file) {
         e->file_len = strlen(file);
     }
-
     e->func = func;
     if (e->func) {
         e->func_len = strlen(func);
     }
     e->line = line;
+    e->tag  = tag;
+    if (e->tag) {
+        e->tag_len = strlen(tag);
+    }
 
     e->fmt = fmt;
     va_copy(e->ap, ap);
@@ -214,7 +217,7 @@ log_format_destroy(struct log_format *format)
     }
     list_del(&format->format_entry);
     struct log_spec *ps, *tmp;
-    list_for_each_entry_safe(ps, tmp, &format->callbacks, spec_entry) {
+    list_for_each_entry_safe (ps, tmp, &format->callbacks, spec_entry) {
         list_del(&ps->spec_entry);
         free(ps);
         ps = NULL;
@@ -476,7 +479,8 @@ log_rule_destroy(struct log_rule *rule)
 
 void
 log_vprintf(log_handler_t *handler, const int lvl, const char *file,
-            const char *func, const long line, const char *fmt, va_list ap)
+            const char *func, const long line, const char *tag, const char *fmt,
+            va_list ap)
 {
     uint16_t i;
     int ret;
@@ -501,7 +505,7 @@ log_vprintf(log_handler_t *handler, const int lvl, const char *file,
             continue;
         }
 
-        log_event_update(handler, r, level, file, func, line, fmt, ap);
+        log_event_update(handler, r, level, file, func, line, tag, fmt, ap);
         len = log_do_format(handler, r);
         if (len <= 0) {
             DEBUG_LOG("len: %d\n", len);
@@ -521,12 +525,13 @@ log_vprintf(log_handler_t *handler, const int lvl, const char *file,
 
 void
 log_printf(struct log_handler *handler, int level, const char *file,
-           const char *function, long line, const char *fmt, ...)
+           const char *function, long line, const char *tag, const char *fmt,
+           ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    log_vprintf(handler, level, file, function, line, fmt, ap);
+    log_vprintf(handler, level, file, function, line, tag, fmt, ap);
     va_end(ap);
 
     return;

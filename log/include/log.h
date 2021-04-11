@@ -28,6 +28,8 @@ extern "C" {
 #define LOG_PANIC LOG_EMERG
 #define LOG_WARN  LOG_WARNING
 
+#define TAG ""
+
 enum LOG_OUTTYPE {
     LOG_OUTTYPE_STDOUT = 0x0001,
     LOG_OUTTYPE_STDERR = 0x0002,
@@ -63,6 +65,7 @@ typedef int (*log_user_callback)(const char *ident, int level, const char *msg,
 // %F __FILE__
 // %U __FUNCTION__
 // %L __LINE__
+// %M TAG
 // %p pid
 // %t tid
 // %T tid hex
@@ -137,14 +140,16 @@ void log_cleanup();
 void log_dump();
 
 void log_printf(log_handler_t *handler, int level, const char *file,
-                const char *function, long line, const char *format, ...);
+                const char *function, long line, const char *tag,
+                const char *format, ...);
 void log_vprintf(log_handler_t *handler, int level, const char *file,
                  const char *function, long line, const char *format,
-                 va_list ap);
+                 const char *tag, va_list ap);
 
 #define CLOG_PRINTF(handler, level, fmt...)                                    \
     do {                                                                       \
-        log_printf(handler, level, __FILE__, __FUNCTION__, __LINE__, fmt);     \
+        log_printf(handler, level, __FILE__, __FUNCTION__, __LINE__, TAG,      \
+                   fmt);                                                       \
     } while (0)
 
 #define CLOGV(handler, fmt...) CLOG_PRINTF(handler, LOG_VERBOSE, fmt)

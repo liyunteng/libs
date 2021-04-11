@@ -115,13 +115,6 @@ spec_write_file(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 }
 
 static int
-spec_write_line(struct log_spec *s, struct log_event *e, log_buf_t *buf)
-{
-    (void)s;
-    return buf_printf_dec64(buf, e->line, 0);
-}
-
-static int
 spec_write_func(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
     (void)s;
@@ -129,6 +122,24 @@ spec_write_func(struct log_spec *s, struct log_event *e, log_buf_t *buf)
         return buf_append(buf, e->func, e->func_len);
     } else {
         return buf_append(buf, "(func=null)", strlen("(func=null)"));
+    }
+}
+
+static int
+spec_write_line(struct log_spec *s, struct log_event *e, log_buf_t *buf)
+{
+    (void)s;
+    return buf_printf_dec64(buf, e->line, 0);
+}
+
+static int
+spec_write_tag(struct log_spec *s, struct log_event *e, log_buf_t *buf)
+{
+    (void)s;
+    if (e->tag_len > 0) {
+        return buf_append(buf, e->tag, e->tag_len);
+    } else {
+        return buf_append(buf, "(tag=null)", strlen("(tag=null)"));
     }
 }
 
@@ -451,6 +462,9 @@ spec_create(char *pstart, char **pnext)
             break;
         case 'L': /* line */
             s->write_buf = spec_write_line;
+            break;
+        case 'M':
+            s->write_buf = spec_write_tag;
             break;
         case 'p': /* pid */
             s->write_buf = spec_write_pid;

@@ -45,6 +45,8 @@ struct log_event {
     const char *func;
     size_t func_len;
     long line;
+    const char *tag;
+    size_t tag_len;
 
     const char *fmt;
     va_list ap;

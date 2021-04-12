@@ -14,7 +14,7 @@
 #include <time.h>
 
 #define MAX_FILE_PATH   256
-#define FLUSH_INTERVAL  500          // ms
+#define FLUSH_INTERVAL  200          // ms
 #define ROTATE_INTERVAL (60 * 1000)  // ms
 
 struct file_output_ctx {

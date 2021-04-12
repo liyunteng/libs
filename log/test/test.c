@@ -307,7 +307,7 @@ test_log_benchmark()
 {
     /* log_format_t *format = log_format_create("%d.%ms %c:%p [%V] %m%n"); */
     log_format_t *format = log_format_create("%d.%ms %c [%5.5V] %m%n");
-#if 1
+#if 0
     /* log_output_t *output = log_output_create(
      *     LOG_OUTTYPE_MMAP, "logs", "ihi", ROTATE_POLICE_BY_TIME, 4 * 1024, 1000); */
 
@@ -315,8 +315,8 @@ test_log_benchmark()
         LOG_OUTTYPE_MMAP, "logs", "ihi", ROTATE_POLICE_BY_SIZE,
         1024 * 1024 * 1024, 4, 1 * 1024 * 1024, 1000);
 #else
-    /* log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
-     *                                          ROTATE_POLICE_BY_TIME); */
+    log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
+                                             ROTATE_POLICE_BY_TIME);
 
     /* log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
      *                                          ROTATE_POLICE_BY_SIZE,
@@ -329,23 +329,23 @@ test_log_benchmark()
     unsigned i;
     for (i = 0; i < 16 * 1024 * 1024; i++) {
         LOGV("this is a verbose");
-        /* usleep(10 * 1000); */
+        usleep(1 * 1000 * 1000);
         LOGD("this is a debug");
-        /* usleep(10 * 1000); */
+        usleep(1 * 1000 * 1000);
         LOGI("this is a info");
-        /* usleep(10 * 1000); */
+        usleep(1 * 1000 * 1000);
         LOGN("this is a notice");
-        /* usleep(10 * 1000); */
+        usleep(1 * 1000 * 1000);
         LOGW("this is a warning");
-        /* usleep(10 * 1000); */
+        usleep(1 * 1000 * 1000);
         LOGE("this is a error");
-        /* usleep(10 * 1000); */
+        usleep(1 * 1000 * 1000);
         LOGF("this is a fatal");
-        /* usleep(10 * 1000); */
+        usleep(1 * 1000 * 1000);
         LOGA("this is a alert");
-        /* usleep(10 * 1000); */
+        usleep(1 * 1000 * 1000);
         LOGP("this is a emerge");
-        /* usleep(10 * 1000); */
+        usleep(1 * 1000 * 1000);
     }
     LOGP("this end");
 

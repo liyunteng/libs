@@ -14,19 +14,20 @@
 #include <time.h>
 
 #define MAX_FILE_PATH   256
-#define FLUSH_INTERVAL  500               // ms
-#define ROTATE_INTERVAL (60 * 60 * 1000)  // ms
+#define FLUSH_INTERVAL  500          // ms
+#define ROTATE_INTERVAL (60 * 1000)  // ms
 
 struct file_output_ctx {
     char *file_path;
     char *log_name;
 
     int rotate_police;
-    uint16_t num_files;
-    uint16_t file_idx;
+    int num_files;
+    int file_idx;
     uint64_t file_size;
-    uint64_t data_offset;
     uint64_t file_timestamp;
+
+    uint64_t data_offset;
     uint64_t flush_timestamp;
     FILE *fp;
 };
@@ -38,10 +39,10 @@ extern char **environ;
 static void
 dump_environment(struct log_output *output)
 {
+    int cnt = 0;
     static char buf[BUFSIZ];
-    int cnt                     = 0;
-    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
 
+    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
     fprintf(ctx->fp, "########## LOG STARTED ##########\n\n");
 
     while (1) {
@@ -67,37 +68,35 @@ dump_environment(struct log_output *output)
     fprintf(ctx->fp, "\n");
 }
 
-static inline uint64_t
-file_get_ms(void)
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return tv.tv_sec * 1000 + tv.tv_usec / 1000;
-}
-
 static size_t
 check_can_write_bytes(struct log_output *output, struct log_handler *handler)
 {
-    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
-    uint64_t ts;
-    int left = buf_len(handler->event.msg_buf);
+    uint64_t ts = 0;
+    size_t left = buf_len(handler->event.msg_buf);
 
-    if (ctx->rotate_police == ROTATE_POLICE_BY_SIZE) {
-        if (ctx->file_size > 0) {
-            left = ctx->file_size - ctx->data_offset;
-        }
+    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
+    if (ctx->rotate_police == ROTATE_POLICE_BY_SIZE && ctx->file_size > 0) {
+        left = ((ctx->file_size > ctx->data_offset) ?
+                    ctx->file_size - ctx->data_offset :
+                    0);
     } else if (ctx->rotate_police == ROTATE_POLICE_BY_TIME) {
-        if (handler->event.timestamp.tv_sec != 0) {
-            ts = handler->event.timestamp.tv_sec * 1000
-                 + handler->event.timestamp.tv_usec / 1000;
-        } else {
-            ts = file_get_ms();
-        }
+        ts = (handler->event.timestamp.tv_sec == 0 ?
+                  log_get_ms() :
+                  (uint64_t)(handler->event.timestamp.tv_sec * 1000
+                             + handler->event.timestamp.tv_usec / 1000));
 
         if (ts > ctx->file_timestamp
             && ts - ctx->file_timestamp / ROTATE_INTERVAL * ROTATE_INTERVAL
                    > ROTATE_INTERVAL) {
-            DEBUG_LOG("ts: %" PRIu64 "\n", ts);
+            time_t t = (time_t)(ctx->file_timestamp / ROTATE_INTERVAL
+                                * ROTATE_INTERVAL / 1000);
+            DEBUG_LOG(
+                "ts: %" PRIu64 " ctx->file_timestamp: %" PRIu64
+                " delta: %" PRIu64 " last: %" PRIu64 " %s",
+                ts, ctx->file_timestamp,
+                (ts - ctx->file_timestamp / ROTATE_INTERVAL * ROTATE_INTERVAL),
+                (ctx->file_timestamp / ROTATE_INTERVAL * ROTATE_INTERVAL),
+                asctime(localtime(&t)));
             left = 0;
         }
     }
@@ -108,14 +107,14 @@ check_can_write_bytes(struct log_output *output, struct log_handler *handler)
 static int
 do_file_rotate_by_time(struct log_output *output)
 {
+    struct tm tm;
+    struct stat st;
+    int i                             = 0;
+    char time[128]                    = {0};
     char old_file_name[MAX_FILE_PATH] = {0};
     char new_file_name[MAX_FILE_PATH] = {0};
-    struct tm tm;
-    char time[128] = {0};
-    struct stat st;
-    int i                       = 0;
-    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
 
+    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
     snprintf(old_file_name, MAX_FILE_PATH - 1, "%s/%s.log", ctx->file_path,
              ctx->log_name);
 
@@ -143,10 +142,10 @@ file_rotate_by_time(struct log_output *output)
     struct stat st;
     char file_name[MAX_FILE_PATH] = {0};
     char file_path[MAX_FILE_PATH] = {0};
-    struct file_output_ctx *ctx   = (struct file_output_ctx *)output->ctx;
 
+    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
     // create date directory
-    t = (time_t)(file_get_ms() / 1000);
+    t = (time_t)(log_get_ms() / 1000);
     localtime_r(&t, &tm);
     snprintf(file_path, MAX_FILE_PATH - 1, "%s/%04d%02d%02d", ctx->file_path,
              tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday);
@@ -187,7 +186,7 @@ file_rotate_by_time(struct log_output *output)
             }
             DEBUG_LOG("open file(new) %s\n", file_name);
             ctx->data_offset    = 0;
-            ctx->file_timestamp = file_get_ms();
+            ctx->file_timestamp = log_get_ms();
 
             return 0;
         }
@@ -209,8 +208,8 @@ file_rotate_by_time(struct log_output *output)
         return -1;
     }
     DEBUG_LOG("open file(append) %s\n", file_name);
-    ctx->data_offset    = st.st_size;
-    ctx->file_timestamp = file_get_ms();
+    ctx->data_offset    = (uint64_t)st.st_size;
+    ctx->file_timestamp = log_get_ms();
 
     ++ctx->file_idx;
 
@@ -220,20 +219,19 @@ file_rotate_by_time(struct log_output *output)
 static int
 do_file_rotate_by_size(struct log_output *output)
 {
+    struct stat st;
+    int i                             = 0;
+    uint32_t bak_file_num             = 0;
     char old_file_name[MAX_FILE_PATH] = {0};
     char new_file_name[MAX_FILE_PATH] = {0};
-    struct stat st;
-    uint32_t bak_file_num;
-    int i                       = 0;
-    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
 
+    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
     // don't rotate
-    if (ctx->num_files == 0) {
+    if (ctx->num_files <= 0) {
         return 0;
     }
 
     // rotate
-    bak_file_num = 0;
     for (i = 0;; i++) {
         snprintf(old_file_name, MAX_FILE_PATH - 1, "%s/%s.log.%u",
                  ctx->file_path, ctx->log_name, i);
@@ -275,13 +273,12 @@ do_file_rotate_by_size(struct log_output *output)
 static int
 file_rotate_by_size(struct log_output *output)
 {
-    char file_name[MAX_FILE_PATH] = {0};
     struct stat st;
-    struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
+    char file_name[MAX_FILE_PATH] = {0};
+    struct file_output_ctx *ctx   = (struct file_output_ctx *)output->ctx;
 
     snprintf(file_name, MAX_FILE_PATH - 1, "%s/%s.log", ctx->file_path,
              ctx->log_name);
-
     if (lstat(file_name, &st) < 0) {
         if (errno == ENOENT) {
             // create new file
@@ -292,7 +289,7 @@ file_rotate_by_size(struct log_output *output)
             }
             DEBUG_LOG("open file(new) %s\n", file_name);
             ctx->data_offset    = 0;
-            ctx->file_timestamp = file_get_ms();
+            ctx->file_timestamp = log_get_ms();
             return 0;
         }
 
@@ -302,7 +299,7 @@ file_rotate_by_size(struct log_output *output)
 
     if (ctx->file_size > 0) {
         // rotate
-        if (ctx->num_files != 0 && ctx->file_size <= st.st_size) {
+        if (ctx->num_files > 0 && ctx->file_size <= st.st_size) {
             if (do_file_rotate_by_size(output) < 0) {
                 ERROR_LOG("rename %s failed\n", file_name);
                 return -1;
@@ -315,12 +312,12 @@ file_rotate_by_size(struct log_output *output)
             }
             DEBUG_LOG("open file(new) %s\n", file_name);
             ctx->data_offset    = 0;
-            ctx->file_timestamp = file_get_ms();
+            ctx->file_timestamp = log_get_ms();
             return 0;
         }
 
         // truncated
-        if (ctx->num_files == 0 && ctx->file_size <= st.st_size) {
+        if (ctx->num_files <= 0 && ctx->file_size <= st.st_size) {
             if ((ctx->fp = fopen(file_name, "w")) == NULL) {
                 ERROR_LOG("fopen %s failed: (%s)\n", file_name,
                           strerror(errno));
@@ -328,7 +325,7 @@ file_rotate_by_size(struct log_output *output)
             }
             DEBUG_LOG("open file(truncated) %s\n", file_name);
             ctx->data_offset    = 0;
-            ctx->file_timestamp = file_get_ms();
+            ctx->file_timestamp = log_get_ms();
             return 0;
         }
     }
@@ -340,8 +337,8 @@ file_rotate_by_size(struct log_output *output)
         return -1;
     }
     DEBUG_LOG("open file(append) %s\n", file_name);
-    ctx->data_offset    = st.st_size;
-    ctx->file_timestamp = file_get_ms();
+    ctx->data_offset    = (uint64_t)st.st_size;
+    ctx->file_timestamp = log_get_ms();
     return 0;
 }
 
@@ -350,8 +347,6 @@ static int
 file_open_logfile(struct log_output *output)
 {
     struct stat st;
-    int need_create_dir = 0;
-
     struct file_output_ctx *ctx = (struct file_output_ctx *)output->ctx;
 
     if (ctx->fp != NULL) {
@@ -360,12 +355,19 @@ file_open_logfile(struct log_output *output)
     }
 
     if (lstat(ctx->file_path, &st) < 0) {
-        if (errno != ENOENT) {
+        if (errno == ENOENT) {
+            if (mkdir(ctx->file_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH)
+                < 0) {
+                ERROR_LOG("mkdir %s failed: (%s)\n", ctx->file_path,
+                          strerror(errno));
+                goto failed;
+            }
+            DEBUG_LOG("mkdir %s\n", ctx->file_path);
+        } else {
             ERROR_LOG("lstat %s failed: (%s)\n", ctx->file_path,
                       strerror(errno));
             goto failed;
         }
-        need_create_dir = 1;
     } else {
         if ((st.st_mode & S_IFMT) != S_IFDIR) {
             ERROR_LOG("%s is not directory\n", ctx->file_path);
@@ -373,14 +375,6 @@ file_open_logfile(struct log_output *output)
         }
     }
 
-    if (need_create_dir) {
-        if (mkdir(ctx->file_path, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) < 0) {
-            ERROR_LOG("mkdir %s failed: (%s)\n", ctx->file_path,
-                      strerror(errno));
-            goto failed;
-        }
-        DEBUG_LOG("mkdir %s\n", ctx->file_path);
-    }
 
     if (ctx->rotate_police == ROTATE_POLICE_BY_SIZE) {
         if (file_rotate_by_size(output) < 0) {
@@ -410,10 +404,9 @@ failed:
 static int
 file_emit(struct log_output *output, struct log_handler *handler)
 {
-    int ret;
-    struct file_output_ctx *ctx = NULL;
+    int ret                     = 0;
     log_buf_t *buf              = NULL;
-    size_t len;
+    struct file_output_ctx *ctx = NULL;
 
     if (!output) {
         ERROR_LOG("output is NULL\n");
@@ -445,7 +438,7 @@ file_emit(struct log_output *output, struct log_handler *handler)
         }
     }
 
-    len              = buf_len(buf);
+    size_t len       = buf_len(buf);
     size_t file_left = check_can_write_bytes(output, handler);
     if (file_left >= len) {
         if (fwrite(buf->start, len, 1, ctx->fp) != 1) {
@@ -455,9 +448,10 @@ file_emit(struct log_output *output, struct log_handler *handler)
         ctx->data_offset += len;
 
         // flush
-        uint64_t ts = file_get_ms();
+        uint64_t ts = log_get_ms();
         if (ts - ctx->flush_timestamp >= FLUSH_INTERVAL) {
             fflush(ctx->fp);
+            /* fsync(fileno(ctx->fp)); */
             ctx->flush_timestamp = ts;
         }
         return len;
@@ -492,6 +486,10 @@ file_emit(struct log_output *output, struct log_handler *handler)
         }
 
         file_left = check_can_write_bytes(output, handler);
+        if (file_left == 0) {
+            ERROR_LOG("after file_open_log file_left: %lu\n", file_left);
+            return total_write;
+        }
     }
     return total_write;
 }
@@ -521,6 +519,7 @@ static void
 file_ctx_uninit(struct log_output *output)
 {
     struct file_output_ctx *ctx = NULL;
+
     if (!output) {
         ERROR_LOG("output is NULL\n");
         return;

@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
 #ifndef BOOL
 #define BOOL char
@@ -27,10 +28,10 @@
 #define FALSE 0
 #endif
 
-#define DEBUG_LOG(fmt, ...)
-// #define DEBUG_LOG(fmt, ...)                                             \
-//     fprintf(stdout, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
-#define ERROR_LOG(fmt, ...)                                             \
+/* #define DEBUG_LOG(fmt, ...) */
+#define DEBUG_LOG(fmt, ...)                                                    \
+    fprintf(stdout, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#define ERROR_LOG(fmt, ...)                                                    \
     fprintf(stderr, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
 
 
@@ -96,4 +97,13 @@ struct log_handler {
 
 
 void dump_statstic(struct log_output *output);
+
+static inline uint64_t
+log_get_ms(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return (uint64_t)(tv.tv_sec * 1000 + tv.tv_usec / 1000);
+}
+
 #endif

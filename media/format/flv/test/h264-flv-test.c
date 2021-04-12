@@ -53,6 +53,7 @@ void avc2flv_test(const char* inputH264, const char* outputFLV)
 	void* f = flv_writer_create(outputFLV);
 	ctx.flv = flv_muxer_create(on_flv_packet, f);
 	FILE* fp = fopen(inputH264, "rb");
+    assert(fp);
 
 	static uint8_t buffer[32 * 1024 * 1024];
 	size_t n = fread(buffer, 1, sizeof(buffer), fp);

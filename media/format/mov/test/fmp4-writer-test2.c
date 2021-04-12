@@ -39,7 +39,9 @@ static void mov_audio_info(void* param, uint32_t track, uint8_t object, int chan
 void fmp4_writer_test2(const char* mp4, const char* outmp4)
 {
     FILE* fp = fopen(mp4, "rb");
+    assert(fp);
     FILE* wfp = fopen(outmp4, "wb");
+    assert(wfp);
     mov_reader_t* mov = mov_reader_create(mov_file_buffer(), fp);
     fmp4_writer_t* fmp4 = fmp4_writer_create(mov_file_buffer(), wfp, MOV_FLAG_SEGMENT);
 

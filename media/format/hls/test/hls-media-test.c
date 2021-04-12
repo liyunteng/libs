@@ -27,7 +27,7 @@ hls_segment(void *m3u8, const void *data, size_t bytes, int64_t pts,
     printf("hls pts: %"PRId64" dts: %"PRId64" durtaion: %"PRId64"\n", pts, dts, duration);
 	static int i = 0;
 	char name[128] = {0};
-    snprintf(name, sizeof(name), "/home/lyt/segment-%03d.ts", i++);
+    snprintf(name, sizeof(name), "segment-%03d.ts", i++);
 	hls_m3u8_add((hls_m3u8_t*)m3u8, name, pts, duration, discontinue);
 
 	FILE* fp = fopen(name, "wb");
@@ -48,20 +48,20 @@ on_ts_packet(void *param, int program, int stream, int avtype, int flags,
     assert(ctx);
     int key = 0;
 
-    printf("pts: %"PRId64" dts: %"PRId64" bytes: %lu flags: %d\n", pts, dts, bytes, flags);
+    printf("avtype: %d pts: %"PRId64" dts: %"PRId64" bytes: %lu flags: %d\n", avtype, pts, dts, bytes, flags);
     switch (avtype) {
     case PSI_STREAM_AAC:
-        return hls_media_input(ctx, STREAM_AUDIO_AAC, data, bytes, pts, dts, 0);
+        return hls_media_input(ctx, STREAM_AUDIO_AAC, data, bytes, pts/90, dts/90, 0);
 
     case PSI_STREAM_H264:
         key = mpeg_h264_find_keyframe(data, bytes);
-        if (key) {
-            hls_media_input(ctx, STREAM_VIDEO_H264, NULL, 0, 0, 0, 0);
-        }
-        return hls_media_input(ctx, STREAM_VIDEO_H264, data, bytes, pts, dts, key);
+        /* if (key) {
+         *     hls_media_input(ctx, STREAM_VIDEO_H264, NULL, 0, 0, 0, 0);
+         * } */
+        return hls_media_input(ctx, STREAM_VIDEO_H264, data, bytes, pts/90, dts/90, key ? HLS_FLAGS_KEYFRAME : 0);
 
     case PSI_STREAM_H265:
-        return hls_media_input(ctx, STREAM_VIDEO_H265, data, bytes, pts, dts, (flags & MPEG_FLAG_IDR_FRAME) ? HLS_FLAGS_KEYFRAME : 0);
+        return hls_media_input(ctx, STREAM_VIDEO_H265, data, bytes, pts/90, dts/90, (flags & MPEG_FLAG_IDR_FRAME) ? HLS_FLAGS_KEYFRAME : 0);
 
     default:
         printf("avtype: 0x%x\n", avtype);
@@ -71,10 +71,10 @@ on_ts_packet(void *param, int program, int stream, int avtype, int flags,
 }
 
 void
-hls_media_test(const char *ts)
+hls_media_test(const char *ts, const char *m3u8)
 {
     hls_m3u8_t *m3u  = hls_m3u8_create(0, 3);
-    hls_media_t *ctx = hls_media_create(HLS_DURATION * 1000, hls_segment, m3u);
+    hls_media_t *ctx = hls_media_create(10 * 1000, hls_segment, m3u);
 
     unsigned char ptr[188];
     FILE *fp = fopen(ts, "rb");
@@ -92,7 +92,7 @@ hls_media_test(const char *ts)
     hls_media_input(ctx, STREAM_VIDEO_H264, NULL, 0, 0, 0, 0);
     hls_m3u8_playlist(m3u, 1, data, sizeof(data));
     printf("%s\n", data);
-    FILE *m3u8fp = fopen("/home/lyt/ts.m3u8", "w");
+    FILE *m3u8fp = fopen(m3u8, "w");
     assert(m3u8fp);
     fwrite(data, 1, strlen(data), m3u8fp);
     fclose(m3u8fp);

@@ -82,11 +82,8 @@ static void mpeg_ts_file(const char* file, void* muxer)
 }
 
 //mpeg_ts_test("test/fileSequence0.ts", "test/apple.ts")
-void mpeg_ts_test(const char* input)
+void mpeg_ts_test(const char* input, const char *output)
 {
-    char output[256] = { 0 };
-    snprintf(output, sizeof(output), "%s.ts", input);
-
 	struct mpeg_ts_func_t tshandler;
 	tshandler.alloc = ts_alloc;
 	tshandler.write = ts_write;

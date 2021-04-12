@@ -88,12 +88,13 @@ static int onFLV(void* /*param*/, int codec, const void* data, size_t bytes, uin
 }
 
 // flv_reader_test("53340.flv");
-void flv_reader_test(const char* file)
+void flv_reader_test(const char* file, const char *aac, const char *h264)
 {
-	aac = fopen("audio.aac", "wb");
-	h264 = fopen("video.h264", "wb");
+	aac = fopen(aac, "wb");
+	h264 = fopen(h264, "wb");
 
 	void* reader = flv_reader_create(file);
+    assert(reader);
 	flv_demuxer_t* flv = flv_demuxer_create(onFLV, NULL);
 
 	int type, r;

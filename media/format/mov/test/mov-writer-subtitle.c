@@ -50,7 +50,9 @@ void mov_writer_subtitle(const char* mp4, const char* outmp4)
     };
 
     FILE* rfp = fopen(mp4, "rb");
+    assert(rfp);
     FILE* wfp = fopen(outmp4, "wb");
+    assert(wfp);
     mov_reader_t* rmov = mov_reader_create(mov_file_buffer(), rfp);
     mov_writer_t* wmov = mov_writer_create(mov_file_buffer(), wfp, 0);
 

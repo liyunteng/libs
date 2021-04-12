@@ -198,6 +198,7 @@ static void mov_subtitle_info(void* param, uint32_t track, uint8_t object, const
 void mov_reader_test(const char* mp4)
 {
 	FILE* fp = fopen(mp4, "rb");
+    assert(fp);
 	mov_reader_t* mov = mov_reader_create(mov_file_buffer(), fp);
 	uint64_t duration = mov_reader_getduration(mov);
 

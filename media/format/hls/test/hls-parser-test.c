@@ -12,6 +12,7 @@ void hls_parser_test(const char* m3u8)
 {
 	static char data[2 * 1024 * 1024];
 	FILE* fp = fopen(m3u8, "rb");
+    assert(fp);
 	int n = (int)fread(data, 1, sizeof(data), fp);
 	fclose(fp);
 

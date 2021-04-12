@@ -31,6 +31,7 @@ static uint8_t *
 file_read(const char *file, long *size)
 {
     FILE *fp = fopen(file, "rb");
+    assert(fp);
     if (fp) {
         fseek(fp, 0, SEEK_END);
         *size = ftell(fp);
@@ -170,15 +171,12 @@ h264_handler(void *param, const uint8_t *nalu, int bytes)
 }
 
 void
-mpeg_ts_enc_test(const char *h264, const char *aac)
+mpeg_ts_enc_test(const char *h264, const char *aac, const char *output)
 {
     struct mpeg_ts_enc_test_t ctx;
     memset(&ctx, 0, sizeof(ctx));
     ctx.vtrack = -1;
     ctx.atrack = -1;
-
-    char output[256] = {0};
-    snprintf(output, sizeof(output), "%s.ts", h264);
 
     struct mpeg_ts_func_t muxer;
     muxer.alloc = ts_alloc;
@@ -186,6 +184,7 @@ mpeg_ts_enc_test(const char *h264, const char *aac)
     muxer.free  = ts_free;
 
     FILE *fp = fopen(output, "wb");
+    assert(fp);
     ctx.ts   = mpeg_ts_create(&muxer, fp);
     assert(ctx.ts);
 

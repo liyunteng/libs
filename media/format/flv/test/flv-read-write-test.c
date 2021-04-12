@@ -44,13 +44,14 @@ static int flv_ondemuxer(void* param, int codec, const void* data, size_t bytes,
 	return 0;
 }
 
-void flv_read_write_test(const char* flv)
+void flv_read_write_test(const char* flv, const char *out)
 {
 	static char packet[2 * 1024 * 1024];
-	snprintf(packet, sizeof(packet), "%s.flv", flv);
 
 	void* r = flv_reader_create(flv);
-	void* w = flv_writer_create(packet);
+    assert(r);
+	void* w = flv_writer_create(out);
+    assert(w);
 	flv_muxer_t* e = flv_muxer_create(flv_onmuxer, w);
 	flv_demuxer_t* d = flv_demuxer_create(flv_ondemuxer, e);
 

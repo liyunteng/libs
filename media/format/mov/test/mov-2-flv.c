@@ -120,6 +120,7 @@ void mov_2_flv_test(const char* mp4)
 	snprintf((char*)s_packet, sizeof(s_packet), "%s.flv", mp4);
 
 	FILE* fp = fopen(mp4, "rb");
+    assert(fp);
 	mov_reader_t* mov = mov_reader_create(mov_file_buffer(), fp);
 	void* flv = flv_writer_create((char*)s_packet);
 

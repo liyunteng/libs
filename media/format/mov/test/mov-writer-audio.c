@@ -15,6 +15,7 @@ extern const struct mov_buffer_t* mov_file_buffer(void);
 static uint8_t* file_read(const char* file, long* size)
 {
 	FILE* fp = fopen(file, "rb");
+    assert(fp);
 	if (fp)
 	{
 		fseek(fp, 0, SEEK_END);
@@ -86,6 +87,7 @@ void mov_writer_audio(const char* audio, int type, const char* mp4)
 	if (NULL == ptr) return;
 
 	FILE* fp = fopen(mp4, "wb+");
+    assert(fp);
 	mov_writer_t* mov = mov_writer_create(mov_file_buffer(), fp, MOV_FLAG_FASTSTART);
 	switch (type)
 	{

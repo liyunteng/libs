@@ -134,8 +134,10 @@ void flv2ts_test(const char* inputFLV, const char* outputTS)
 	tshandler.free = ts_free;
 
 	FILE* fp = fopen(outputTS, "wb");
+    assert(fp);
 	void* ts = mpeg_ts_create(&tshandler, fp);
 	void* reader = flv_reader_create(inputFLV);
+    assert(reader);
 	flv_demuxer_t* flv = flv_demuxer_create(onFLV, ts);
 
 	int type, r;

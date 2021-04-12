@@ -110,23 +110,22 @@ static void mov_audio_info(void* param, uint32_t track, uint8_t object, int chan
 	ctx->count++;
 }
 
-void mpeg_ts_multi_program_test(const char* mp4)
+void mpeg_ts_multi_program_test(const char* mp4, const char *ts)
 {
 	struct mpeg_ts_multi_program_test_t ctx;
 	memset(&ctx, 0, sizeof(ctx));
-
-	char output[256] = { 0 };
-	snprintf(output, sizeof(output), "%s.ts", mp4);
 
 	struct mpeg_ts_func_t tshandler;
 	tshandler.alloc = ts_alloc;
 	tshandler.write = ts_write;
 	tshandler.free = ts_free;
 
-	FILE* fp = fopen(output, "wb");
+	FILE* fp = fopen(ts, "wb");
+    assert(fp);
 	ctx.ts = mpeg_ts_create(&tshandler, fp);
 
 	FILE* rfp = fopen(mp4, "rb");
+    assert(rfp);
 	mov_reader_t* mov = mov_reader_create(mov_file_buffer(), rfp);
 
 	struct mov_reader_trackinfo_t info = { mov_video_info, mov_audio_info };

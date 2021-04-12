@@ -75,8 +75,11 @@ void mpeg_ts_dec_test(const char* file)
 {
 	unsigned char ptr[188];
 	FILE* fp = fopen(file, "rb");
+    assert(fp);
 	vfp = fopen("v.h264", "wb");
+    assert(vfp);
 	afp = fopen("a.aac", "wb");
+    assert(afp);
 
 	struct ts_demuxer_notify_t notify = {
 		mpeg_ts_dec_testonstream,

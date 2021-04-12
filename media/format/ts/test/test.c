@@ -44,19 +44,23 @@ const struct mov_buffer_t* mov_file_buffer(void)
 }
 
 
-extern void mpeg_ts_test(const char *input);
-extern void mpeg_ts_multi_program_test(const char *mp4);
+extern void mpeg_ts_test(const char *inputTs, const char *outputTs);
+extern void mpeg_ts_multi_program_test(const char *mp4, const char *ts);
 extern void mpeg_ts_dec_test(const char *file);
-extern void mpeg_ts_enc_test(const char *h264, const char *aac);
+extern void mpeg_ts_enc_test(const char *h264, const char *aac, const char *ts);
 
-int main(void)
+int main(int argc, char *argv[])
 {
-
-    /* mpeg_ts_test("/home/lyt/abc.ts"); */
+    /* mpeg_ts_test("/home/lyt/abc.ts", "output.ts"); */
     /* mpeg_ts_dec_test("/home/lyt/abc.ts"); */
-    /* mpeg_ts_multi_program_test("/home/lyt/abc.mp4"); */
-    mpeg_ts_enc_test("/home/lyt/abc.h264", "/home/lyt/abc.aac");
-    mpeg_ts_test("/home/lyt/abc.h264.ts");
+    /* mpeg_ts_multi_program_test("/home/lyt/abc.mp4", "output.ts"); */
+    /* mpeg_ts_enc_test("/home/lyt/abc.h264", "/home/lyt/abc.aac", "output.ts"); */
+    /* mpeg_ts_test("/home/lyt/abc.h264.ts"); */
+    if (argc < 2) {
+        printf("%s: <ts input>\n", argv[0]);
+        return -1;
+    }
+    mpeg_ts_dec_test(argv[1]);
 
     return 0;
 }

@@ -3,6 +3,7 @@
  *
  * Date   : 2021/03/24
  */
+#include <stdio.h>
 
 extern void fmp4_writer_test2(const char *mp4, const char *outmp4);
 extern void mov_reader_test(const char *mp4);
@@ -18,12 +19,18 @@ extern void mov_writer_test(int w, int h, const char *inflv,
 
 #define MP4 "/Users/lyt/abc.mp4"
 int
-main(void)
+main(int argc, char *argv[])
 {
-    fmp4_writer_test2(MP4, "fmp4_writer.mp4");
-    mov_reader_test(MP4);
-    mov_writer_adts_test("a.aac", "adts.mp4");
-    mov_writer_audio("a.aac", 1, "audio.aac");
-    mov_writer_h264("v.h264", 1280, 720, "out.mp4");
+    /* fmp4_writer_test2(MP4, "fmp4_writer.mp4"); */
+    /* mov_writer_adts_test("a.aac", "adts.mp4"); */
+    /* mov_writer_audio("a.aac", 1, "audio.aac"); */
+    /* mov_writer_h264("v.h264", 1280, 720, "out.mp4"); */
+
+    if (argc < 2) {
+        printf("%s: <mp4 file>\n", argv[0]);
+        return -1;
+    }
+    mov_reader_test(argv[1]);
+
     return 0;
 }

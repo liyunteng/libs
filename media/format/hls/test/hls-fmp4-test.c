@@ -26,7 +26,7 @@ static int hls_segment(void* m3u8, const void* data, size_t bytes, int64_t pts, 
 {
 	static int i = 0;
 	static char name[128] = { 0 };
-	snprintf(name, sizeof(name), "/home/lyt/segment-%03d.mp4", ++i);
+	snprintf(name, sizeof(name), "segment-%03d.mp4", ++i);
 	FILE* fp = fopen(name, "wb");
 	fwrite(data, 1, bytes, fp);
 	fclose(fp);
@@ -38,11 +38,11 @@ static int hls_init_segment(hls_fmp4_t* hls, hls_m3u8_t* m3u)
 {
 	int bytes = hls_fmp4_init_segment(hls, s_packet, sizeof(s_packet));
 
-	FILE* fp = fopen("/home/lyt/segment-000.mp4", "wb");
+	FILE* fp = fopen("segment-000.mp4", "wb");
 	fwrite(s_packet, 1, bytes, fp);
 	fclose(fp);
 
-	return hls_m3u8_set_x_map(m3u, "/home/lyt/segment-000.mp4");
+	return hls_m3u8_set_x_map(m3u, "segment-000.mp4");
 }
 
 static void onread(void* param, uint32_t track, const void* buffer, size_t bytes, int64_t pts, int64_t dts, int flags)
@@ -82,7 +82,7 @@ static void mov_audio_info(void* param, uint32_t track, uint8_t object, int chan
     assert(s_atrack >= 0);
 }
 
-void hls_fmp4_test(const char *mp4)
+void hls_fmp4_test(const char *mp4, const char *m3u8)
 {
     FILE *fp = fopen(mp4, "rb");
     assert(fp);
@@ -107,7 +107,7 @@ void hls_fmp4_test(const char *mp4)
     // write m3u8 file
 	hls_m3u8_playlist(m3u, 1, s_packet, sizeof(s_packet));
     printf("%s\n", s_packet);
-    FILE *m3u8fp = fopen("/home/lyt/fmp4.m3u8", "w");
+    FILE *m3u8fp = fopen(m3u8, "w");
     assert(m3u8fp);
     fprintf(m3u8fp, "%s", s_packet);
     fclose(m3u8fp);

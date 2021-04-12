@@ -35,6 +35,7 @@ struct mov_h264_test_t
 static uint8_t* file_read(const char* file, long* size)
 {
 	FILE* fp = fopen(file, "rb");
+    assert(fp);
 	if (fp)
 	{
 		fseek(fp, 0, SEEK_END);
@@ -121,6 +122,7 @@ void mov_writer_h264(const char* h264, int width, int height, const char* mp4)
 	ctx.ptr = ptr;
 
 	FILE* fp = fopen(mp4, "wb+");
+    assert(fp);
 	ctx.mov = mov_writer_create(mov_file_buffer(), fp, MOV_FLAG_FASTSTART);
 	mpeg4_h264_annexb_nalu(ptr, bytes, h264_handler, &ctx);
 	mov_writer_destroy(ctx.mov);

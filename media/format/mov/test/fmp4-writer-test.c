@@ -69,7 +69,9 @@ void fmp4_writer_test(int w, int h, const char* inflv, const char* outmp4)
 	size_t taglen;
 	uint32_t timestamp;
 	FILE* fp = fopen(outmp4, "wb+");
+    assert(fp);
 	void* flv = flv_reader_create(inflv);
+    assert(flv);
 	fmp4_writer_t* mov = fmp4_writer_create(mov_file_buffer(), fp, 0);
 
 	s_width = w;

@@ -31,6 +31,7 @@ struct mov_adts_test_t
 static uint8_t* file_read(const char* file, long* size)
 {
 	FILE* fp = fopen(file, "rb");
+    assert(fp);
 	if (fp)
 	{
 		fseek(fp, 0, SEEK_END);
@@ -88,6 +89,7 @@ void mov_writer_adts_test(const char* file, const char *outfile)
 	ctx.ptr = ptr;
 
 	FILE* fp = fopen(outfile, "wb+");
+    assert(fp);
 	ctx.mov = mov_writer_create(mov_file_buffer(), fp, 0);
 	adts_reader(&ctx, ptr, bytes);
 	mov_writer_destroy(ctx.mov);

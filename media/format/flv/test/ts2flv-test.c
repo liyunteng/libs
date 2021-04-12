@@ -60,6 +60,7 @@ void ts2flv_test(const char* inputTS, const char* outputFLV)
 
 	unsigned char ptr[188];
 	FILE* fp = fopen(inputTS, "rb");
+    assert(fp);
     ts_demuxer_t *ts = ts_demuxer_create(on_ts_packet, m);
     while (1 == fread(ptr, sizeof(ptr), 1, fp))
     {

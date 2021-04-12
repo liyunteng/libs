@@ -126,7 +126,9 @@ void mov_writer_test(int w, int h, const char* inflv, const char* outmp4)
 	uint32_t timestamp;
 
 	FILE* fp = fopen(outmp4, "wb+");
+    assert(fp);
 	void* flv = flv_reader_create(inflv);
+    assert(flv);
 	mov_writer_t* mov = mov_writer_create(mov_file_buffer(), fp, MOV_FLAG_FASTSTART);
 	mov_writer_add_cover(mov, "cover.jpg");
 

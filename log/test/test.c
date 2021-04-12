@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/prctl.h>
 #include <sys/syslog.h>
 #include <unistd.h>
 
@@ -445,7 +444,7 @@ test_format()
 
     log_format_t *format = log_format_create(
         "%d(%Y/%m/%d %H:%M:%S).%ms us(%us) %E(LOGNAME)@%H %c-%M "
-        "%p:%N:tid<%t>:%T "
+        "%p:tid<%t>:%T "
         "[%-5.5V]%C[%-5.5v]%R %.10F:%.5U:%L %m%n");
     log_output_t *output =
         /* log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi", ROTATE_POLICE_BY_TIME, 4*1024, 100); */

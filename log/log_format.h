@@ -41,12 +41,9 @@ struct log_event {
     int level;
 
     const char *file;
-    size_t file_len;
     const char *func;
-    size_t func_len;
     long line;
     const char *tag;
-    size_t tag_len;
 
     const char *fmt;
     va_list ap;
@@ -63,7 +60,6 @@ struct log_event {
 
     pthread_t tid;
     char tid_str[16];
-    char tid_name[16];
     size_t tid_str_len;
 
     char hostname[256];

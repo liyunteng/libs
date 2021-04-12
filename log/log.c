@@ -90,23 +90,16 @@ log_event_update(struct log_handler *handler, struct log_rule *rule, int level,
                  const char *fmt, va_list ap)
 {
     struct log_event *e = &handler->event;
-    e->ident            = handler->ident;
-    e->ident_len        = strlen(handler->ident);
+    if (!e->ident) {
+        e->ident            = handler->ident;
+        e->ident_len        = strlen(handler->ident);
+    }
 
     e->level = level;
     e->file  = file;
-    if (e->file) {
-        e->file_len = strlen(file);
-    }
     e->func = func;
-    if (e->func) {
-        e->func_len = strlen(func);
-    }
     e->line = line;
     e->tag  = tag;
-    if (e->tag) {
-        e->tag_len = strlen(tag);
-    }
 
     e->fmt = fmt;
     va_copy(e->ap, ap);
@@ -122,7 +115,6 @@ log_event_update(struct log_handler *handler, struct log_rule *rule, int level,
         }
     }
 
-    e->hostname_len     = strlen(e->hostname);
     e->timestamp.tv_sec = 0;
 }
 

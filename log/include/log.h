@@ -69,7 +69,6 @@ typedef int (*log_user_callback)(const char *ident, int level, const char *msg,
 // %p pid
 // %t tid
 // %T tid hex
-// %N thread name
 // %C color
 // %R color_reset
 // %n '\n'

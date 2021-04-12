@@ -10,7 +10,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/prctl.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
@@ -107,8 +106,8 @@ static int
 spec_write_file(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
     (void)s;
-    if (e->file_len > 0) {
-        return buf_append(buf, e->file, e->file_len);
+    if (e->file) {
+        return buf_append(buf, e->file, strlen(e->file));
     } else {
         return buf_append(buf, "(file=null)", strlen("(file=null)"));
     }
@@ -118,8 +117,8 @@ static int
 spec_write_func(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
     (void)s;
-    if (e->func_len > 0) {
-        return buf_append(buf, e->func, e->func_len);
+    if (e->func) {
+        return buf_append(buf, e->func, strlen(e->func));
     } else {
         return buf_append(buf, "(func=null)", strlen("(func=null)"));
     }
@@ -136,8 +135,8 @@ static int
 spec_write_tag(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
     (void)s;
-    if (e->tag_len > 0) {
-        return buf_append(buf, e->tag, e->tag_len);
+    if (e->tag) {
+        return buf_append(buf, e->tag, strlen(e->tag));
     } else {
         return buf_append(buf, "(tag=null)", strlen("(tag=null)"));
     }
@@ -198,8 +197,8 @@ static int
 spec_write_tid(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
     (void)s;
-    e->tid = pthread_self();
-    e->tid_str_len = sprintf(e->tid_str, "%lu", e->tid);
+    e->tid         = pthread_self();
+    e->tid_str_len = sprintf(e->tid_str, "%lu", (unsigned long)e->tid);
     return buf_append(buf, e->tid_str, e->tid_str_len);
 }
 
@@ -207,17 +206,9 @@ static int
 spec_write_tid_hex(struct log_spec *s, struct log_event *e, log_buf_t *buf)
 {
     (void)s;
-    e->tid = pthread_self();
+    e->tid         = pthread_self();
     e->tid_str_len = sprintf(e->tid_str, "0x%lx", (unsigned long)e->tid);
     return buf_append(buf, e->tid_str, e->tid_str_len);
-}
-
-static int
-spec_write_thread_name(struct log_spec *s, struct log_event *e, log_buf_t *buf)
-{
-    (void)s;
-    prctl(PR_GET_NAME, e->tid_name, 0, 0, 0);
-    return buf_append(buf, e->tid_name, strlen(e->tid_name));
 }
 
 static int
@@ -474,9 +465,6 @@ spec_create(char *pstart, char **pnext)
             break;
         case 'T': /* tid hex */
             s->write_buf = spec_write_tid_hex;
-            break;
-        case 'N': /* thread name */
-            s->write_buf = spec_write_thread_name;
             break;
         case 'V': /* LEVEL */
             s->write_buf = spec_write_level;

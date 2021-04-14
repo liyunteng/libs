@@ -91,15 +91,15 @@ log_event_update(struct log_handler *handler, struct log_rule *rule, int level,
 {
     struct log_event *e = &handler->event;
     if (!e->ident) {
-        e->ident            = handler->ident;
-        e->ident_len        = strlen(handler->ident);
+        e->ident     = handler->ident;
+        e->ident_len = strlen(handler->ident);
     }
 
     e->level = level;
     e->file  = file;
-    e->func = func;
-    e->line = line;
-    e->tag  = tag;
+    e->func  = func;
+    e->line  = line;
+    e->tag   = tag;
 
     e->fmt = fmt;
     va_copy(e->ap, ap);
@@ -437,18 +437,7 @@ log_rule_create(struct log_handler *handler, struct log_format *format,
         ERROR_LOG("malloc failed: (%s)\n", strerror(errno));
         return NULL;
     }
-
-    if (level_begin >= LOG_EMERG && level_begin <= LOG_VERBOSE) {
-        r->level_begin = level_begin;
-    } else {
-        r->level_begin = LOG_VERBOSE;
-    }
-
-    if (level_end >= LOG_EMERG && level_end <= LOG_VERBOSE) {
-        r->level_end = level_end;
-    } else {
-        r->level_end = LOG_EMERG;
-    }
+    log_rule_set_level(r, level_begin, level_end);
 
     r->format = format;
     r->output = output;
@@ -561,13 +550,13 @@ dump_statstic(struct log_output *output)
     int i;
     if (output) {
         for (i = LOG_VERBOSE; i >= LOG_EMERG; i--) {
-            printf("%-8s  count: %-8d  bytes: %-10llu\n", LOGLEVELSTR[i],
-                   output->stat.stats[i].count,
-                   (unsigned long long)output->stat.stats[i].bytes);
+            DUMP_LOG("%-8s  count: %-8d  bytes: %-10llu\n", LOGLEVELSTR[i],
+                     output->stat.stats[i].count,
+                     (unsigned long long)output->stat.stats[i].bytes);
         }
-        printf("%-8s  count: %-8llu  bytes: %-10llu\n", "TOTAL",
-               (unsigned long long)output->stat.count_total,
-               (unsigned long long)output->stat.bytes_total);
+        DUMP_LOG("%-8s  count: %-8llu  bytes: %-10llu\n", "TOTAL",
+                 (unsigned long long)output->stat.count_total,
+                 (unsigned long long)output->stat.bytes_total);
     }
 }
 
@@ -581,7 +570,8 @@ log_dump(void)
     int output_count  = 0;
     int handler_count = 0;
 
-    printf("=====================log profile==============================\n");
+    DUMP_LOG(
+        "=====================log profile==============================\n");
     struct log_rule *rule;
     list_for_each_entry (rule, &rule_header, rule_entry) {
         rule_count++;
@@ -602,32 +592,34 @@ log_dump(void)
         handler_count++;
     }
 
-    printf("handler: %d output: %d format: %d rule: %d\n", handler_count,
-           output_count, format_count, rule_count);
+    DUMP_LOG("handler: %d output: %d format: %d rule: %d\n", handler_count,
+             output_count, format_count, rule_count);
 
     list_for_each_entry (handler, &handler_header, handler_entry) {
         i++;
         j = 0;
-        printf("------------------------\n");
-        printf("handler: %d\n", i);
-        printf("ident: %s\n", handler->ident);
-        printf("buffer_min: %u\n", (unsigned)handler->event.msg_buf->size_min);
-        printf("buffer_real: %u\n",
-               (unsigned)handler->event.msg_buf->size_real);
-        printf("buffer_max: %u\n", (unsigned)handler->event.msg_buf->size_max);
-        printf("\n");
+        DUMP_LOG("------------------------\n");
+        DUMP_LOG("handler: %d\n", i);
+        DUMP_LOG("ident: %s\n", handler->ident);
+        DUMP_LOG("buffer_min: %u\n",
+                 (unsigned)handler->event.msg_buf->size_min);
+        DUMP_LOG("buffer_real: %u\n",
+                 (unsigned)handler->event.msg_buf->size_real);
+        DUMP_LOG("buffer_max: %u\n",
+                 (unsigned)handler->event.msg_buf->size_max);
+        DUMP_LOG("\n");
         list_for_each_entry (rule, &handler->rules, rule) {
             j++;
-            printf("rule: %d\n", j);
-            printf("format: %s\n", rule->format->format);
-            printf("level: %s -- %s\n", LOGLEVELSTR[rule->level_begin],
-                   LOGLEVELSTR[rule->level_end]);
+            DUMP_LOG("rule: %d\n", j);
+            DUMP_LOG("format: %s\n", rule->format->format);
+            DUMP_LOG("level: %s -- %s\n", LOGLEVELSTR[rule->level_begin],
+                     LOGLEVELSTR[rule->level_end]);
 
             if (rule->output->priv->dump) {
                 rule->output->priv->dump(rule->output);
             }
 
-            printf("\n");
+            DUMP_LOG("\n");
         }
     }
 }

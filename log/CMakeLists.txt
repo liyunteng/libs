@@ -4,5 +4,6 @@ aux_source_directory(${CMAKE_CURRENT_SOURCE_DIR} src_list)
 
 add_library(${name} ${src_list})
 target_link_libraries(${name} pthread)
+target_link_libraries(${name} z)
 
 add_subdirectory(test)

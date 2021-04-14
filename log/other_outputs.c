@@ -17,7 +17,7 @@ static void
 generic_dump(struct log_output *output)
 {
     if (output) {
-        printf("type: %s\n", output->priv->type_name);
+        DUMP_LOG("type: %s\n", output->priv->type_name);
 
         dump_statstic(output);
     }

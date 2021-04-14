@@ -18,21 +18,18 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-#ifndef BOOL
-#define BOOL char
-#endif
-#ifndef TRUE
-#define TRUE 1
-#endif
-#ifndef FALSE
-#define FALSE 0
-#endif
-
-/* #define DEBUG_LOG(fmt, ...) */
+#ifdef _DEBUG_LOG_
 #define DEBUG_LOG(fmt, ...)                                                    \
     fprintf(stdout, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+#else
+#define DEBUG_LOG(fmt, ...)
+#endif
+
+
 #define ERROR_LOG(fmt, ...)                                                    \
     fprintf(stderr, "%s:%d " fmt, __FILE__, __LINE__, ##__VA_ARGS__)
+
+#define DUMP_LOG(fmt, ...) fprintf(stdout, fmt, ##__VA_ARGS__)
 
 
 enum LOG_OPTS {

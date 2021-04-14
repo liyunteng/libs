@@ -29,7 +29,7 @@ static int
 sock_emit(struct log_output *output, struct log_handler *handler)
 {
     struct sock_output_ctx *ctx = NULL;
-    log_buf_t *buf       = NULL;
+    log_buf_t *buf              = NULL;
 
     if (!output) {
         ERROR_LOG("output is NULL\n");
@@ -89,10 +89,10 @@ static void
 sock_ctx_dump(struct log_output *output)
 {
     if (output) {
-        printf("type: %s\n", output->priv->type_name);
+        DUMP_LOG("type: %s\n", output->priv->type_name);
         struct sock_output_ctx *ctx = (struct sock_output_ctx *)output->ctx;
         if (ctx) {
-            printf("addr: %s:%d\n", ctx->addr, ctx->port);
+            DUMP_LOG("addr: %s:%d\n", ctx->addr, ctx->port);
         }
         dump_statstic(output);
     }
@@ -108,7 +108,8 @@ sock_ctx_init(struct log_output *output, va_list ap)
     }
 
     if (output->ctx == NULL) {
-        output->ctx = (struct sock_output_ctx *)calloc(1, sizeof(struct sock_output_ctx));
+        output->ctx =
+            (struct sock_output_ctx *)calloc(1, sizeof(struct sock_output_ctx));
         if (!output->ctx) {
             ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
             goto failed;
@@ -121,7 +122,7 @@ sock_ctx_init(struct log_output *output, va_list ap)
     strncpy(ctx->addr, addr_str, sizeof(ctx->addr));
 
     unsigned port = va_arg(ap, unsigned);
-    ctx->port = port;
+    ctx->port     = port;
 
     if (ctx->sockfd != -1) {
         close(ctx->sockfd);

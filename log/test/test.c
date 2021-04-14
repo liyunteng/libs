@@ -238,7 +238,7 @@ test_log_thread()
         log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
                           ROTATE_POLICE_BY_SIZE, 1024 * 1024 * 4, 4);
 #else
-    log_output_t *o = log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi",
+    log_output_t *o      = log_output_create(LOG_OUTTYPE_MMAP, "logs", "ihi",
                                         ROTATE_POLICE_BY_SIZE, 1024 * 1024 * 4,
                                         4, 4 * 1024 * 1024, 1000);
 #endif
@@ -315,12 +315,12 @@ test_log_benchmark()
         LOG_OUTTYPE_MMAP, "logs", "ihi", ROTATE_POLICE_BY_SIZE,
         1024 * 1024 * 1024, 4, 1 * 1024 * 1024, 1000);
 #else
-    log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
-                                             ROTATE_POLICE_BY_TIME);
-
     /* log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
-     *                                          ROTATE_POLICE_BY_SIZE,
-     *                                          1024 * 1024 * 1024, 4); */
+     *                                          ROTATE_POLICE_BY_TIME); */
+
+    log_output_t *output = log_output_create(LOG_OUTTYPE_FILE, "logs", "ihi",
+                                             ROTATE_POLICE_BY_SIZE,
+                                             1024 * 1024, 4);
 #endif
     log_handler_t *handler = log_handler_create("ihi");
     log_rule_create(handler, format, output, -1, -1);
@@ -329,23 +329,23 @@ test_log_benchmark()
     unsigned i;
     for (i = 0; i < 16 * 1024 * 1024; i++) {
         LOGV("this is a verbose");
-        usleep(1 * 1000 * 1000);
+        /* usleep(100 * 1000); */
         LOGD("this is a debug");
-        usleep(1 * 1000 * 1000);
+        /* usleep(100 * 1000); */
         LOGI("this is a info");
-        usleep(1 * 1000 * 1000);
+        /* usleep(100 * 1000); */
         LOGN("this is a notice");
-        usleep(1 * 1000 * 1000);
+        /* usleep(100 * 1000); */
         LOGW("this is a warning");
-        usleep(1 * 1000 * 1000);
+        /* usleep(100 * 1000); */
         LOGE("this is a error");
-        usleep(1 * 1000 * 1000);
+        /* usleep(100 * 1000); */
         LOGF("this is a fatal");
-        usleep(1 * 1000 * 1000);
+        /* usleep(100 * 1000); */
         LOGA("this is a alert");
-        usleep(1 * 1000 * 1000);
+        /* usleep(100 * 1000); */
         LOGP("this is a emerge");
-        usleep(1 * 1000 * 1000);
+        /* usleep(100 * 1000); */
     }
     LOGP("this end");
 

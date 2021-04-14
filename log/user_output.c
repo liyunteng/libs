@@ -17,10 +17,10 @@ struct user_output_ctx {
 static int
 user_emit(struct log_output *output, struct log_handler *handler)
 {
+    log_buf_t *buf              = NULL;
+    size_t len                  = 0;
+    int write_len               = 0;
     struct user_output_ctx *ctx = NULL;
-    log_buf_t *buf       = NULL;
-    size_t len = 0;
-    int write_len = 0;
 
     if (!output) {
         ERROR_LOG("output is NULL\n");
@@ -60,11 +60,11 @@ static void
 user_ctx_dump(struct log_output *output)
 {
     if (output) {
-        printf("type: %s\n", output->priv->type_name);
+        DUMP_LOG("type: %s\n", output->priv->type_name);
         struct user_output_ctx *ctx = (struct user_output_ctx *)output->ctx;
         if (ctx) {
-            printf("callback: %p\n", ctx->cb);
-            printf("param: %p\n", ctx->param);
+            DUMP_LOG("callback: %p\n", ctx->cb);
+            DUMP_LOG("param: %p\n", ctx->param);
         }
         dump_statstic(output);
     }
@@ -80,19 +80,20 @@ user_ctx_init(struct log_output *output, va_list ap)
     }
 
     if (output->ctx == NULL) {
-        output->ctx = (struct user_output_ctx *)calloc(1, sizeof(struct user_output_ctx));
+        output->ctx =
+            (struct user_output_ctx *)calloc(1, sizeof(struct user_output_ctx));
         if (!output->ctx) {
             ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
             goto failed;
         }
     }
 
-    ctx = (struct user_output_ctx *)output->ctx;
+    ctx                  = (struct user_output_ctx *)output->ctx;
     log_user_callback cb = va_arg(ap, log_user_callback);
-    ctx->cb = cb;
+    ctx->cb              = cb;
 
     void *param = va_arg(ap, void *);
-    ctx->param = param;
+    ctx->param  = param;
 
     return 0;
 

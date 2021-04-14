@@ -21,12 +21,12 @@ static void
 syslog_ctx_dump(struct log_output *output)
 {
     if (output) {
-        printf("type: %s\n", output->priv->type_name);
+        DUMP_LOG("type: %s\n", output->priv->type_name);
         struct syslog_output_ctx *ctx = (struct syslog_output_ctx *)output->ctx;
         if (ctx) {
-            printf("ident:    %s\n", ctx->ident);
-            printf("options:  0x%x\n", ctx->options);
-            printf("facility: 0x%x\n", ctx->facility);
+            DUMP_LOG("ident:    %s\n", ctx->ident);
+            DUMP_LOG("options:  0x%x\n", ctx->options);
+            DUMP_LOG("facility: 0x%x\n", ctx->facility);
         }
         dump_statstic(output);
     }
@@ -42,7 +42,8 @@ syslog_ctx_init(struct log_output *output, va_list ap)
     }
 
     if (output->ctx == NULL) {
-        output->ctx = (struct syslog_output_ctx *)calloc(1, sizeof(struct syslog_output_ctx));
+        output->ctx = (struct syslog_output_ctx *)calloc(
+            1, sizeof(struct syslog_output_ctx));
         if (!output->ctx) {
             ERROR_LOG("calloc failed: (%s)\n", strerror(errno));
             return -1;
@@ -52,7 +53,7 @@ syslog_ctx_init(struct log_output *output, va_list ap)
     ctx = (struct syslog_output_ctx *)output->ctx;
 
     char *ident = va_arg(ap, char *);
-    ctx->ident = strdup(ident);
+    ctx->ident  = strdup(ident);
 
     int options  = va_arg(ap, int);
     ctx->options = options;

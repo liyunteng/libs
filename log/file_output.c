@@ -82,7 +82,7 @@ check_can_write_bytes(struct log_output *output, struct log_handler *handler)
     } else if (ctx->rotate_police == ROTATE_POLICE_BY_TIME) {
         ts = (handler->event.timestamp.tv_sec == 0 ?
                   log_get_ms() :
-                  (uint64_t)(handler->event.timestamp.tv_sec * 1000
+                  ((uint64_t)handler->event.timestamp.tv_sec * 1000
                              + handler->event.timestamp.tv_usec / 1000));
 
         if (ts > ctx->file_timestamp

@@ -142,8 +142,8 @@ void log_printf(log_handler_t *handler, int level, const char *file,
                 const char *function, long line, const char *tag,
                 const char *format, ...);
 void log_vprintf(log_handler_t *handler, int level, const char *file,
-                 const char *function, long line, const char *format,
-                 const char *tag, va_list ap);
+                 const char *function, long line, const char *tag,
+                 const char *format, va_list ap);
 
 #define CLOG_PRINTF(handler, level, fmt...)                                    \
     do {                                                                       \

@@ -173,11 +173,21 @@ void log_vprintf(log_handler_t *handler, int level, const char *file,
         LOG_OPT_IF(E, !(cond), return ret, fmt);                               \
     } while (0)
 
+#define BASENAME(x) strrchr(x, '/') ? strrchr(x, '/') + 1 : x
+#ifdef NDEBUG
 #define ASSERT(cond)                                                           \
     do {                                                                       \
-        LOG_OPT_IF(F, !(cond), abort(), "ASSERT FAILED: " #cond);              \
+        LOG_IF(F, !(cond), "%s:%s:%ld ASSERT FAILED: " #cond " !!",            \
+               BASENAME(__FILE__), __FUNCTION__, __LINE__);                    \
     } while (0)
-
+#else
+#define ASSERT(cond)                                                           \
+    do {                                                                       \
+        LOG_OPT_IF(F, !(cond), abort(),                                        \
+                   "%s:%s:%ld ASSERT FAILED: " #cond " !!",                    \
+                   BASENAME(__FILE__), __FUNCTION__, __LINE__);                \
+    } while (0)
+#endif
 
 #define CLOGV(handler, fmt...) CLOG_PRINTF(handler, LOG_VERBOSE, fmt)
 #define CLOGD(handler, fmt...) CLOG_PRINTF(handler, LOG_DEBUG, fmt)

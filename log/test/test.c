@@ -3,7 +3,7 @@
  *
  * Date   : 2021/01/17
  */
-
+#define NDEBUG
 #include "log.h"
 #include "macro.h"
 #include "simple_log.h"
@@ -39,10 +39,11 @@ test_misc(void)
     ALERT("this is alert");
     PANIC("this is panic");
     int a = 0, b = 1;
-    DEBUG_IF(a != 0, "a is 0");
-    ERROR_IF(a <= 0, "a <= 0");
+    DEBUG_IF(a == 0, "a is 0");
+    DEBUG_IF(b == 1, "b is 1");
+    INFO_IF(a > 0, "a > 0");
 
-    ASSERT(a < b);
+    ASSERT(a == b);
     CHK(1==0, -1, "CHK 1==0 failed");
 
     INFO("here");

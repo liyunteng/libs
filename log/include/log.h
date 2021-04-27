@@ -145,11 +145,39 @@ void log_vprintf(log_handler_t *handler, int level, const char *file,
                  const char *function, long line, const char *tag,
                  const char *format, va_list ap);
 
+
+// MACROS
 #define CLOG_PRINTF(handler, level, fmt...)                                    \
     do {                                                                       \
         log_printf(handler, level, __FILE__, __FUNCTION__, __LINE__, TAG,      \
                    fmt);                                                       \
     } while (0)
+
+#define LOG_IF(level, cond, fmt...)                                            \
+    do {                                                                       \
+        if ((cond)) {                                                          \
+            LOG##level(fmt);                                                   \
+        }                                                                      \
+    } while (0)
+
+#define LOG_OPT_IF(level, cond, opt, fmt...)                                   \
+    do {                                                                       \
+        if ((cond)) {                                                          \
+            LOG##level(fmt);                                                   \
+            opt;                                                               \
+        }                                                                      \
+    } while (0)
+
+#define CHK(cond, ret, fmt...)                                                 \
+    do {                                                                       \
+        LOG_OPT_IF(E, !(cond), return ret, fmt);                               \
+    } while (0)
+
+#define ASSERT(cond)                                                           \
+    do {                                                                       \
+        LOG_OPT_IF(F, !(cond), abort(), "ASSERT FAILED: " #cond);              \
+    } while (0)
+
 
 #define CLOGV(handler, fmt...) CLOG_PRINTF(handler, LOG_VERBOSE, fmt)
 #define CLOGD(handler, fmt...) CLOG_PRINTF(handler, LOG_DEBUG, fmt)
@@ -171,6 +199,16 @@ void log_vprintf(log_handler_t *handler, int level, const char *file,
 #define LOGA(fmt...) CLOG_PRINTF(log_handler_get_default(), LOG_ALERT, fmt)
 #define LOGP(fmt...) CLOG_PRINTF(log_handler_get_default(), LOG_PANIC, fmt)
 
+#define LOGV_IF(cond, fmt...) LOG_IF(V, cond, fmt)
+#define LOGD_IF(cond, fmt...) LOG_IF(D, cond, fmt)
+#define LOGI_IF(cond, fmt...) LOG_IF(I, cond, fmt)
+#define LOGN_IF(cond, fmt...) LOG_IF(N, cond, fmt)
+#define LOGW_IF(cond, fmt...) LOG_IF(W, cond, fmt)
+#define LOGE_IF(cond, fmt...) LOG_IF(E, cond, fmt)
+#define LOGF_IF(cond, fmt...) LOG_IF(F, cond, fmt)
+#define LOGA_IF(cond, fmt...) LOG_IF(A, cond, fmt)
+#define LOGP_IF(cond, fmt...) LOG_IF(P, cond, fmt)
+
 #define VERBOSE(fmt...) LOGV(fmt)
 #define DEBUG(fmt...)   LOGD(fmt)
 #define INFO(fmt...)    LOGI(fmt)
@@ -181,38 +219,16 @@ void log_vprintf(log_handler_t *handler, int level, const char *file,
 #define ALERT(fmt...)   LOGA(fmt)
 #define PANIC(fmt...)   LOGP(fmt)
 
-#define LOG_OPT_IF(level, cond, opt, fmt...)                                   \
-    do {                                                                       \
-        if ((cond)) {                                                          \
-            LOG##level(fmt);                                                   \
-            opt;                                                               \
-        }                                                                      \
-    } while (0)
+#define VERBOSE_IF(cond, fmt...) LOGV_IF(cond, fmt)
+#define DEBUG_IF(cond, fmt...)   LOGD_IF(cond, fmt)
+#define INFO_IF(cond, fmt...)    LOGI_IF(cond, fmt)
+#define NOTICE_IF(cond, fmt...)  LOGN_IF(cond, fmt)
+#define WARN_IF(cond, fmt...)    LOGW_IF(cond, fmt)
+#define ERROR_IF(cond, fmt...)   LOGE_IF(cond, fmt)
+#define FATAL_IF(cond, fmt...)   LOGF_IF(cond, fmt)
+#define ALERT_IF(cond, fmt...)   LOGA_IF(cond, fmt)
+#define PANIC_IF(cond, fmt...)   LOGP_IF(cond, fmt)
 
-#define CHK(cond, ret, fmt...)                                                 \
-    do {                                                                       \
-        LOG_OPT_IF(E, !(cond), return ret, fmt);                               \
-    } while (0)
-
-#define ASSERT(cond)                                                           \
-    do {                                                                       \
-        LOG_OPT_IF(F, !(cond), abort(), "ASSERT FAILED: " #cond);              \
-    } while (0)
-
-#define LOG_IF(level, cond, fmt...)                                            \
-    do {                                                                       \
-        if ((cond)) {                                                          \
-            LOG##level(fmt);                                                   \
-        }                                                                      \
-    } while (0)
-
-#define VERBOSE_IF(cond, fmt...) LOG_IF(V, cond, fmt)
-#define DEBUG_IF(cond, fmt...)   LOG_IF(D, cond, fmt)
-#define INFO_IF(cond, fmt...)    LOG_IF(I, cond, fmt)
-#define WARN_IF(cond, fmt...)    LOG_IF(W, cond, fmt)
-#define ERROR_IF(cond, fmt...)   LOG_IF(E, cond, fmt)
-#define FATAL_IF(cond, fmt...)   LOG_IF(F, cond, fmt)
-#define PANIC_IF(cond, fmt...)   LOG_IF(P, cond, fmt)
 
 #ifdef __cplusplus
 }

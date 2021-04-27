@@ -171,6 +171,49 @@ void log_vprintf(log_handler_t *handler, int level, const char *file,
 #define LOGA(fmt...) CLOG_PRINTF(log_handler_get_default(), LOG_ALERT, fmt)
 #define LOGP(fmt...) CLOG_PRINTF(log_handler_get_default(), LOG_PANIC, fmt)
 
+#define VERBOSE(fmt...) LOGV(fmt)
+#define DEBUG(fmt...)   LOGD(fmt)
+#define INFO(fmt...)    LOGI(fmt)
+#define NOTICE(fmt...)  LOGN(fmt)
+#define WARN(fmt...)    LOGW(fmt)
+#define ERROR(fmt...)   LOGE(fmt)
+#define FATAL(fmt...)   LOGF(fmt)
+#define ALERT(fmt...)   LOGA(fmt)
+#define PANIC(fmt...)   LOGP(fmt)
+
+#define LOG_OPT_IF(level, cond, opt, fmt...)                                   \
+    do {                                                                       \
+        if ((cond)) {                                                          \
+            LOG##level(fmt);                                                   \
+            opt;                                                               \
+        }                                                                      \
+    } while (0)
+
+#define CHK(cond, ret, fmt...)                                                 \
+    do {                                                                       \
+        LOG_OPT_IF(E, !(cond), return ret, fmt);                               \
+    } while (0)
+
+#define ASSERT(cond)                                                           \
+    do {                                                                       \
+        LOG_OPT_IF(F, !(cond), abort(), "ASSERT FAILED: " #cond);              \
+    } while (0)
+
+#define LOG_IF(level, cond, fmt...)                                            \
+    do {                                                                       \
+        if ((cond)) {                                                          \
+            LOG##level(fmt);                                                   \
+        }                                                                      \
+    } while (0)
+
+#define VERBOSE_IF(cond, fmt...) LOG_IF(V, cond, fmt)
+#define DEBUG_IF(cond, fmt...)   LOG_IF(D, cond, fmt)
+#define INFO_IF(cond, fmt...)    LOG_IF(I, cond, fmt)
+#define WARN_IF(cond, fmt...)    LOG_IF(W, cond, fmt)
+#define ERROR_IF(cond, fmt...)   LOG_IF(E, cond, fmt)
+#define FATAL_IF(cond, fmt...)   LOG_IF(F, cond, fmt)
+#define PANIC_IF(cond, fmt...)   LOG_IF(P, cond, fmt)
+
 #ifdef __cplusplus
 }
 #endif

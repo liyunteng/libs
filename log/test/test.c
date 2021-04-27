@@ -24,6 +24,31 @@ const char *module_name = "abc";
 
 TODO(THIS IS A TEST);
 
+int
+test_misc(void)
+{
+    simple_log_init("logs", "ihi", LOG_VERBOSE);
+
+    VERBOSE("this is %s", "verbose");
+    DEBUG("this is debug");
+    INFO("this is info");
+    NOTICE("this is notice");
+    WARN("this is warnning");
+    ERROR("this is error");
+    FATAL("this is fatal");
+    ALERT("this is alert");
+    PANIC("this is panic");
+    int a = 0, b = 1;
+    DEBUG_IF(a != 0, "a is 0");
+    ERROR_IF(a <= 0, "a <= 0");
+
+    ASSERT(a < b);
+    CHK(1==0, -1, "CHK 1==0 failed");
+
+    INFO("here");
+    return 0;
+}
+
 void
 test_simple(void)
 {
@@ -555,6 +580,7 @@ test_big_buf(void)
 int
 main(int argc, char *argv[])
 {
+    test_misc();
     /* test_simple(); */
     /* test_size(); */
     /* test_callback(); */
@@ -568,7 +594,7 @@ main(int argc, char *argv[])
     /* test_big_buf(); */
 
     /* test_mlog_benchmark(); */
-    test_log_benchmark();
+    /* test_log_benchmark(); */
     /* test_log_big_benchmark(); */
 
     return 0;
